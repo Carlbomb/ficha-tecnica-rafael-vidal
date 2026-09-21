@@ -1589,6 +1589,112 @@ function atualizarLinhaFicha(index) {
 
 function calcularFicha() {
   let custoTotal = 0;
+  let rendimento = 0;
+
+  ITENS_FICHA.forEach(item => {
+    const insumo =
+      obterInsumo(item.insumo_id);
+
+    const pesoLiquido =
+      num(item.peso_liquido);
+
+    rendimento += pesoLiquido;
+
+    if (!insumo) return;
+
+    custoTotal +=
+      pesoLiquido *
+      num(insumo.preco_real);
+  });
+
+  const porcoes =
+    num($("#porcoes")?.value);
+
+  const pesoPorcao =
+    porcoes > 0
+      ? rendimento / porcoes
+      : 0;
+
+  const custoPorcao =
+    porcoes > 0
+      ? custoTotal / porcoes
+      : 0;
+
+  const precoVenda =
+    custoPorcao > 0
+      ? custoPorcao / 0.30
+      : 0;
+
+  const cmv =
+    precoVenda > 0
+      ? (custoPorcao / precoVenda) * 100
+      : 0;
+
+  const rendimentoEl =
+    $("#rendimento");
+
+  const pesoEl =
+    $("#pesoPorcao");
+
+  const precoVendaEl =
+    $("#precoVenda");
+
+  const totalEl =
+    $("#resumoTotal");
+
+  const porcaoEl =
+    $("#resumoPorcao");
+
+  const vendaEl =
+    $("#resumoVenda");
+
+  const cmvEl =
+    $("#resumoCMV");
+
+  const metaEl =
+    $("#resumoMeta");
+
+  if (rendimentoEl) {
+    rendimentoEl.value =
+      rendimento.toFixed(4);
+  }
+
+  if (pesoEl) {
+    pesoEl.value =
+      pesoPorcao.toFixed(4);
+  }
+
+  if (precoVendaEl) {
+    precoVendaEl.value =
+      precoVenda.toFixed(2);
+  }
+
+  if (totalEl) {
+    totalEl.textContent =
+      moeda(custoTotal);
+  }
+
+  if (porcaoEl) {
+    porcaoEl.textContent =
+      moeda(custoPorcao);
+  }
+
+  if (vendaEl) {
+    vendaEl.textContent =
+      moeda(precoVenda);
+  }
+
+  if (cmvEl) {
+    cmvEl.textContent =
+      `${numero(cmv, 1)}%`;
+  }
+
+  if (metaEl) {
+    metaEl.textContent =
+      moeda(precoVenda);
+  }
+} {
+  let custoTotal = 0;
 
   ITENS_FICHA.forEach(item => {
     const insumo =
