@@ -1652,7 +1652,7 @@ function calcularFicha() {
       );
   }
 
-  co  const total =
+const total =
     $("#resumoTotal");
 
   const porcao =
