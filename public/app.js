@@ -53,12 +53,12 @@ async function A(u,o={}){
 
   throw Error(
    e.error||"Falha na operação"
-  )
+  );
  }
 
  return r.status==204
   ?null
-  :r.json()
+  :r.json();
 }
 
 
@@ -75,14 +75,14 @@ async function L(){
    A("/api/fichas")
   ]);
 
-  R()
+  R();
 
  }catch(e){
 
   C.innerHTML=
    '<div class="error">'+
    E(e.message)+
-   '</div>'
+   '</div>';
  }
 }
 
@@ -97,7 +97,7 @@ function K(x){
   ?"good"
   :N(x)<=35
    ?"warn"
-   :"bad"
+   :"bad";
 }
 
 
@@ -117,7 +117,7 @@ function CV(q,u,b){
  if(u=="L"&&b=="ML")
   return q*1000;
 
- return q
+ return q;
 }
 
 
@@ -127,14 +127,14 @@ function DU(b){
   ?"G"
   :b=="L"
    ?"ML"
-   :b
+   :b;
 }
 
 
 function COD(id){
 
  return "INS-"+
-  String(id).padStart(3,"0")
+  String(id).padStart(3,"0");
 }
 
 
@@ -142,7 +142,7 @@ function PG(x){
 
  return Math.round(
   N(x)*1000
- ).toLocaleString("pt-BR")+" g"
+ ).toLocaleString("pt-BR")+" g";
 }
 
 
@@ -164,7 +164,7 @@ function S(){
   a.length
    ?a.reduce((x,y)=>x+y,0)/a.length
    :0
- )
+ );
 }
 
 
@@ -263,7 +263,7 @@ function R(){
      Cadastre o primeiro insumo.
     </div>`
   }
-  `
+  `;
  }
 
 
@@ -361,7 +361,7 @@ function R(){
      Crie a primeira ficha técnica.
     </div>`
   }
-  `
+  `;
  }
 
 
@@ -416,7 +416,7 @@ function R(){
      O CMV aparecerá após cadastrar fichas.
     </div>`
   }
-  `
+  `;
  }
 }
 
@@ -562,7 +562,7 @@ function FI(i={}){
    "Preço real: "+
    M(
     N($("#pc").value)*fc
-   )
+   );
  }
 
 
@@ -620,13 +620,13 @@ function FI(i={}){
    );
 
 
-   await L()
+   await L();
 
   }catch(e){
 
-   alert(e.message)
+   alert(e.message);
   }
- }
+ };
 }
 
 
@@ -661,11 +661,11 @@ window.DI=async id=>{
     }
    );
 
-   await L()
+   await L();
 
   }catch(e){
 
-   alert(e.message)
+   alert(e.message);
   }
  }
 };
@@ -707,8 +707,8 @@ function sync(){
     $("#"+campos[k]);
 
    if(e)
-    D[k]=e.value
-  })
+    D[k]=e.value;
+  });
 }
 
 
@@ -772,7 +772,7 @@ function totals(){
 
   peso:pesoPorcao
 
- }
+ };
 }
 
 
@@ -1058,16 +1058,12 @@ function ED(){
 
     </div>
 
-    `
+    `;
    }).join("")
   }
 
  </div>
- /* =========================
-   RESUMO DA FICHA
-========================= */
 
- C.innerHTML+=`
 
  <div class="card">
 
@@ -1189,9 +1185,7 @@ function ED(){
     CMV de 30%:
 
     <b id="meta">
-
      ${M(z.meta)}
-
     </b>
 
    </div>
@@ -1318,7 +1312,7 @@ function ED(){
 
 
   $("#meta").textContent=
-   M(a.meta)
+   M(a.meta);
  }
 
 
@@ -1355,7 +1349,7 @@ function ED(){
        String(x.id)==
        $("#si").value
      )?.unidade
-    )
+    );
   };
 
 
@@ -1386,7 +1380,7 @@ function ED(){
      "Informe o ingrediente e a quantidade."
     );
 
-    return
+    return;
    }
 
 
@@ -1415,15 +1409,13 @@ function ED(){
    });
 
 
-   ED()
-  }
+   ED();
+  };
  }
 
 
- $("#sf").onclick=SAVE
-}
-
-
+ $("#sf").onclick=SAVE;
+  }
 /* =========================
    REMOVER INGREDIENTE
 ========================= */
@@ -1434,7 +1426,7 @@ window.RI=n=>{
 
  D.itens.splice(n,1);
 
- ED()
+ ED();
 };
 
 
@@ -1457,7 +1449,7 @@ window.NF=()=>{
 
  };
 
- ED()
+ ED();
 };
 
 
@@ -1520,11 +1512,11 @@ window.EF=async id=>{
   };
 
 
-  ED()
+  ED();
 
  }catch(e){
 
-  alert(e.message)
+  alert(e.message);
  }
 };
 
@@ -1548,7 +1540,7 @@ async function SAVE(){
     "Informe o nome do prato."
    );
 
-   return
+   return;
   }
 
 
@@ -1560,7 +1552,7 @@ async function SAVE(){
     "Informe uma quantidade de porções válida."
    );
 
-   return
+   return;
   }
 
 
@@ -1626,7 +1618,7 @@ async function SAVE(){
      {
       method:"DELETE"
      }
-    )
+    );
    }
 
   }else{
@@ -1643,7 +1635,7 @@ async function SAVE(){
       JSON.stringify(body)
 
     }
-   )
+   );
   }
 
 
@@ -1681,7 +1673,7 @@ async function SAVE(){
 
       })
     }
-   )
+   );
   }
 
 
@@ -1689,11 +1681,11 @@ async function SAVE(){
 
   T="fichas";
 
-  await L()
+  await L();
 
  }catch(e){
 
-  alert(e.message)
+  alert(e.message);
  }
 }
 
@@ -1722,11 +1714,11 @@ window.DF=async id=>{
    );
 
 
-   await L()
+   await L();
 
   }catch(e){
 
-   alert(e.message)
+   alert(e.message);
   }
  }
 };
@@ -1924,7 +1916,7 @@ window.OF=async id=>{
 
      </div>
 
-     `
+     `;
     }).join("")
    }
 
@@ -2028,7 +2020,7 @@ window.OF=async id=>{
    </button>
 
   </div>
-  `
+  `;
 
  }catch(e){
 
@@ -2036,7 +2028,7 @@ window.OF=async id=>{
 
    '<div class="error">'+
    E(e.message)+
-   '</div>'
+   '</div>';
  }
 };
 
@@ -2057,9 +2049,13 @@ document
 
    D=null;
 
-   R()
-  }
+   R();
+  };
  });
 
+
+/* =========================
+   INICIAR APLICATIVO
+========================= */
 
 L();
