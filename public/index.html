@@ -1,5 +1,124 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#17241d"><title>Ficha Técnica Rafael Vidal</title><link rel="stylesheet" href="/style.css"></head>
-<body><header><div><small>GESTÃO DE COZINHA</small><h1>Ficha Técnica <span>Rafael Vidal</span></h1><p>Banco de insumos, fichas técnicas e CMV</p></div><button onclick="novaFicha()">+ Nova ficha</button></header>
-<main><section class="stats"><article><b id="ni">—</b><span>Insumos</span></article><article><b id="nf">—</b><span>Fichas técnicas</span></article><article><b id="avg">—</b><span>CMV médio</span></article></section>
-<nav><button data-tab="insumos" class="active">Insumos</button><button data-tab="fichas">Fichas Técnicas</button><button data-tab="cmv">CMV</button></nav><section id="content"><div class="card">Carregando…</div></section></main>
-<script src="/app.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#17241d"
+  >
+
+  <meta
+    name="description"
+    content="Sistema de Fichas Técnicas Rafael Vidal"
+  >
+
+  <title>Ficha Técnica Rafael Vidal</title>
+
+  <link
+    rel="stylesheet"
+    href="/style.css?v=4"
+  >
+</head>
+
+<body>
+
+  <header class="top-header">
+
+    <div class="brand">
+      <small>GESTÃO DE COZINHA</small>
+
+      <h1>
+        Ficha Técnica
+        <span>Rafael Vidal</span>
+      </h1>
+
+      <p>
+        Banco de dados, fichas técnicas e CMV
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="header-new"
+      onclick="novaFicha()"
+    >
+      + Nova ficha
+    </button>
+
+  </header>
+
+  <main>
+
+    <section class="stats">
+
+      <article>
+        <span>Insumos</span>
+        <b id="ni">—</b>
+      </article>
+
+      <article>
+        <span>Fichas Técnicas</span>
+        <b id="nf">—</b>
+      </article>
+
+      <article>
+        <span>CMV Médio</span>
+        <b id="avg">—</b>
+      </article>
+
+    </section>
+
+    <nav class="main-nav">
+
+      <button
+        type="button"
+        data-tab="insumos"
+        class="active"
+      >
+        Banco de Dados
+      </button>
+
+      <button
+        type="button"
+        data-tab="fichas"
+      >
+        Fichas Técnicas
+      </button>
+
+      <button
+        type="button"
+        data-tab="cmv"
+      >
+        CMV
+      </button>
+
+    </nav>
+
+    <section id="content">
+      <div class="card">
+        Carregando...
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <span>
+      Sistema de Gestão de Fichas Técnicas
+    </span>
+
+    <strong>Rafael Vidal</strong>
+  </footer>
+
+  <script src="/app.js?v=4"></script>
+
+</body>
+
+</html>
