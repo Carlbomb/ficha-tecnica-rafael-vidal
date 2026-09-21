@@ -1693,7 +1693,6 @@ function calcularFicha() {
     metaEl.textContent =
       moeda(precoVenda);
   }
-} {
   let custoTotal = 0;
 
   ITENS_FICHA.forEach(item => {
@@ -1757,47 +1756,6 @@ function calcularFicha() {
         4
       );
   }
-
-const total =
-    $("#resumoTotal");
-
-  const porcao =
-    $("#resumoPorcao");
-
-  const venda =
-    $("#resumoVenda");
-
-  const cmvEl =
-    $("#resumoCMV");
-
-  const meta =
-    $("#resumoMeta");
-
-  if (total) {
-    total.textContent =
-      moeda(custoTotal);
-  }
-
-  if (porcao) {
-    porcao.textContent =
-      moeda(custoPorcao);
-  }
-
-  if (venda) {
-    venda.textContent =
-      moeda(precoVenda);
-  }
-
-  if (cmvEl) {
-    cmvEl.textContent =
-      `${numero(cmv, 1)}%`;
-  }
-
-  if (meta) {
-    meta.textContent =
-      moeda(precoMeta);
-  }
-}
 
 /* =========================================================
    SALVAR FICHA
