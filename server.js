@@ -87,7 +87,7 @@ app.delete("/api/insumos/:id",asyncRoute(async(req,res)=>{
 
 const fichaSelect=`
 SELECT f.*,
-  COALESCE(SUM(i.quantidade * CASE WHEN i.unidade='G' AND ins.unidade='KG' THEN 0.001 WHEN i.unidade='ML' AND ins.unidade='L' THEN 0.001 WHEN i.unidade='KG' AND ins.unidade='G' THEN 1000 WHEN i.unidade='L' AND ins.unidade='ML' THEN 1000 ELSE 1 END * ins.preco_real),0)::numeric AS custo_total,,0)::numeric AS custo_total,
+  COALESCE(SUM(i.quantidade * CASE WHEN i.unidade='G' AND ins.unidade='KG' THEN 0.001 WHEN i.unidade='ML' AND ins.unidade='L' THEN 0.001 WHEN i.unidade='KG' AND ins.unidade='G' THEN 1000 WHEN i.unidade='L' AND ins.unidade='ML' THEN 1000 ELSE 1 END * ins.preco_real),0)::numeric AS custo_total,
   CASE WHEN f.porcoes>0 THEN (COALESCE(SUM(i.quantidade * CASE WHEN i.unidade='G' AND ins.unidade='KG' THEN 0.001 WHEN i.unidade='ML' AND ins.unidade='L' THEN 0.001 WHEN i.unidade='KG' AND ins.unidade='G' THEN 1000 WHEN i.unidade='L' AND ins.unidade='ML' THEN 1000 ELSE 1 END * ins.preco_real),0)/f.porcoes)::numeric ELSE 0 END AS custo_por_porcao,
   CASE WHEN f.porcoes>0 AND f.preco_venda>0 THEN ((COALESCE(SUM(i.quantidade * CASE WHEN i.unidade='G' AND ins.unidade='KG' THEN 0.001 WHEN i.unidade='ML' AND ins.unidade='L' THEN 0.001 WHEN i.unidade='KG' AND ins.unidade='G' THEN 1000 WHEN i.unidade='L' AND ins.unidade='ML' THEN 1000 ELSE 1 END * ins.preco_real),0)/f.porcoes)/f.preco_venda*100)::numeric ELSE 0 END AS cmv_percentual,
  CASE WHEN f.porcoes>0 THEN (f.rendimento_kg/f.porcoes)::numeric ELSE 0 END AS peso_por_porcao
