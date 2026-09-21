@@ -98,7 +98,7 @@ app.get("/api/fichas",asyncRoute(async(_,res)=>{
 app.get("/api/fichas/:id",asyncRoute(async(req,res)=>{
  const {rows}=await pool.query(fichaSelect+" WHERE f.id=$1 GROUP BY f.id",[req.params.id]);
  if(!rows[0]) return res.status(404).json({error:"Ficha não encontrada"});
- const ing=await pool.query(`SELECT i.*,ins.ingrediente,ins.preco_real,(i.quantidade*ins.preco_real)::numeric custo_item FROM ingredientes i JOIN insumos ins ON ins.id=i.insumo_id WHERE ficha_id=$1 ORDER BY ordem,id`,[req.params.id]);
+ const ing=await pool.query(`SELECT i.*,ins.ingrediente,ins.preco_real,(i.quantidade * CASE WHEN i.unidade='G' AND ins.unidade='KG' THEN 0.001 WHEN i.unidade='ML' AND ins.unidade='L' THEN 0.001 WHEN i.unidade='KG' AND ins.unidade='G' THEN 1000 WHEN i.unidade='L' AND ins.unidade='ML' THEN 1000 ELSE 1 END * ins.preco_real)::numeric custo_item FROM ingredientes i JOIN insumos ins ON ins.id=i.insumo_id WHERE ficha_id=$1 ORDER BY ordem,id`,[req.params.id]);
  res.json({...rows[0],ingredientes:ing.rows});
 }));
 app.post("/api/fichas",asyncRoute(async(req,res)=>{
