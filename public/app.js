@@ -1,5 +1,4 @@
 const $ = selector => document.querySelector(selector);
-
 const C = $("#content");
 
 let INSUMOS = [];
@@ -7,10 +6,6 @@ let FICHAS = [];
 let EDITANDO_INSUMO = null;
 let EDITANDO_FICHA = null;
 let ITENS_FICHA = [];
-
-/* =========================================================
-   UTILIDADES
-========================================================= */
 
 const num = value => {
   const n = Number(value);
@@ -70,10 +65,6 @@ function erro(error) {
   alert(error.message || "Ocorreu um erro.");
 }
 
-/* =========================================================
-   DADOS
-========================================================= */
-
 async function carregarDados() {
   const [insumos, fichas] = await Promise.all([
     api("/api/insumos"),
@@ -102,44 +93,31 @@ function atualizarPainel() {
   }
 
   const validas =
-    FICHAS.filter(
-      f => num(f.cmv_percentual) > 0
-    );
+    FICHAS.filter(f => num(f.cmv_percentual) > 0);
 
   const media =
     validas.length
       ? validas.reduce(
-          (soma, f) =>
-            soma + num(f.cmv_percentual),
+          (soma, ficha) =>
+            soma + num(ficha.cmv_percentual),
           0
         ) / validas.length
       : 0;
 
   if (avg) {
-    avg.textContent =
-      `${numero(media, 1)}%`;
+    avg.textContent = `${numero(media, 1)}%`;
   }
 }
 
-/* =========================================================
-   NAVEGAÇÃO
-========================================================= */
-
 document.addEventListener("click", event => {
   const botao =
-    event.target.closest(
-      "nav button[data-tab]"
-    );
+    event.target.closest("nav button[data-tab]");
 
   if (!botao) return;
 
   document
-    .querySelectorAll(
-      "nav button[data-tab]"
-    )
-    .forEach(b =>
-      b.classList.remove("active")
-    );
+    .querySelectorAll("nav button[data-tab]")
+    .forEach(item => item.classList.remove("active"));
 
   botao.classList.add("active");
 
@@ -156,18 +134,17 @@ document.addEventListener("click", event => {
   }
 });
 
-/* =========================================================
-   BANCO DE DADOS
-========================================================= */
-
 function telaInsumos() {
   EDITANDO_INSUMO = null;
 
   C.innerHTML = `
     <div class="section-head">
+
       <div>
         <small>BANCO DE DADOS</small>
+
         <h2>Insumos Base</h2>
+
         <p>
           Cadastro utilizado automaticamente
           pelas fichas técnicas.
@@ -181,9 +158,11 @@ function telaInsumos() {
       >
         + Novo insumo
       </button>
+
     </div>
 
     <div class="card">
+
       <input
         id="buscaInsumo"
         placeholder="Buscar código, ingrediente ou fornecedor..."
@@ -193,6 +172,7 @@ function telaInsumos() {
         id="listaInsumos"
         style="margin-top:12px"
       ></div>
+
     </div>
   `;
 
@@ -207,9 +187,7 @@ function telaInsumos() {
 
 function listarInsumos() {
   const busca =
-    String(
-      $("#buscaInsumo")?.value || ""
-    )
+    String($("#buscaInsumo")?.value || "")
       .trim()
       .toLowerCase();
 
@@ -233,12 +211,15 @@ function listarInsumos() {
         Nenhum insumo encontrado.
       </div>
     `;
+
     return;
   }
 
   $("#listaInsumos").innerHTML = `
     <div class="table-wrap">
+
       <table>
+
         <thead>
           <tr>
             <th>Cód.</th>
@@ -256,86 +237,86 @@ function listarInsumos() {
         </thead>
 
         <tbody>
-          ${lista.map(item => `
-            <tr>
-              <td>
-                <b>${esc(item.codigo)}</b>
-              </td>
 
-              <td>
-                <b>
-                  ${esc(item.ingrediente)}
-                </b>
-              </td>
+          ${lista
+            .map(
+              item => `
+                <tr>
 
-              <td>
-                ${esc(item.unidade)}
-              </td>
+                  <td>
+                    <b>${esc(item.codigo)}</b>
+                  </td>
 
-              <td>
-                ${numero(item.peso_bruto)}
-              </td>
+                  <td>
+                    <b>${esc(item.ingrediente)}</b>
+                  </td>
 
-              <td>
-                ${numero(item.peso_liquido)}
-              </td>
+                  <td>
+                    ${esc(item.unidade)}
+                  </td>
 
-              <td>
-                ${numero(item.fc, 4)}
-              </td>
+                  <td>
+                    ${numero(item.peso_bruto)}
+                  </td>
 
-              <td>
-                ${moeda(item.preco_compra)}
-              </td>
+                  <td>
+                    ${numero(item.peso_liquido)}
+                  </td>
 
-              <td>
-                <b>
-                  ${moeda(item.preco_real)}
-                </b>
-              </td>
+                  <td>
+                    ${numero(item.fc, 4)}
+                  </td>
 
-              <td>
-                ${esc(
-                  item.fornecedor || "—"
-                )}
-              </td>
+                  <td>
+                    ${moeda(item.preco_compra)}
+                  </td>
 
-              <td>
-                ${
-                  item.data_cotacao
-                    ? esc(
-                        String(
-                          item.data_cotacao
-                        ).slice(0, 10)
-                      )
-                    : "—"
-                }
-              </td>
+                  <td>
+                    <b>${moeda(item.preco_real)}</b>
+                  </td>
 
-              <td>
-                <button
-                  type="button"
-                  onclick="editarInsumo(${item.id})"
-                >
-                  Editar
-                </button>
-              </td>
-            </tr>
-          `).join("")}
+                  <td>
+                    ${esc(item.fornecedor || "—")}
+                  </td>
+
+                  <td>
+                    ${
+                      item.data_cotacao
+                        ? esc(
+                            String(item.data_cotacao)
+                              .slice(0, 10)
+                          )
+                        : "—"
+                    }
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      onclick="editarInsumo(${item.id})"
+                    >
+                      Editar
+                    </button>
+                  </td>
+
+                </tr>
+              `
+            )
+            .join("")}
+
         </tbody>
+
       </table>
+
     </div>
   `;
 }
 
-/* =========================================================
-   INSUMO - FORMULÁRIO
-========================================================= */
-
 window.editarInsumo = function(id) {
   const item =
     INSUMOS.find(
-      i => Number(i.id) === Number(id)
+      insumo =>
+        Number(insumo.id) === Number(id)
     );
 
   if (item) {
@@ -350,14 +331,15 @@ function formularioInsumo(item = null) {
 
   C.innerHTML = `
     <div class="section-head">
+
       <div>
+
         <small>BANCO DE DADOS</small>
 
         <h2>
-          ${novo
-            ? "Novo Insumo"
-            : "Editar Insumo"}
+          ${novo ? "Novo Insumo" : "Editar Insumo"}
         </h2>
+
       </div>
 
       <button
@@ -367,12 +349,14 @@ function formularioInsumo(item = null) {
       >
         ← Voltar
       </button>
+
     </div>
 
     <form
       id="formInsumo"
       class="card"
     >
+
       <div class="form-grid">
 
         ${
@@ -380,10 +364,12 @@ function formularioInsumo(item = null) {
             ? `
               <label>
                 Código
+
                 <input
                   value="${esc(item.codigo)}"
                   disabled
                 >
+
               </label>
             `
             : ""
@@ -391,133 +377,140 @@ function formularioInsumo(item = null) {
 
         <label>
           Ingrediente
+
           <input
             id="ingrediente"
             required
-            value="${esc(
-              item?.ingrediente || ""
-            )}"
+            value="${esc(item?.ingrediente || "")}"
           >
+
         </label>
 
         <label>
           Unidade
+
           <select id="unidade">
-            ${[
-              "KG",
-              "L",
-              "UN",
-              "MC",
-              "PCT"
-            ].map(unidade => `
-              <option
-                value="${unidade}"
-                ${
-                  String(
-                    item?.unidade || "KG"
-                  ).toUpperCase() === unidade
-                    ? "selected"
-                    : ""
-                }
-              >
-                ${unidade}
-              </option>
-            `).join("")}
+
+            ${["KG", "L", "UN", "MC", "PCT"]
+              .map(
+                unidade => `
+                  <option
+                    value="${unidade}"
+                    ${
+                      String(
+                        item?.unidade || "KG"
+                      ).toUpperCase() === unidade
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ${unidade}
+                  </option>
+                `
+              )
+              .join("")}
+
           </select>
+
         </label>
 
         <label>
           Peso Bruto
+
           <input
             id="pesoBruto"
             type="number"
             step="0.0001"
             min="0.0001"
             required
-            value="${
-              item?.peso_bruto ?? 1
-            }"
+            value="${item?.peso_bruto ?? 1}"
           >
+
         </label>
 
         <label>
           Peso Líquido
+
           <input
             id="pesoLiquido"
             type="number"
             step="0.0001"
             min="0.0001"
             required
-            value="${
-              item?.peso_liquido ?? 1
-            }"
+            value="${item?.peso_liquido ?? 1}"
           >
+
         </label>
 
         <label>
           FC
+
           <input
             id="fc"
             disabled
           >
+
         </label>
 
         <label>
           Preço Compra / Unid.
+
           <input
             id="precoCompra"
             type="number"
             step="0.01"
             min="0"
             required
-            value="${
-              item?.preco_compra ?? 0
-            }"
+            value="${item?.preco_compra ?? 0}"
           >
+
         </label>
 
         <label>
           Preço Real
+
           <input
             id="precoReal"
             disabled
           >
+
         </label>
 
         <label>
           Fornecedor
+
           <input
             id="fornecedor"
-            value="${esc(
-              item?.fornecedor || ""
-            )}"
+            value="${esc(item?.fornecedor || "")}"
           >
+
         </label>
 
         <label>
           Data da Cotação
+
           <input
             id="dataCotacao"
             type="date"
             value="${
               item?.data_cotacao
-                ? String(
-                    item.data_cotacao
-                  ).slice(0, 10)
+                ? String(item.data_cotacao)
+                    .slice(0, 10)
                 : ""
             }"
           >
+
         </label>
 
       </div>
 
       <label style="margin-top:13px">
         Observações
+
         <textarea
           id="observacoesInsumo"
-        >${esc(
-          item?.observacoes || ""
-        )}</textarea>
+        >${esc(item?.observacoes || "")}</textarea>
+
       </label>
 
       <div class="actions">
@@ -552,6 +545,7 @@ function formularioInsumo(item = null) {
         </button>
 
       </div>
+
     </form>
   `;
 
@@ -604,8 +598,7 @@ function formularioInsumo(item = null) {
     salvarInsumo;
 
   atualizarInsumo();
-}
-
+     }
 async function salvarInsumo(event) {
   event.preventDefault();
 
@@ -657,6 +650,7 @@ async function salvarInsumo(event) {
     }
 
     await carregarDados();
+
     telaInsumos();
 
   } catch (error) {
@@ -665,13 +659,16 @@ async function salvarInsumo(event) {
 }
 
 async function excluirInsumo() {
-  if (!EDITANDO_INSUMO) return;
+  if (!EDITANDO_INSUMO) {
+    return;
+  }
 
-  if (
-    !confirm(
+  const confirmar =
+    confirm(
       `Excluir "${EDITANDO_INSUMO.ingrediente}"?`
-    )
-  ) {
+    );
+
+  if (!confirmar) {
     return;
   }
 
@@ -684,6 +681,7 @@ async function excluirInsumo() {
     );
 
     await carregarDados();
+
     telaInsumos();
 
   } catch (error) {
@@ -701,14 +699,23 @@ function telaFichas() {
 
   C.innerHTML = `
     <div class="section-head">
+
       <div>
-        <small>FICHAS TÉCNICAS</small>
-        <h2>Fichas de Produção</h2>
+
+        <small>
+          FICHAS TÉCNICAS
+        </small>
+
+        <h2>
+          Fichas de Produção
+        </h2>
 
         <p>
-          Custos calculados automaticamente
-          pelo Banco de Dados.
+          Custos e CMV calculados
+          automaticamente pelo
+          Banco de Dados.
         </p>
+
       </div>
 
       <button
@@ -718,9 +725,11 @@ function telaFichas() {
       >
         + Nova ficha
       </button>
+
     </div>
 
     <div class="card">
+
       <input
         id="buscaFicha"
         placeholder="Buscar preparação ou categoria..."
@@ -730,6 +739,7 @@ function telaFichas() {
         id="listaFichas"
         style="margin-top:12px"
       ></div>
+
     </div>
   `;
 
@@ -751,14 +761,15 @@ function listarFichas() {
       .toLowerCase();
 
   const lista =
-    FICHAS.filter(ficha =>
-      [
-        ficha.nome_prato,
-        ficha.categoria
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(busca)
+    FICHAS.filter(
+      ficha =>
+        [
+          ficha.nome_prato,
+          ficha.categoria
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(busca)
     );
 
   if (!lista.length) {
@@ -767,12 +778,15 @@ function listarFichas() {
         Nenhuma ficha técnica encontrada.
       </div>
     `;
+
     return;
   }
 
   $("#listaFichas").innerHTML = `
     <div class="table-wrap">
+
       <table>
+
         <thead>
           <tr>
             <th>Preparação</th>
@@ -783,129 +797,170 @@ function listarFichas() {
             <th>Custo/Porção</th>
             <th>Preço Venda</th>
             <th>CMV</th>
+            <th>Meta</th>
             <th></th>
           </tr>
         </thead>
 
         <tbody>
-          ${lista.map(ficha => `
-            <tr>
-              <td>
-                <b>
-                  ${esc(ficha.nome_prato)}
-                </b>
-              </td>
 
-              <td>
-                ${esc(
-                  ficha.categoria || "—"
-                )}
-              </td>
+          ${lista
+            .map(
+              ficha => `
+                <tr>
 
-              <td>
-                ${numero(
-                  ficha.rendimento_kg,
-                  4
-                )}
-              </td>
+                  <td>
+                    <b>
+                      ${esc(ficha.nome_prato)}
+                    </b>
+                  </td>
 
-              <td>
-                ${numero(
-                  ficha.porcoes,
-                  0
-                )}
-              </td>
+                  <td>
+                    ${esc(
+                      ficha.categoria || "—"
+                    )}
+                  </td>
 
-              <td>
-                ${moeda(
-                  ficha.custo_total
-                )}
-              </td>
+                  <td>
+                    ${numero(
+                      ficha.rendimento_kg,
+                      4
+                    )}
+                  </td>
 
-              <td>
-                ${moeda(
-                  ficha.custo_por_porcao
-                )}
-              </td>
+                  <td>
+                    ${numero(
+                      ficha.porcoes,
+                      0
+                    )}
+                  </td>
 
-              <td>
-                ${moeda(
-                  ficha.preco_venda
-                )}
-              </td>
+                  <td>
+                    ${moeda(
+                      ficha.custo_total
+                    )}
+                  </td>
 
-              <td>
-                ${numero(
-                  ficha.cmv_percentual,
-                  1
-                )}%
-              </td>
+                  <td>
+                    ${moeda(
+                      ficha.custo_por_porcao
+                    )}
+                  </td>
 
-              <td>
-                <button
-                  type="button"
-                  onclick="editarFicha(${ficha.id})"
-                >
-                  Abrir
-                </button>
-              </td>
-            </tr>
-          `).join("")}
+                  <td>
+                    ${moeda(
+                      ficha.preco_venda
+                    )}
+                  </td>
+
+                  <td>
+                    <b>
+                      ${numero(
+                        ficha.cmv_percentual,
+                        1
+                      )}%
+                    </b>
+                  </td>
+
+                  <td>
+                    ${numero(
+                      ficha.meta_cmv ?? 30,
+                      1
+                    )}%
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      onclick="editarFicha(${ficha.id})"
+                    >
+                      Abrir
+                    </button>
+                  </td>
+
+                </tr>
+              `
+            )
+            .join("")}
+
         </tbody>
+
       </table>
+
     </div>
   `;
 }
 
-window.novaFicha = function() {
-  EDITANDO_FICHA = null;
-  ITENS_FICHA = [];
-
-  formularioFicha();
-};
-
-window.editarFicha = async function(id) {
-  try {
-    const ficha =
-      await api(`/api/fichas/${id}`);
-
-    EDITANDO_FICHA = ficha;
-
-    ITENS_FICHA =
-      (ficha.ingredientes || [])
-        .map(item => ({
-          insumo_id:
-            Number(item.insumo_id),
-
-          peso_liquido:
-            num(item.peso_liquido),
-
-          observacoes:
-            item.observacoes || ""
-        }));
-
-    formularioFicha(ficha);
-
-  } catch (error) {
-    erro(error);
-  }
-};
-
 /* =========================================================
-   FIM DA PARTE 1
-   COLE A PARTE 2 IMEDIATAMENTE ABAIXO
+   NOVA / EDITAR FICHA
 ========================================================= */
+
+window.novaFicha =
+  function() {
+    EDITANDO_FICHA = null;
+
+    ITENS_FICHA = [];
+
+    formularioFicha();
+  };
+
+window.editarFicha =
+  async function(id) {
+    try {
+      const ficha =
+        await api(
+          `/api/fichas/${id}`
+        );
+
+      EDITANDO_FICHA =
+        ficha;
+
+      ITENS_FICHA =
+        (
+          ficha.ingredientes ||
+          []
+        ).map(
+          item => ({
+            insumo_id:
+              Number(
+                item.insumo_id
+              ),
+
+            peso_liquido:
+              num(
+                item.peso_liquido
+              ),
+
+            observacoes:
+              item.observacoes || ""
+          })
+        );
+
+      formularioFicha(
+        ficha
+      );
+
+    } catch (error) {
+      erro(error);
+    }
+  };
+
 /* =========================================================
-   FORMULÁRIO DA FICHA TÉCNICA
+   FORMULÁRIO DA FICHA
 ========================================================= */
 
 function formularioFicha(ficha = null) {
-  const editando = Boolean(ficha);
+  const editando =
+    Boolean(ficha);
 
   C.innerHTML = `
     <div class="section-head">
+
       <div>
-        <small>FICHA TÉCNICA</small>
+
+        <small>
+          FICHA TÉCNICA
+        </small>
 
         <h2>
           ${
@@ -918,6 +973,7 @@ function formularioFicha(ficha = null) {
         <p>
           Ficha Técnica de Produção
         </p>
+
       </div>
 
       <button
@@ -927,6 +983,7 @@ function formularioFicha(ficha = null) {
       >
         ← Voltar
       </button>
+
     </div>
 
     <form id="formFicha">
@@ -944,6 +1001,7 @@ function formularioFicha(ficha = null) {
             )}"
             placeholder="Nome da preparação"
           >
+
         </label>
 
         <label>
@@ -959,23 +1017,28 @@ function formularioFicha(ficha = null) {
               "Sobremesa",
               "Bebida",
               "Outros"
-            ].map(categoria => `
-              <option
-                value="${categoria}"
-                ${
-                  String(
-                    ficha?.categoria ||
-                    "Outros"
-                  ) === categoria
-                    ? "selected"
-                    : ""
-                }
-              >
-                ${categoria}
-              </option>
-            `).join("")}
+            ]
+              .map(
+                categoria => `
+                  <option
+                    value="${categoria}"
+                    ${
+                      String(
+                        ficha?.categoria ||
+                        "Outros"
+                      ) === categoria
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ${categoria}
+                  </option>
+                `
+              )
+              .join("")}
 
           </select>
+
         </label>
 
         <label>
@@ -988,6 +1051,7 @@ function formularioFicha(ficha = null) {
             value="0"
             disabled
           >
+
         </label>
 
         <label>
@@ -999,10 +1063,9 @@ function formularioFicha(ficha = null) {
             step="1"
             min="1"
             required
-            value="${
-              ficha?.porcoes ?? 1
-            }"
+            value="${ficha?.porcoes ?? 1}"
           >
+
         </label>
 
         <label>
@@ -1013,6 +1076,7 @@ function formularioFicha(ficha = null) {
             value="0"
             disabled
           >
+
         </label>
 
         <label>
@@ -1022,9 +1086,24 @@ function formularioFicha(ficha = null) {
             id="precoVenda"
             type="number"
             step="0.01"
-            value="0"
-            disabled
+            min="0"
+            value="${ficha?.preco_venda ?? 0}"
           >
+
+        </label>
+
+        <label>
+          Meta de CMV (%)
+
+          <input
+            id="metaCMV"
+            type="number"
+            step="0.1"
+            min="0.1"
+            max="100"
+            value="${ficha?.meta_cmv ?? 30}"
+          >
+
         </label>
 
       </div>
@@ -1032,9 +1111,15 @@ function formularioFicha(ficha = null) {
       <div class="card">
 
         <div class="section-head">
+
           <div>
-            <small>INGREDIENTES</small>
-            <h3>Composição da Receita</h3>
+            <small>
+              INGREDIENTES
+            </small>
+
+            <h3>
+              Composição da Receita
+            </h3>
           </div>
 
           <button
@@ -1044,6 +1129,7 @@ function formularioFicha(ficha = null) {
           >
             + Ingrediente
           </button>
+
         </div>
 
         <div id="ingredientesFicha"></div>
@@ -1052,47 +1138,67 @@ function formularioFicha(ficha = null) {
 
       <div class="card">
 
-        <h3>Resumo da Receita</h3>
+        <h3>
+          Resumo da Receita
+        </h3>
 
         <div class="summary-grid">
 
           <div>
-            <span>Custo Total</span>
+            <span>
+              Custo Total
+            </span>
+
             <strong id="resumoTotal">
               R$ 0,00
             </strong>
           </div>
 
           <div>
-            <span>Custo por Porção</span>
+            <span>
+              Custo por Porção
+            </span>
+
             <strong id="resumoPorcao">
               R$ 0,00
             </strong>
           </div>
 
           <div>
-            <span>Preço de Venda</span>
+            <span>
+              Preço de Venda
+            </span>
+
             <strong id="resumoVenda">
               R$ 0,00
             </strong>
           </div>
 
           <div>
-            <span>CMV</span>
+            <span>
+              CMV Atual
+            </span>
+
             <strong id="resumoCMV">
               0,0%
             </strong>
           </div>
 
           <div>
-            <span>Meta CMV</span>
-            <strong>
+            <span>
+              Meta CMV
+            </span>
+
+            <strong id="resumoMetaPercentual">
               30,0%
             </strong>
           </div>
 
           <div>
-            <span>Preço para CMV 30%</span>
+            <span>
+              Preço Sugerido
+            </span>
+
             <strong id="resumoMeta">
               R$ 0,00
             </strong>
@@ -1114,6 +1220,7 @@ function formularioFicha(ficha = null) {
           >${esc(
             ficha?.modo_preparo || ""
           )}</textarea>
+
         </label>
 
         <label style="margin-top:15px">
@@ -1125,6 +1232,7 @@ function formularioFicha(ficha = null) {
           >${esc(
             ficha?.observacoes || ""
           )}</textarea>
+
         </label>
 
       </div>
@@ -1181,6 +1289,12 @@ function formularioFicha(ficha = null) {
   $("#porcoes").oninput =
     calcularFicha;
 
+  $("#precoVenda").oninput =
+    calcularFicha;
+
+  $("#metaCMV").oninput =
+    calcularFicha;
+
   $("#formFicha").onsubmit =
     salvarFicha;
 
@@ -1190,17 +1304,18 @@ function formularioFicha(ficha = null) {
   }
 
   renderizarIngredientes();
-  calcularFicha();
-}
 
+  calcularFicha();
+     }
 /* =========================================================
-   INGREDIENTES
+   INGREDIENTES DA FICHA
 ========================================================= */
 
 function obterInsumo(id) {
   return INSUMOS.find(
     item =>
-      Number(item.id) === Number(id)
+      Number(item.id) ===
+      Number(id)
   );
 }
 
@@ -1215,7 +1330,10 @@ function adicionarIngrediente() {
 }
 
 function removerIngrediente(index) {
-  ITENS_FICHA.splice(index, 1);
+  ITENS_FICHA.splice(
+    index,
+    1
+  );
 
   renderizarIngredientes();
 }
@@ -1223,9 +1341,14 @@ function removerIngrediente(index) {
 window.removerIngrediente =
   removerIngrediente;
 
-function alterarInsumo(index, value) {
+function alterarInsumo(
+  index,
+  value
+) {
   ITENS_FICHA[index].insumo_id =
-    value ? Number(value) : "";
+    value
+      ? Number(value)
+      : "";
 
   renderizarIngredientes();
 }
@@ -1241,7 +1364,10 @@ function alterarPesoLiquido(
     num(value);
 
   calcularFicha();
-  atualizarLinhaIngrediente(index);
+
+  atualizarLinhaIngrediente(
+    index
+  );
 }
 
 window.alterarPesoLiquido =
@@ -1266,7 +1392,9 @@ function renderizarIngredientes() {
   const area =
     $("#ingredientesFicha");
 
-  if (!area) return;
+  if (!area) {
+    return;
+  }
 
   if (!ITENS_FICHA.length) {
     area.innerHTML = `
@@ -1277,218 +1405,246 @@ function renderizarIngredientes() {
     `;
 
     calcularFicha();
+
     return;
   }
 
   area.innerHTML = `
     <div class="table-wrap">
+
       <table>
 
         <thead>
           <tr>
-            <th>Código</th>
-            <th>Ingrediente</th>
-            <th>P. Líq.</th>
-            <th>Unid.</th>
-            <th>FC</th>
-            <th>P. Bruto</th>
-            <th>Preço Compra</th>
-            <th>Preço Real</th>
-            <th>Custo Insumo</th>
-            <th>Observação</th>
+            <th>
+              Código
+            </th>
+
+            <th>
+              Ingrediente
+            </th>
+
+            <th>
+              P. Líq.
+            </th>
+
+            <th>
+              Unid.
+            </th>
+
+            <th>
+              FC
+            </th>
+
+            <th>
+              P. Bruto
+            </th>
+
+            <th>
+              Preço Compra
+            </th>
+
+            <th>
+              Preço Real
+            </th>
+
+            <th>
+              Custo Insumo
+            </th>
+
+            <th>
+              Observação
+            </th>
+
             <th></th>
           </tr>
         </thead>
 
         <tbody>
 
-          ${ITENS_FICHA.map(
-            (item, index) => {
+          ${ITENS_FICHA
+            .map(
+              (item, index) => {
+                const insumo =
+                  obterInsumo(
+                    item.insumo_id
+                  );
 
-              const insumo =
-                obterInsumo(
-                  item.insumo_id
-                );
+                const pesoLiquido =
+                  num(
+                    item.peso_liquido
+                  );
 
-              const pesoLiquido =
-                num(
-                  item.peso_liquido
-                );
+                const fc =
+                  num(
+                    insumo?.fc
+                  );
 
-              const fc =
-                num(insumo?.fc);
+                const pesoBruto =
+                  pesoLiquido *
+                  fc;
 
-              const pesoBruto =
-                pesoLiquido * fc;
+                const custo =
+                  pesoLiquido *
+                  num(
+                    insumo?.preco_real
+                  );
 
-              const custo =
-                pesoLiquido *
-                num(
-                  insumo?.preco_real
-                );
-
-              return `
-                <tr
-                  id="linhaIngrediente-${index}"
-                >
-
-                  <td>
-                    ${
-                      insumo
-                        ? esc(
-                            insumo.codigo
-                          )
-                        : "—"
-                    }
-                  </td>
-
-                  <td>
-
-                    <select
-                      onchange="
-                        alterarInsumo(
-                          ${index},
-                          this.value
-                        )
-                      "
-                    >
-
-                      <option value="">
-                        Selecione...
-                      </option>
-
-                      ${INSUMOS
-                        .filter(
-                          i =>
-                            i.ativo !==
-                            false
-                        )
-                        .map(i => `
-                          <option
-                            value="${i.id}"
-                            ${
-                              Number(
-                                item.insumo_id
-                              ) ===
-                              Number(i.id)
-                                ? "selected"
-                                : ""
-                            }
-                          >
-                            ${esc(
-                              i.ingrediente
-                            )}
-                          </option>
-                        `)
-                        .join("")}
-
-                    </select>
-
-                  </td>
-
-                  <td>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      value="${
-                        item.peso_liquido ||
-                        ""
-                      }"
-                      oninput="
-                        alterarPesoLiquido(
-                          ${index},
-                          this.value
-                        )
-                      "
-                    >
-                  </td>
-
-                  <td>
-                    ${
-                      insumo
-                        ? esc(
-                            insumo.unidade
-                          )
-                        : "—"
-                    }
-                  </td>
-
-                  <td>
-                    ${numero(
-                      fc,
-                      4
-                    )}
-                  </td>
-
-                  <td
-                    data-campo="bruto"
+                return `
+                  <tr
+                    id="linhaIngrediente-${index}"
                   >
-                    ${numero(
-                      pesoBruto,
-                      4
-                    )}
-                  </td>
 
-                  <td>
-                    ${moeda(
-                      insumo
-                        ?.preco_compra
-                    )}
-                  </td>
+                    <td>
+                      ${
+                        insumo
+                          ? esc(
+                              insumo.codigo
+                            )
+                          : "—"
+                      }
+                    </td>
 
-                  <td>
-                    ${moeda(
-                      insumo
-                        ?.preco_real
-                    )}
-                  </td>
+                    <td>
 
-                  <td
-                    data-campo="custo"
-                  >
-                    <b>
-                      ${moeda(custo)}
-                    </b>
-                  </td>
+                      <select
+                        onchange="alterarInsumo(${index}, this.value)"
+                      >
 
-                  <td>
-                    <input
-                      value="${esc(
-                        item.observacoes ||
-                        ""
-                      )}"
-                      oninput="
-                        alterarObservacao(
-                          ${index},
-                          this.value
-                        )
-                      "
+                        <option value="">
+                          Selecione...
+                        </option>
+
+                        ${INSUMOS
+                          .filter(
+                            i =>
+                              i.ativo !==
+                              false
+                          )
+                          .map(
+                            i => `
+                              <option
+                                value="${i.id}"
+                                ${
+                                  Number(
+                                    item.insumo_id
+                                  ) ===
+                                  Number(
+                                    i.id
+                                  )
+                                    ? "selected"
+                                    : ""
+                                }
+                              >
+                                ${esc(
+                                  i.ingrediente
+                                )}
+                              </option>
+                            `
+                          )
+                          .join("")}
+
+                      </select>
+
+                    </td>
+
+                    <td>
+
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        value="${
+                          item.peso_liquido ||
+                          ""
+                        }"
+                        oninput="alterarPesoLiquido(${index}, this.value)"
+                      >
+
+                    </td>
+
+                    <td>
+                      ${
+                        insumo
+                          ? esc(
+                              insumo.unidade
+                            )
+                          : "—"
+                      }
+                    </td>
+
+                    <td>
+                      ${numero(
+                        fc,
+                        4
+                      )}
+                    </td>
+
+                    <td
+                      data-campo="bruto"
                     >
-                  </td>
+                      ${numero(
+                        pesoBruto,
+                        4
+                      )}
+                    </td>
 
-                  <td>
-                    <button
-                      type="button"
-                      class="danger"
-                      onclick="
-                        removerIngrediente(
-                          ${index}
-                        )
-                      "
+                    <td>
+                      ${moeda(
+                        insumo?.preco_compra
+                      )}
+                    </td>
+
+                    <td>
+                      ${moeda(
+                        insumo?.preco_real
+                      )}
+                    </td>
+
+                    <td
+                      data-campo="custo"
                     >
-                      ×
-                    </button>
-                  </td>
+                      <b>
+                        ${moeda(
+                          custo
+                        )}
+                      </b>
+                    </td>
 
-                </tr>
-              `;
-            }
-          ).join("")}
+                    <td>
+
+                      <input
+                        value="${esc(
+                          item.observacoes ||
+                          ""
+                        )}"
+                        oninput="alterarObservacao(${index}, this.value)"
+                      >
+
+                    </td>
+
+                    <td>
+
+                      <button
+                        type="button"
+                        class="danger"
+                        onclick="removerIngrediente(${index})"
+                      >
+                        ×
+                      </button>
+
+                    </td>
+
+                  </tr>
+                `;
+              }
+            )
+            .join("")}
 
         </tbody>
 
       </table>
+
     </div>
   `;
 
@@ -1499,9 +1655,13 @@ function atualizarLinhaIngrediente(
   index
 ) {
   const linha =
-    $(`#linhaIngrediente-${index}`);
+    $(
+      `#linhaIngrediente-${index}`
+    );
 
-  if (!linha) return;
+  if (!linha) {
+    return;
+  }
 
   const item =
     ITENS_FICHA[index];
@@ -1511,18 +1671,26 @@ function atualizarLinhaIngrediente(
       item.insumo_id
     );
 
-  if (!insumo) return;
+  if (!insumo) {
+    return;
+  }
 
   const pesoLiquido =
-    num(item.peso_liquido);
+    num(
+      item.peso_liquido
+    );
 
   const pesoBruto =
     pesoLiquido *
-    num(insumo.fc);
+    num(
+      insumo.fc
+    );
 
   const custo =
     pesoLiquido *
-    num(insumo.preco_real);
+    num(
+      insumo.preco_real
+    );
 
   const bruto =
     linha.querySelector(
@@ -1549,84 +1717,75 @@ function atualizarLinhaIngrediente(
 }
 
 /* =========================================================
-   CÁLCULOS AUTOMÁTICOS DA FICHA
+   CÁLCULOS DA FICHA
 ========================================================= */
 
 function calcularFicha() {
   let custoTotal = 0;
   let rendimento = 0;
 
-  ITENS_FICHA.forEach(item => {
-    const pesoLiquido =
-      num(item.peso_liquido);
+  ITENS_FICHA.forEach(
+    item => {
+      const pesoLiquido =
+        num(
+          item.peso_liquido
+        );
 
-    /*
-      RENDIMENTO:
-      soma dos pesos líquidos
-      informados na ficha.
-    */
+      rendimento +=
+        pesoLiquido;
 
-    rendimento +=
-      pesoLiquido;
+      const insumo =
+        obterInsumo(
+          item.insumo_id
+        );
 
-    const insumo =
-      obterInsumo(
-        item.insumo_id
-      );
+      if (!insumo) {
+        return;
+      }
 
-    if (!insumo) return;
-
-    /*
-      CUSTO DO INSUMO:
-      P. Líquido x Preço Real
-    */
-
-    custoTotal +=
-      pesoLiquido *
-      num(insumo.preco_real);
-  });
+      custoTotal +=
+        pesoLiquido *
+        num(
+          insumo.preco_real
+        );
+    }
+  );
 
   const porcoes =
     num(
       $("#porcoes")?.value
     );
 
-  /*
-    PESO POR PORÇÃO:
-    Rendimento / Porções
-  */
+  const precoVenda =
+    num(
+      $("#precoVenda")?.value
+    );
+
+  const metaCMV =
+    num(
+      $("#metaCMV")?.value
+    ) || 30;
 
   const pesoPorcao =
     porcoes > 0
-      ? rendimento / porcoes
+      ? rendimento /
+        porcoes
       : 0;
-
-  /*
-    CUSTO POR PORÇÃO:
-    Custo Total / Porções
-  */
 
   const custoPorcao =
     porcoes > 0
-      ? custoTotal / porcoes
+      ? custoTotal /
+        porcoes
       : 0;
 
   /*
-    PREÇO DE VENDA:
-    preço necessário para
-    trabalhar com CMV de 30%.
-  */
-
-  const precoVenda =
-    custoPorcao > 0
-      ? custoPorcao / 0.30
-      : 0;
-
-  /*
-    CMV:
-    Custo por Porção /
-    Preço de Venda x 100
-  */
+   * CMV ATUAL
+   *
+   * CMV =
+   * custo por porção
+   * ---------------- x 100
+   * preço de venda
+   */
 
   const cmv =
     precoVenda > 0
@@ -1636,14 +1795,30 @@ function calcularFicha() {
         ) * 100
       : 0;
 
+  /*
+   * PREÇO SUGERIDO
+   *
+   * preço =
+   * custo por porção
+   * ----------------
+   * meta CMV / 100
+   */
+
+  const precoSugerido =
+    custoPorcao > 0 &&
+    metaCMV > 0
+      ? custoPorcao /
+        (
+          metaCMV /
+          100
+        )
+      : 0;
+
   const rendimentoEl =
     $("#rendimento");
 
   const pesoPorcaoEl =
     $("#pesoPorcao");
-
-  const precoVendaEl =
-    $("#precoVenda");
 
   const totalEl =
     $("#resumoTotal");
@@ -1657,6 +1832,9 @@ function calcularFicha() {
   const cmvEl =
     $("#resumoCMV");
 
+  const metaPercentualEl =
+    $("#resumoMetaPercentual");
+
   const metaEl =
     $("#resumoMeta");
 
@@ -1668,11 +1846,6 @@ function calcularFicha() {
   if (pesoPorcaoEl) {
     pesoPorcaoEl.value =
       pesoPorcao.toFixed(4);
-  }
-
-  if (precoVendaEl) {
-    precoVendaEl.value =
-      precoVenda.toFixed(2);
   }
 
   if (totalEl) {
@@ -1695,9 +1868,19 @@ function calcularFicha() {
       `${numero(cmv, 1)}%`;
   }
 
+  if (metaPercentualEl) {
+    metaPercentualEl.textContent =
+      `${numero(
+        metaCMV,
+        1
+      )}%`;
+  }
+
   if (metaEl) {
     metaEl.textContent =
-      moeda(precoVenda);
+      moeda(
+        precoSugerido
+      );
   }
 
   return {
@@ -1707,10 +1890,11 @@ function calcularFicha() {
     custoTotal,
     custoPorcao,
     precoVenda,
+    metaCMV,
+    precoSugerido,
     cmv
   };
 }
-
 /* =========================================================
    SALVAR FICHA
 ========================================================= */
@@ -1738,7 +1922,9 @@ async function salvarFicha(event) {
   const calculos =
     calcularFicha();
 
-  if (calculos.porcoes <= 0) {
+  if (
+    calculos.porcoes <= 0
+  ) {
     alert(
       "Informe uma quantidade de porções maior que zero."
     );
@@ -1746,11 +1932,33 @@ async function salvarFicha(event) {
     return;
   }
 
+  if (
+    calculos.metaCMV <= 0 ||
+    calculos.metaCMV > 100
+  ) {
+    alert(
+      "A meta de CMV deve estar entre 0,1% e 100%."
+    );
+
+    return;
+  }
+
+  const nomePrato =
+    $("#nomePrato")
+      .value
+      .trim();
+
+  if (!nomePrato) {
+    alert(
+      "Informe o nome da preparação."
+    );
+
+    return;
+  }
+
   const payload = {
     nome_prato:
-      $("#nomePrato")
-        .value
-        .trim(),
+      nomePrato,
 
     categoria:
       $("#categoria").value,
@@ -1763,6 +1971,9 @@ async function salvarFicha(event) {
 
     preco_venda:
       calculos.precoVenda,
+
+    meta_cmv:
+      calculos.metaCMV,
 
     modo_preparo:
       $("#modoPreparo")
@@ -1805,7 +2016,9 @@ async function salvarFicha(event) {
       await api(
         `/api/fichas/${EDITANDO_FICHA.id}`,
         {
-          method: "PUT",
+          method:
+            "PUT",
+
           body:
             JSON.stringify(
               payload
@@ -1818,7 +2031,9 @@ async function salvarFicha(event) {
       await api(
         "/api/fichas",
         {
-          method: "POST",
+          method:
+            "POST",
+
           body:
             JSON.stringify(
               payload
@@ -1860,7 +2075,8 @@ async function excluirFicha() {
     await api(
       `/api/fichas/${EDITANDO_FICHA.id}`,
       {
-        method: "DELETE"
+        method:
+          "DELETE"
       }
     );
 
@@ -1874,21 +2090,32 @@ async function excluirFicha() {
 }
 
 /* =========================================================
-   CMV
+   TELA DE CMV
 ========================================================= */
 
 function telaCMV() {
   C.innerHTML = `
     <div class="section-head">
+
       <div>
-        <small>CONTROLE DE CMV</small>
-        <h2>Análise das Fichas</h2>
+
+        <small>
+          CONTROLE DE CMV
+        </small>
+
+        <h2>
+          Análise das Fichas
+        </h2>
 
         <p>
-          Meta utilizada pelo sistema:
-          CMV de 30%.
+          Compare o CMV atual
+          de cada preparação
+          com a meta definida
+          na própria ficha.
         </p>
+
       </div>
+
     </div>
 
     <div class="card">
@@ -1906,74 +2133,135 @@ function telaCMV() {
               <table>
 
                 <thead>
+
                   <tr>
-                    <th>Preparação</th>
-                    <th>Custo Total</th>
-                    <th>Porções</th>
-                    <th>Custo/Porção</th>
-                    <th>Preço Venda</th>
-                    <th>CMV</th>
-                    <th>Meta</th>
+
+                    <th>
+                      Preparação
+                    </th>
+
+                    <th>
+                      Custo Total
+                    </th>
+
+                    <th>
+                      Porções
+                    </th>
+
+                    <th>
+                      Custo/Porção
+                    </th>
+
+                    <th>
+                      Preço Venda
+                    </th>
+
+                    <th>
+                      CMV Atual
+                    </th>
+
+                    <th>
+                      Meta
+                    </th>
+
+                    <th>
+                      Preço Sugerido
+                    </th>
+
                   </tr>
+
                 </thead>
 
                 <tbody>
 
-                  ${FICHAS.map(
-                    ficha => `
-                      <tr>
+                  ${FICHAS
+                    .map(
+                      ficha => {
 
-                        <td>
-                          <b>
-                            ${esc(
-                              ficha.nome_prato
-                            )}
-                          </b>
-                        </td>
+                        const meta =
+                          num(
+                            ficha.meta_cmv
+                          ) || 30;
 
-                        <td>
-                          ${moeda(
-                            ficha.custo_total
-                          )}
-                        </td>
+                        const custoPorcao =
+                          num(
+                            ficha.custo_por_porcao
+                          );
 
-                        <td>
-                          ${numero(
-                            ficha.porcoes,
-                            0
-                          )}
-                        </td>
+                        const precoSugerido =
+                          meta > 0
+                            ? custoPorcao /
+                              (
+                                meta /
+                                100
+                              )
+                            : 0;
 
-                        <td>
-                          ${moeda(
-                            ficha
-                              .custo_por_porcao
-                          )}
-                        </td>
+                        return `
+                          <tr>
 
-                        <td>
-                          ${moeda(
-                            ficha.preco_venda
-                          )}
-                        </td>
+                            <td>
+                              <b>
+                                ${esc(
+                                  ficha.nome_prato
+                                )}
+                              </b>
+                            </td>
 
-                        <td>
-                          <b>
-                            ${numero(
-                              ficha
-                                .cmv_percentual,
-                              1
-                            )}%
-                          </b>
-                        </td>
+                            <td>
+                              ${moeda(
+                                ficha.custo_total
+                              )}
+                            </td>
 
-                        <td>
-                          30,0%
-                        </td>
+                            <td>
+                              ${numero(
+                                ficha.porcoes,
+                                0
+                              )}
+                            </td>
 
-                      </tr>
-                    `
-                  ).join("")}
+                            <td>
+                              ${moeda(
+                                ficha.custo_por_porcao
+                              )}
+                            </td>
+
+                            <td>
+                              ${moeda(
+                                ficha.preco_venda
+                              )}
+                            </td>
+
+                            <td>
+                              <b>
+                                ${numero(
+                                  ficha.cmv_percentual,
+                                  1
+                                )}%
+                              </b>
+                            </td>
+
+                            <td>
+                              ${numero(
+                                meta,
+                                1
+                              )}%
+                            </td>
+
+                            <td>
+                              <b>
+                                ${moeda(
+                                  precoSugerido
+                                )}
+                              </b>
+                            </td>
+
+                          </tr>
+                        `;
+                      }
+                    )
+                    .join("")}
 
                 </tbody>
 
@@ -1995,39 +2283,42 @@ const botaoNovaFicha =
   $("#newFicha");
 
 if (botaoNovaFicha) {
-  botaoNovaFicha.onclick = () => {
-    const abaFichas =
-      document.querySelector(
-        'nav button[data-tab="fichas"]'
-      );
 
-    document
-      .querySelectorAll(
-        "nav button[data-tab]"
-      )
-      .forEach(
-        botao =>
-          botao.classList.remove(
-            "active"
-          )
-      );
+  botaoNovaFicha.onclick =
+    () => {
 
-    if (abaFichas) {
-      abaFichas.classList.add(
-        "active"
-      );
-    }
+      const abaFichas =
+        document.querySelector(
+          'nav button[data-tab="fichas"]'
+        );
 
-    novaFicha();
-  };
-}
+      document
+        .querySelectorAll(
+          "nav button[data-tab]"
+        )
+        .forEach(
+          botao =>
+            botao.classList.remove(
+              "active"
+            )
+        );
 
+      if (abaFichas) {
+        abaFichas.classList.add(
+          "active"
+        );
+      }
+
+      novaFicha();
+    };
+       }
 /* =========================================================
-   INICIALIZAÇÃO
+   INICIALIZAÇÃO DO APLICATIVO
 ========================================================= */
 
 async function iniciar() {
   try {
+
     C.innerHTML = `
       <div class="card">
         Carregando...
@@ -2039,10 +2330,12 @@ async function iniciar() {
     telaInsumos();
 
   } catch (error) {
+
     console.error(error);
 
     C.innerHTML = `
       <div class="card">
+
         <h3>
           Não foi possível carregar o aplicativo.
         </h3>
@@ -2053,6 +2346,7 @@ async function iniciar() {
             "Erro desconhecido."
           )}
         </p>
+
       </div>
     `;
   }
