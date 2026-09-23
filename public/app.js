@@ -124,12 +124,147 @@ document.addEventListener("click", event => {
 
   botao.classList.add("active");
 
+  if (botao.dataset.tab === "painel") telaPainel();
   if (botao.dataset.tab === "insumos") telaInsumos();
   if (botao.dataset.tab === "fichas") telaFichas();
   if (botao.dataset.tab === "preparacoes") telaPreparacoes();
   if (botao.dataset.tab === "cmv") telaCMV();
   if (botao.dataset.tab === "usuarios") telaUsuarios();
 });
+
+
+/* =========================================================
+   PAINEL
+========================================================= */
+
+function telaPainel() {
+  const fichasAtivas = FICHAS.filter(f => f.ativo !== false);
+  const insumosAtivos = INSUMOS.filter(i => i.ativo !== false);
+  const preparacoesAtivas = PREPARACOES.filter(p => p.ativo !== false);
+
+  const fichasComCMV = fichasAtivas.filter(f => num(f.cmv_percentual) > 0);
+  const cmvMedio = fichasComCMV.length
+    ? fichasComCMV.reduce((s, f) => s + num(f.cmv_percentual), 0) / fichasComCMV.length
+    : 0;
+
+  const acimaMeta = fichasAtivas.filter(f => {
+    const cmv = num(f.cmv_percentual);
+    const meta = num(f.meta_cmv) || 30;
+    return cmv > 0 && cmv > meta;
+  });
+
+  const dentroMeta = fichasComCMV.filter(f => {
+    const meta = num(f.meta_cmv) || 30;
+    return num(f.cmv_percentual) <= meta;
+  });
+
+  const custoMedioPorcao = fichasAtivas.length
+    ? fichasAtivas.reduce((s, f) => s + num(f.custo_por_porcao), 0) / fichasAtivas.length
+    : 0;
+
+  const recentes = [...fichasAtivas]
+    .sort((a,b) => {
+      const da = new Date(a.updated_at || a.created_at || 0).getTime();
+      const db = new Date(b.updated_at || b.created_at || 0).getTime();
+      return db - da || Number(b.id) - Number(a.id);
+    })
+    .slice(0,5);
+
+  C.innerHTML = `
+    <div class="section-head">
+      <div>
+        <small>PAINEL</small>
+        <h2>Visão Geral</h2>
+        <p>Indicadores rápidos para acompanhar fichas, custos e preparações.</p>
+      </div>
+    </div>
+
+    <div class="summary-grid painel-kpis">
+      <div><span>Insumos</span><strong>${insumosAtivos.length}</strong></div>
+      <div><span>Fichas Técnicas</span><strong>${fichasAtivas.length}</strong></div>
+      <div><span>Preparações</span><strong>${preparacoesAtivas.length}</strong></div>
+      <div><span>CMV Médio</span><strong>${numero(cmvMedio,1)}%</strong></div>
+      <div><span>Acima da Meta</span><strong>${acimaMeta.length}</strong></div>
+      <div><span>Custo Médio / Porção</span><strong>${moeda(custoMedioPorcao)}</strong></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-head">
+        <div>
+          <small>ATENÇÃO NECESSÁRIA</small>
+          <h3>Resumo de CMV</h3>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <div><span>Dentro da meta</span><strong>${dentroMeta.length}</strong></div>
+        <div><span>Acima da meta</span><strong>${acimaMeta.length}</strong></div>
+        <div><span>Sem CMV calculado</span><strong>${fichasAtivas.length - fichasComCMV.length}</strong></div>
+      </div>
+      ${acimaMeta.length ? `
+        <div class="table-wrap" style="margin-top:16px">
+          <table>
+            <thead><tr><th>Ficha</th><th>CMV Atual</th><th>Meta</th><th></th></tr></thead>
+            <tbody>
+              ${acimaMeta.slice(0,5).map(f => `
+                <tr>
+                  <td><b>${esc(f.nome_prato)}</b></td>
+                  <td>${numero(f.cmv_percentual,1)}%</td>
+                  <td>${numero(f.meta_cmv || 30,1)}%</td>
+                  <td><button type="button" onclick="editarFicha(${Number(f.id)})">Abrir</button></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>` : `<div class="empty" style="margin-top:16px">Nenhuma ficha está acima da meta de CMV.</div>`}
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-head">
+        <div><small>ACESSO RÁPIDO</small><h3>Ações frequentes</h3></div>
+      </div>
+      <div class="actions" style="justify-content:flex-start">
+        <button type="button" class="primary" onclick="novaFicha()">+ Nova Ficha</button>
+        <button type="button" class="secondary" id="painelNovoInsumo">+ Novo Insumo</button>
+        <button type="button" class="secondary" id="painelNovaPreparacao">+ Nova Preparação</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-head">
+        <div><small>RECENTES</small><h3>Últimas Fichas</h3></div>
+      </div>
+      ${recentes.length ? `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Preparação</th><th>Categoria</th><th>Custo/Porção</th><th>CMV</th><th></th></tr></thead>
+            <tbody>
+              ${recentes.map(f => `
+                <tr>
+                  <td><b>${esc(f.nome_prato)}</b></td>
+                  <td>${esc(f.categoria || "—")}</td>
+                  <td>${moeda(f.custo_por_porcao)}</td>
+                  <td>${numero(f.cmv_percentual,1)}%</td>
+                  <td><button type="button" onclick="editarFicha(${Number(f.id)})">Abrir</button></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>` : `<div class="empty">Nenhuma ficha técnica cadastrada.</div>`}
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <small>PRÓXIMOS INDICADORES</small>
+      <p style="margin-bottom:0">Estoque baixo, validades, produção do dia e perdas aparecerão aqui conforme esses módulos forem ativados.</p>
+    </div>
+  `;
+
+  const novoInsumo = $("#painelNovoInsumo");
+  if (novoInsumo) novoInsumo.onclick = () => formularioInsumo();
+
+  const novaPrep = $("#painelNovaPreparacao");
+  if (novaPrep) novaPrep.onclick = () => {
+    const botao = document.querySelector('nav button[data-tab="preparacoes"]');
+    if (botao) botao.click();
+  };
+}
 
 /* =========================================================
    BANCO DE DADOS / INSUMOS
@@ -440,7 +575,7 @@ async function salvarInsumo(event) {
     }
 
     await carregarDados();
-    telaInsumos();
+    telaPainel();
   } catch (error) {
     erro(error);
   }
@@ -459,7 +594,7 @@ async function excluirInsumo() {
     });
 
     await carregarDados();
-    telaInsumos();
+    telaPainel();
   } catch (error) {
     erro(error);
   }
@@ -1327,7 +1462,7 @@ async function iniciar() {
     `;
 
     await carregarDados();
-    telaInsumos();
+    telaPainel();
   } catch (error) {
     console.error(error);
 
