@@ -1,5 +1,6 @@
 import express from "express";
 import pg from "pg";
+import { installAuth } from "./auth.js";
 
 const { Pool } = pg;
 
@@ -39,6 +40,9 @@ app.use(
     "public"
   )
 );
+
+// Login, sessões e permissões
+await installAuth(app, pool);
 
 const n = value => {
   const number =
