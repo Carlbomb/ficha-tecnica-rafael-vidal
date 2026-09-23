@@ -1,4 +1,4 @@
-/* MISEVO V19.1 — Estoque da Cozinha + criação automática de insumo */
+/* MISEVO V20 — Estoque da Cozinha + criação automática de insumo */
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
 
 export async function initEstoque(pool){
@@ -24,15 +24,63 @@ export async function initEstoque(pool){
     CREATE INDEX IF NOT EXISTS idx_estoque_mov_tenant ON estoque_movimentacoes(empresa_id,unidade_id,created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_estoque_mov_insumo ON estoque_movimentacoes(insumo_id,created_at DESC);
   `);
+  await pool.query(`
+    ALTER TABLE insumos
+    ADD COLUMN IF NOT EXISTS grupo TEXT NOT NULL DEFAULT 'Outros';
+  `);
+
 }
 
 const saldoExpr=`COALESCE((SELECT SUM(m.quantidade) FROM estoque_movimentacoes m
  WHERE m.insumo_id=i.id AND m.empresa_id=i.empresa_id AND m.unidade_id=i.unidade_id),0)`;
 
 export function installEstoque(app,pool){
+  // =========================================================
+  // MISEVO V20 — GRUPOS DE INSUMOS
+  // =========================================================
+  app.get("/api/estoque/grupos", async (req,res,next)=>{
+    try{
+      const {rows}=await pool.query(`
+        SELECT DISTINCT COALESCE(NULLIF(TRIM(grupo),''),'Outros') AS grupo
+        FROM insumos
+        WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE
+        ORDER BY grupo
+      `,[req.user.empresa_id,req.user.unidade_id]);
+      res.json(rows.map(r=>r.grupo));
+    }catch(e){next(e)}
+  });
+
+  app.get("/api/estoque/insumos-grupos", async (req,res,next)=>{
+    try{
+      const {rows}=await pool.query(`
+        SELECT id, id AS codigo, ingrediente, unidade, peso_bruto, peso_liquido,
+               fc, preco_compra, preco_real, fornecedor, data_cotacao, ativo,
+               observacoes, COALESCE(NULLIF(TRIM(grupo),''),'Outros') AS grupo
+        FROM insumos
+        WHERE empresa_id=$1 AND unidade_id=$2
+        ORDER BY grupo, ingrediente
+      `,[req.user.empresa_id,req.user.unidade_id]);
+      res.json(rows);
+    }catch(e){next(e)}
+  });
+
+  app.put("/api/estoque/insumos/:id/grupo", async (req,res,next)=>{
+    try{
+      const grupo=String(req.body?.grupo||"Outros").trim()||"Outros";
+      const {rows}=await pool.query(`
+        UPDATE insumos SET grupo=$1, updated_at=NOW()
+        WHERE id=$2 AND empresa_id=$3 AND unidade_id=$4
+        RETURNING id, ingrediente, grupo
+      `,[grupo,req.params.id,req.user.empresa_id,req.user.unidade_id]);
+      if(!rows[0]) return res.status(404).json({error:"Insumo não encontrado."});
+      res.json(rows[0]);
+    }catch(e){next(e)}
+  });
+
   app.get("/api/estoque",async(req,res,next)=>{try{
     const {rows}=await pool.query(`
       SELECT i.id,i.ingrediente,i.unidade,i.preco_real,i.estoque_minimo,i.estoque_maximo,i.local_estoque,
+        i.grupo,
       ${saldoExpr}::numeric AS saldo_atual,
       (${saldoExpr}*i.preco_real)::numeric AS valor_estoque,
       CASE WHEN ${saldoExpr}<=0 THEN 'sem_estoque'
