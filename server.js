@@ -3,6 +3,7 @@ import pg from "pg";
 import { installAuth } from "./auth.js";
 import { initCoreTenancy, migrateOperationalTenancy } from "./multitenancy.js";
 import { initPreparacoes, installPreparacoes, calcularCustoPreparacao, listarPreparacoesComCusto } from "./preparacoes.js";
+import { initCategorias, installCategorias } from "./categorias.js";
 
 const { Pool } = pg;
 
@@ -51,6 +52,7 @@ await installAuth(app, pool);
 
 // Preparações / Sub-receitas
 installPreparacoes(app, pool);
+installCategorias(app, pool);
 
 const n = value => {
   const number =
@@ -229,6 +231,7 @@ async function init() {
 
   // Estrutura de Preparações / Sub-receitas
   await initPreparacoes(pool);
+  await initCategorias(pool);
 
   console.log(
     "Banco de dados pronto"
