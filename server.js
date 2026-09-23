@@ -2,7 +2,7 @@ import express from "express";
 import pg from "pg";
 import { installAuth } from "./auth.js";
 import { initCoreTenancy, migrateOperationalTenancy } from "./multitenancy.js";
-import { initPreparacoes, installPreparacoes } from "./preparacoes.js";
+import { initPreparacoes, installPreparacoes, calcularCustoPreparacao, listarPreparacoesComCusto } from "./preparacoes.js";
 
 const { Pool } = pg;
 
@@ -860,6 +860,42 @@ LEFT JOIN insumos ins
 
 `;
 
+
+async function adicionarCustosPreparacoesFicha(db, fichas, empresaId, unidadeId) {
+  for (const ficha of fichas) {
+    const { rows } = await db.query(
+      `SELECT preparacao_id, quantidade
+         FROM ficha_preparacoes
+        WHERE ficha_id = $1`,
+      [ficha.id]
+    );
+
+    let extra = 0;
+    for (const item of rows) {
+      const custo = await calcularCustoPreparacao(
+        db,
+        item.preparacao_id,
+        empresaId,
+        unidadeId
+      );
+      extra += n(item.quantidade) * n(custo.custo_unitario);
+    }
+
+    const custoBase = n(ficha.custo_total);
+    const custoTotal = custoBase + extra;
+    const porcoes = n(ficha.porcoes);
+    const custoPorcao = porcoes > 0 ? custoTotal / porcoes : 0;
+    const precoVenda = n(ficha.preco_venda);
+    const meta = n(ficha.meta_cmv);
+
+    ficha.custo_total = custoTotal;
+    ficha.custo_por_porcao = custoPorcao;
+    ficha.cmv_percentual = precoVenda > 0 ? (custoPorcao / precoVenda) * 100 : 0;
+    ficha.preco_meta = porcoes > 0 && meta > 0 ? custoPorcao / (meta / 100) : 0;
+  }
+  return fichas;
+}
+
 /* =========================================================
    LISTAR FICHAS TÉCNICAS
 ========================================================= */
@@ -888,6 +924,13 @@ app.get(
           `,
           [req.user.empresa_id, req.user.unidade_id]
         );
+
+      await adicionarCustosPreparacoesFicha(
+        pool,
+        rows,
+        req.user.empresa_id,
+        req.user.unidade_id
+      );
 
       res.json(
         rows
@@ -936,6 +979,13 @@ app.get(
               "Ficha técnica não encontrada."
           });
       }
+
+      await adicionarCustosPreparacoesFicha(
+        pool,
+        rows,
+        req.user.empresa_id,
+        req.user.unidade_id
+      );
 
       const ingredientes =
         await pool.query(
@@ -997,11 +1047,30 @@ app.get(
           ]
         );
 
+      const preparacoes =
+        await pool.query(
+          `
+          SELECT
+            fp.preparacao_id,
+            fp.quantidade,
+            fp.ordem,
+            fp.observacoes,
+            p.nome,
+            p.unidade_rendimento
+          FROM ficha_preparacoes fp
+          JOIN preparacoes p ON p.id = fp.preparacao_id
+          WHERE fp.ficha_id = $1
+            AND p.empresa_id = $2
+            AND p.unidade_id = $3
+          ORDER BY fp.ordem, fp.id
+          `,
+          [req.params.id, req.user.empresa_id, req.user.unidade_id]
+        );
+
       res.json({
         ...rows[0],
-
-        ingredientes:
-          ingredientes.rows
+        ingredientes: ingredientes.rows,
+        preparacoes: preparacoes.rows
       });
     }
   )
@@ -1034,6 +1103,13 @@ app.post(
           b.ingredientes
         )
           ? b.ingredientes
+          : [];
+
+      const preparacoes =
+        Array.isArray(
+          b.preparacoes
+        )
+          ? b.preparacoes
           : [];
 
       if (!nome) {
@@ -1240,6 +1316,26 @@ app.post(
           );
         }
 
+        for (let ordem = 0; ordem < preparacoes.length; ordem++) {
+          const item = preparacoes[ordem];
+          const quantidade = n(item.quantidade);
+          if (!item.preparacao_id || quantidade <= 0) continue;
+
+          const prep = await client.query(
+            `SELECT id FROM preparacoes
+              WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,
+            [item.preparacao_id, req.user.empresa_id, req.user.unidade_id]
+          );
+          if (!prep.rows[0]) throw new Error(`Preparação ${item.preparacao_id} não encontrada.`);
+
+          await client.query(
+            `INSERT INTO ficha_preparacoes
+              (ficha_id, preparacao_id, quantidade, ordem, observacoes)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [novaFicha.id, item.preparacao_id, quantidade, ordem, item.observacoes || ""]
+          );
+        }
+
         await client.query(
           "COMMIT"
         );
@@ -1302,6 +1398,13 @@ app.put(
           b.ingredientes
         )
           ? b.ingredientes
+          : [];
+
+      const preparacoes =
+        Array.isArray(
+          b.preparacoes
+        )
+          ? b.preparacoes
           : [];
 
       if (!nome) {
@@ -1450,6 +1553,11 @@ app.put(
           ]
         );
 
+        await client.query(
+          `DELETE FROM ficha_preparacoes WHERE ficha_id = $1`,
+          [req.params.id]
+        );
+
         for (
           let ordem = 0;
           ordem < itens.length;
@@ -1528,6 +1636,26 @@ app.put(
               item.observacoes ||
                 ""
             ]
+          );
+        }
+
+        for (let ordem = 0; ordem < preparacoes.length; ordem++) {
+          const item = preparacoes[ordem];
+          const quantidade = n(item.quantidade);
+          if (!item.preparacao_id || quantidade <= 0) continue;
+
+          const prep = await client.query(
+            `SELECT id FROM preparacoes
+              WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,
+            [item.preparacao_id, req.user.empresa_id, req.user.unidade_id]
+          );
+          if (!prep.rows[0]) throw new Error(`Preparação ${item.preparacao_id} não encontrada.`);
+
+          await client.query(
+            `INSERT INTO ficha_preparacoes
+              (ficha_id, preparacao_id, quantidade, ordem, observacoes)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [req.params.id, item.preparacao_id, quantidade, ordem, item.observacoes || ""]
           );
         }
 
@@ -1636,6 +1764,13 @@ app.get(
           [req.user.empresa_id, req.user.unidade_id]
         );
 
+      await adicionarCustosPreparacoesFicha(
+        pool,
+        fichas.rows,
+        req.user.empresa_id,
+        req.user.unidade_id
+      );
+
       const validas =
         fichas.rows.filter(
           ficha =>
@@ -1731,6 +1866,13 @@ app.get(
           `,
           [req.user.empresa_id, req.user.unidade_id]
         );
+
+      await adicionarCustosPreparacoesFicha(
+        pool,
+        custos.rows,
+        req.user.empresa_id,
+        req.user.unidade_id
+      );
 
       const comCmv =
         custos.rows.filter(
