@@ -55,14 +55,17 @@
     ${ITENS.map((it,k)=>`<tr data-prep-row="${k}">
       <td><select onchange="prepTipo(${k},this.value)"><option value="insumo" ${it.tipo==="insumo"?"selected":""}>Insumo</option><option value="preparacao" ${it.tipo==="preparacao"?"selected":""}>Preparação</option></select></td>
       <td><select onchange="prepFonte(${k},this.value)"><option value="">Selecione...</option>${(it.tipo==="preparacao"?PREPS.filter(x=>!EDITANDO||Number(x.id)!==Number(EDITANDO.id)):INSUMOS.filter(x=>x.ativo!==false)).map(x=>`<option value="${x.id}" ${Number(x.id)===Number(it.id)?"selected":""}>${esc(it.tipo==="preparacao"?x.nome:x.ingrediente)}</option>`).join("")}</select></td>
-      <td><input class="prep-qtd" type="number" inputmode="decimal" min="0" step="0.0001" value="${it.quantidade||""}" oninput="prepQtd(${k},this.value)"></td>
+      <td><input class="prep-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${it.quantidade?String(it.quantidade).replace(".",","):""}" oninput="prepQtd(${k},this.value)"></td>
       <td>${esc(unidade(it))}</td><td>${moeda(preco(it))}</td><td><b data-custo-item>${moeda(num(it.quantidade)*preco(it))}</b></td>
       <td><input value="${esc(it.observacoes)}" oninput="prepObsItem(${k},this.value)"></td><td><button type="button" class="danger" onclick="prepRemover(${k})">×</button></td></tr>`).join("")}</tbody></table></div>`;calcular();
   }
   window.prepTipo=(k,v)=>{ITENS[k].tipo=v;ITENS[k].id="";renderItens()};
   window.prepFonte=(k,v)=>{ITENS[k].id=v?Number(v):"";renderItens()};
   window.prepQtd=(k,v)=>{
-    ITENS[k].quantidade=num(String(v).replace(",","."));
+    const bruto=String(v??"").trim().replace(/\s/g,"");
+    const normalizado=bruto.includes(",") ? bruto.replace(/\./g,"").replace(",",".") : bruto;
+    const valor=parseFloat(normalizado);
+    ITENS[k].quantidade=Number.isFinite(valor)?valor:0;
     atualizarTotaisLinha(k);
     calcular();
   };
