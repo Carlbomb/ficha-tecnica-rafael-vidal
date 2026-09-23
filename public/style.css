@@ -16,3 +16,13 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 .ficha-planilha .ficha-unidade-select{display:block;width:86px!important;min-width:86px!important;height:42px;padding:8px 28px 8px 10px!important;color:#24343a!important;background-color:#fff!important;opacity:1!important;-webkit-text-fill-color:#24343a!important;-webkit-appearance:menulist!important;appearance:auto!important}
 .ficha-planilha .ficha-unidade-select option{color:#24343a;background:#fff}
 .ficha-planilha .ficha-qtd{min-width:105px}
+
+/* MISEVO V19 — Estoque da Cozinha */
+.estoque-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.estoque-tools{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px}
+.stock-status{display:inline-block;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:800}
+.stock-status.normal{background:#e9f7f0;color:#18734e}
+.stock-status.baixo{background:#fff3d6;color:#8a5d00}
+.stock-status.sem_estoque{background:#fde9e9;color:#a62f2f}
+.stock-status.excesso{background:#e9f1ff;color:#245ca6}
+@media(max-width:700px){.estoque-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.estoque-tools{grid-template-columns:1fr}}
