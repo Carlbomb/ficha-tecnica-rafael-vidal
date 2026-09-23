@@ -29,7 +29,7 @@
     C.innerHTML=`<div class="section-head"><div><small>SUB-RECEITA</small><h2>${p?esc(p.nome):"Nova Preparação"}</h2><p>Use insumos e também outras preparações como componentes.</p></div><button class="secondary" id="voltarPrep">← Voltar</button></div>
     <form id="formPrep"><div class="card form-grid">
     <label>Nome da preparação<input id="prepNome" required value="${esc(p?.nome||"")}"></label>
-    <label>Categoria<select id="prepCategoria">${["Base","Molho","Caldo","Pré-preparo","Massa","Recheio","Outros"].map(x=>`<option ${p?.categoria===x?"selected":""}>${x}</option>`).join("")}</select></label>
+    <label>Categoria<select id="prepCategoria">${["Bases e Fundos","Molhos","Carnes e Aves","Pescados e Frutos do Mar","Massas","Arroz e Cereais","Guarnições","Vegetais e Saladas","Padaria","Confeitaria e Sobremesas","Marinadas e Condimentos","Pré-preparos"].map(x=>`<option ${p?.categoria===x?"selected":""}>${x}</option>`).join("")}</select></label>
     <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required value="${p?.rendimento??1}"></label>
     <label>Unidade do rendimento<select id="prepUnidade">${["KG","L","UN"].map(x=>`<option ${p?.unidade_rendimento===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
     <div class="card"><div class="section-head"><div><small>COMPOSIÇÃO</small><h3>Ingredientes e preparações</h3></div><button type="button" class="primary" id="addPrepItem">+ Componente</button></div><div id="prepItens"></div></div>

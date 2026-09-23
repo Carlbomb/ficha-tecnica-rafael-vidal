@@ -766,18 +766,29 @@ function formularioFicha(ficha = null) {
           Categoria
           <select id="categoria">
             ${[
-              "Entrada",
-              "Prato Principal",
-              "Acompanhamento",
-              "Molho",
-              "Sobremesa",
-              "Bebida",
-              "Outros"
-            ].map(categoria => `
+              "Bases e Fundos",
+              "Molhos",
+              "Carnes e Aves",
+              "Pescados e Frutos do Mar",
+              "Massas",
+              "Arroz e Cereais",
+              "Guarnições",
+              "Vegetais e Saladas",
+              "Padaria",
+              "Confeitaria e Sobremesas",
+              "Marinadas e Condimentos",
+              "Pré-preparos"
+            ].concat(
+              ficha?.categoria && ![
+                "Bases e Fundos","Molhos","Carnes e Aves","Pescados e Frutos do Mar",
+                "Massas","Arroz e Cereais","Guarnições","Vegetais e Saladas",
+                "Padaria","Confeitaria e Sobremesas","Marinadas e Condimentos","Pré-preparos"
+              ].includes(ficha.categoria) ? [ficha.categoria] : []
+            ).map(categoria => `
               <option
                 value="${categoria}"
                 ${
-                  String(ficha?.categoria || "Outros") === categoria
+                  String(ficha?.categoria || "Pré-preparos") === categoria
                     ? "selected"
                     : ""
                 }
