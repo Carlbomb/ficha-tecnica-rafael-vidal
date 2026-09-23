@@ -113,8 +113,8 @@ export async function installAuth(app, pool) {
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permissoes JSONB NOT NULL DEFAULT '{}'::jsonb;
-    UPDATE usuarios SET perfil='chef' WHERE perfil='gestor';
     ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_perfil_check;
+    UPDATE usuarios SET perfil='chef' WHERE perfil='gestor';
     ALTER TABLE usuarios ADD CONSTRAINT usuarios_perfil_check
       CHECK (perfil IN ('admin','chef','subchef','cozinha','estoque','consulta'));
     CREATE TABLE IF NOT EXISTS sessoes (
