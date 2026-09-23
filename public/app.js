@@ -1051,7 +1051,8 @@ function alterarInsumo(index, value) {
 window.alterarInsumo = alterarInsumo;
 
 function alterarPesoLiquido(index, value) {
-  const bruto = String(value ?? "").trim().replace(/\s/g, "");
+  const bruto = String(value ?? "").replace(/\s/g, "");
+  ITENS_FICHA[index].peso_liquido_texto = bruto;
   const normalizado = bruto.includes(",")
     ? bruto.replace(/\./g, "").replace(",", ".")
     : bruto;
@@ -1136,8 +1137,8 @@ function renderizarIngredientes() {
           <td><select onchange="alterarTipoItem(${index},this.value)"><option value="insumo" ${!ehPrep?"selected":""}>Insumo</option><option value="preparacao" ${ehPrep?"selected":""}>Preparação</option></select></td>
           <td data-ficha-codigo><b>${esc(codigo)}</b></td>
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
-          <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${item.peso_liquido?String(item.peso_liquido).replace(".",","):""}" oninput="alterarPesoLiquido(${index},this.value)"></td>
-          <td data-ficha-unidade><select onchange="alterarUnidadeFicha(${index},this.value)">${unidadesCompativeis(unidadeFicha(item)).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
+          <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(item.peso_liquido_texto !== undefined ? item.peso_liquido_texto : (item.peso_liquido?String(item.peso_liquido).replace(".",","):""))}" oninput="alterarPesoLiquido(${index},this.value)"></td>
+          <td data-ficha-unidade><select class="ficha-unidade-select" aria-label="Unidade" onchange="alterarUnidadeFicha(${index},this.value)">${unidadesCompativeis(unidadeFicha(item)).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
           <td data-ficha-fc>${ehPrep?"—":numero(fc,4)}</td>
           <td data-ficha-bruto>${ehPrep?"—":numero(bruto,4)}</td>
           <td data-ficha-compra>${ehPrep?"—":moeda(precoCompra)}</td>
