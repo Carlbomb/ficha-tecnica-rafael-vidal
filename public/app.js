@@ -123,6 +123,7 @@ document.addEventListener("click", event => {
   if (botao.dataset.tab === "insumos") telaInsumos();
   if (botao.dataset.tab === "fichas") telaFichas();
   if (botao.dataset.tab === "cmv") telaCMV();
+  if (botao.dataset.tab === "usuarios") telaUsuarios();
 });
 
 /* =========================================================
@@ -1218,130 +1219,6 @@ function telaCMV() {
   `;
 }
 
-
-/* =========================================================
-   USUÁRIOS E PERMISSÕES
-========================================================= */
-
-const PERFIS_USUARIO = {
-  admin: "Administrador",
-  gestor: "Gestor / Chef",
-  cozinha: "Cozinha",
-  estoque: "Estoque"
-};
-
-async function telaUsuarios() {
-  if (window.USUARIO_ATUAL?.perfil !== "admin") {
-    C.innerHTML = `<div class="card"><h3>Acesso restrito</h3><p>Somente o administrador pode gerenciar usuários.</p></div>`;
-    return;
-  }
-
-  C.innerHTML = `<div class="card">Carregando usuários...</div>`;
-
-  try {
-    const usuarios = await api("/api/auth/usuarios");
-    C.innerHTML = `
-      <div class="section-head">
-        <div>
-          <small>ACESSO AO SISTEMA</small>
-          <h2>Usuários e Permissões</h2>
-          <p>Cadastre a equipe e defina o nível de acesso de cada usuário.</p>
-        </div>
-        <button type="button" class="primary" id="novoUsuario">+ Novo usuário</button>
-      </div>
-
-      <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              ${usuarios.map(u => `
-                <tr>
-                  <td><b>${esc(u.nome)}</b></td>
-                  <td>${esc(u.email)}</td>
-                  <td>${esc(PERFIS_USUARIO[u.perfil] || u.perfil)}</td>
-                  <td>${u.ativo ? "Ativo" : "Inativo"}</td>
-                  <td><button type="button" onclick="editarUsuario(${Number(u.id)})">Editar</button></td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
-        </div>
-      </div>`;
-
-    $("#novoUsuario").onclick = () => formularioUsuario();
-    window.__USUARIOS = usuarios;
-  } catch (error) { erro(error); }
-}
-
-window.editarUsuario = function(id) {
-  const usuario = (window.__USUARIOS || []).find(u => Number(u.id) === Number(id));
-  if (usuario) formularioUsuario(usuario);
-};
-
-function formularioUsuario(usuario = null) {
-  const editando = Boolean(usuario);
-  C.innerHTML = `
-    <div class="section-head">
-      <div><small>USUÁRIOS</small><h2>${editando ? "Editar Usuário" : "Novo Usuário"}</h2></div>
-      <button type="button" class="secondary" id="voltarUsuarios">← Voltar</button>
-    </div>
-    <form id="formUsuario" class="card">
-      <div class="form-grid">
-        <label>Nome<input id="usuarioNome" required value="${esc(usuario?.nome || "")}"></label>
-        <label>E-mail<input id="usuarioEmail" type="email" required value="${esc(usuario?.email || "")}"></label>
-        <label>Perfil
-          <select id="usuarioPerfil">
-            ${Object.entries(PERFIS_USUARIO).map(([valor,rotulo]) =>
-              `<option value="${valor}" ${String(usuario?.perfil || "cozinha") === valor ? "selected" : ""}>${rotulo}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <label>${editando ? "Nova senha (opcional)" : "Senha"}
-          <input id="usuarioSenha" type="password" minlength="10" ${editando ? "" : "required"} autocomplete="new-password" placeholder="Mínimo de 10 caracteres">
-        </label>
-        ${editando ? `<label>Status
-          <select id="usuarioAtivo">
-            <option value="true" ${usuario.ativo ? "selected" : ""}>Ativo</option>
-            <option value="false" ${!usuario.ativo ? "selected" : ""}>Inativo</option>
-          </select>
-        </label>` : ""}
-      </div>
-      <div class="card permission-help">
-        <b>Permissões</b>
-        <p><strong>Administrador:</strong> acesso total e gestão de usuários.</p>
-        <p><strong>Gestor / Chef:</strong> acesso operacional completo, sem gestão de usuários.</p>
-        <p><strong>Cozinha:</strong> consulta de fichas, insumos e painel.</p>
-        <p><strong>Estoque:</strong> consulta de insumos e painel.</p>
-      </div>
-      <div class="actions">
-        <button type="button" class="secondary" id="cancelarUsuario">Cancelar</button>
-        <button type="submit" class="primary">${editando ? "Salvar alterações" : "Criar usuário"}</button>
-      </div>
-    </form>`;
-
-  $("#voltarUsuarios").onclick = telaUsuarios;
-  $("#cancelarUsuario").onclick = telaUsuarios;
-  $("#formUsuario").onsubmit = async event => {
-    event.preventDefault();
-    const senha = $("#usuarioSenha").value;
-    const payload = {
-      nome: $("#usuarioNome").value.trim(),
-      email: $("#usuarioEmail").value.trim(),
-      perfil: $("#usuarioPerfil").value
-    };
-    if (senha) payload.senha = senha;
-    if (editando) payload.ativo = $("#usuarioAtivo").value === "true";
-
-    try {
-      await api(editando ? `/api/auth/usuarios/${usuario.id}` : "/api/auth/usuarios", {
-        method: editando ? "PUT" : "POST",
-        body: JSON.stringify(payload)
-      });
-      await telaUsuarios();
-    } catch (error) { erro(error); }
-  };
-}
-
 /* =========================================================
    BOTÃO GLOBAL NOVA FICHA
 ========================================================= */
@@ -1392,21 +1269,4 @@ async function iniciar() {
   }
 }
 
-async function iniciarComAutenticacao() {
-  if (window.AUTH_READY) await window.AUTH_READY;
-
-  const usuario = window.USUARIO_ATUAL;
-  if (!usuario) return;
-
-  const navUsuarios = $("#navUsuarios");
-  if (navUsuarios) navUsuarios.hidden = usuario.perfil !== "admin";
-
-  const podeEditar = usuario.perfil === "admin" || usuario.perfil === "gestor";
-  document.querySelectorAll(".header-new, .desktop-new").forEach(el => {
-    el.hidden = !podeEditar;
-  });
-
-  await iniciar();
-}
-
-iniciarComAutenticacao();
+iniciar();
