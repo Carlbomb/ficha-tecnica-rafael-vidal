@@ -1,4 +1,4 @@
-/* MISEVO V19.1 — Estoque da Cozinha + novo insumo na entrada */
+/* MISEVO V19.2 — Estoque da Cozinha + novo insumo na entrada */
 (()=>{const C=document.querySelector("#content"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const num=v=>{let s=String(v??"").trim();if(!s)return 0;if(s.includes(",")&&s.includes("."))s=s.replaceAll(".","").replace(",",".");else s=s.replace(",",".");const x=Number(s);return Number.isFinite(x)?x:0},fmt=(v,d=3)=>num(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:d}),money=v=>num(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 async function apiE(url,opt={}){const r=await fetch(url,{...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}}),d=r.status===204?null:await r.json().catch(()=>({}));if(!r.ok){const e=new Error(d?.error||"Erro no estoque.");e.data=d;throw e}return d}
@@ -31,7 +31,11 @@ const sync=()=>{const novo=sel.value==="__NOVO__";box.style.display=novo?"block"
 sel.onchange=sync;tipo.onchange=sync;sync();document.querySelector("#voltarMov").onclick=telaEstoque;document.querySelector("#cancelMov").onclick=telaEstoque;
 document.querySelector("#formMov").onsubmit=async e=>{e.preventDefault();try{
  const novo=sel.value==="__NOVO__";
- if(novo){await apiE("/api/estoque/novo-insumo",{method:"POST",body:JSON.stringify({ingrediente:document.querySelector("#nNome").value,unidade:document.querySelector("#nUnidade").value,quantidade:num(document.querySelector("#mQtd").value),preco_compra:num(document.querySelector("#nPreco").value),fornecedor:document.querySelector("#nFornecedor").value,estoque_minimo:num(document.querySelector("#nMin").value),estoque_maximo:num(document.querySelector("#nMax").value),local_estoque:document.querySelector("#nLocal").value,motivo:document.querySelector("#mMotivo").value||"Primeira entrada",observacoes:document.querySelector("#mObs").value})})}
+ if(novo){await apiE("/api/estoque/novo-insumo",{method:"POST",body:JSON.stringify({ingrediente:document.querySelector("#nNome").value,unidade:document.querySelector("#nUnidade").value,quantidade:num(document.querySelector("#mQtd").value),preco_compra:num(document.querySelector("#nPreco").value),fornecedor:document.querySelector("#nFornecedor").value,estoque_minimo:num(document.querySelector("#nMin").value),estoque_maximo:num(document.querySelector("#nMax").value),local_estoque:document.querySelector("#nLocal").value,motivo:document.querySelector("#mMotivo").value||"Primeira entrada",observacoes:document.querySelector("#mObs").value})});
+   /* app.js mantém INSUMOS em memória. Recarregar após criar um novo item
+      força /api/insumos a ser consultada novamente e sincroniza todas as telas. */
+   window.location.reload(); return;
+ }
  else{if(!sel.value)throw new Error("Selecione um insumo.");await apiE("/api/estoque/movimentacoes",{method:"POST",body:JSON.stringify({insumo_id:Number(sel.value),tipo:tipo.value,quantidade:num(document.querySelector("#mQtd").value),motivo:document.querySelector("#mMotivo").value,observacoes:document.querySelector("#mObs").value})})}
  await telaEstoque()}catch(z){alert(z.message)}}}
 
