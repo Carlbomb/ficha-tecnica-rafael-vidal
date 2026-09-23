@@ -7,3 +7,7 @@
 .auth-error{min-height:18px;margin:0;color:#b42e2e;font-size:12px;font-weight:700}.logged-user{color:#fff!important;font-weight:800}
 .logout-button{margin-top:8px;border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:8px 10px;background:transparent;color:#fff;font-weight:700;text-align:left}.logout-button:hover{background:rgba(255,255,255,.08)}
 @media(max-width:700px){.auth-card{padding:23px}.auth-brand h1{font-size:27px}}
+.auth-logo{display:block;width:82px;height:72px;object-fit:contain;margin:0 auto 12px}
+.auth-brand{text-align:center}
+.auth-brand p{text-align:center}
+.auth-card form{text-align:left}
