@@ -248,7 +248,7 @@ app.get(
         database: true,
 
         sistema:
-          "Ficha Técnica Rafael Vidal"
+          "MISEVO"
       });
     }
   )
@@ -262,7 +262,7 @@ app.get(
   "/api/insumos",
 
   asyncRoute(
-    async (_, res) => {
+    async (req, res) => {
 
       const { rows } =
         await pool.query(`
@@ -281,8 +281,10 @@ app.get(
             ativo,
             observacoes
           FROM insumos
+          WHERE empresa_id = $1
+            AND unidade_id = $2
           ORDER BY id
-        `);
+        `, [req.user.empresa_id, req.user.unidade_id]);
 
       res.json(
         rows
@@ -319,9 +321,13 @@ app.get(
             observacoes
           FROM insumos
           WHERE id = $1
+            AND empresa_id = $2
+            AND unidade_id = $3
           `,
           [
-            req.params.id
+            req.params.id,
+            req.user.empresa_id,
+            req.user.unidade_id
           ]
         );
 
@@ -461,11 +467,14 @@ app.post(
             fornecedor,
             data_cotacao,
             ativo,
-            observacoes
+            observacoes,
+            empresa_id,
+            unidade_id
           )
           VALUES (
             $1,$2,$3,$4,$5,
-            $6,$7,$8,$9,$10,$11
+            $6,$7,$8,$9,$10,$11,
+            $12,$13
           )
           RETURNING
             id AS codigo,
@@ -482,7 +491,9 @@ app.post(
             fornecedor,
             dataCotacao,
             ativo,
-            observacoes
+            observacoes,
+            req.user.empresa_id,
+            req.user.unidade_id
           ]
         );
 
@@ -585,6 +596,8 @@ app.put(
             observacoes = $11,
             updated_at = NOW()
           WHERE id = $12
+            AND empresa_id = $13
+            AND unidade_id = $14
 
           RETURNING
             id AS codigo,
@@ -605,7 +618,9 @@ app.put(
             b.ativo !== false,
             b.observacoes ||
               "",
-            req.params.id
+            req.params.id,
+            req.user.empresa_id,
+            req.user.unidade_id
           ]
         );
 
@@ -645,9 +660,13 @@ app.delete(
             `
             DELETE FROM insumos
             WHERE id = $1
+              AND empresa_id = $2
+              AND unidade_id = $3
             `,
             [
-              req.params.id
+              req.params.id,
+              req.user.empresa_id,
+              req.user.unidade_id
             ]
           );
 
@@ -828,8 +847,9 @@ LEFT JOIN ingredientes i
 
 LEFT JOIN insumos ins
   ON
-    ins.id =
-    i.insumo_id
+    ins.id = i.insumo_id
+    AND ins.empresa_id = f.empresa_id
+    AND ins.unidade_id = f.unidade_id
 
 `;
 
@@ -842,7 +862,7 @@ app.get(
 
   asyncRoute(
     async (
-      _,
+      req,
       res
     ) => {
 
@@ -850,12 +870,16 @@ app.get(
         await pool.query(
           fichaSelect +
           `
+          WHERE f.empresa_id = $1
+            AND f.unidade_id = $2
+
           GROUP BY
             f.id
 
           ORDER BY
             f.nome_prato
-          `
+          `,
+          [req.user.empresa_id, req.user.unidade_id]
         );
 
       res.json(
@@ -884,12 +908,16 @@ app.get(
           `
           WHERE
             f.id = $1
+            AND f.empresa_id = $2
+            AND f.unidade_id = $3
 
           GROUP BY
             f.id
           `,
           [
-            req.params.id
+            req.params.id,
+            req.user.empresa_id,
+            req.user.unidade_id
           ]
         );
 
@@ -948,13 +976,17 @@ app.get(
 
           WHERE
             i.ficha_id = $1
+            AND ins.empresa_id = $2
+            AND ins.unidade_id = $3
 
           ORDER BY
             i.ordem,
             i.id
           `,
           [
-            req.params.id
+            req.params.id,
+            req.user.empresa_id,
+            req.user.unidade_id
           ]
         );
 
@@ -1060,12 +1092,14 @@ app.post(
               modo_preparo,
               observacoes,
               status,
-              ativo
+              ativo,
+              empresa_id,
+              unidade_id
             )
 
             VALUES (
               $1,$2,$3,$4,$5,
-              $6,$7,$8,$9,$10
+              $6,$7,$8,$9,$10,$11,$12
             )
 
             RETURNING *
@@ -1097,7 +1131,9 @@ app.post(
               b.status ||
                 "Ativa",
 
-              b.ativo !== false
+              b.ativo !== false,
+              req.user.empresa_id,
+              req.user.unidade_id
             ]
           );
 
@@ -1145,9 +1181,13 @@ app.post(
                 unidade
               FROM insumos
               WHERE id = $1
+                AND empresa_id = $2
+                AND unidade_id = $3
               `,
               [
-                item.insumo_id
+                item.insumo_id,
+                req.user.empresa_id,
+                req.user.unidade_id
               ]
             );
 
@@ -1328,6 +1368,8 @@ app.put(
 
             WHERE
               id = $11
+              AND empresa_id = $12
+              AND unidade_id = $13
 
             RETURNING *
             `,
@@ -1360,7 +1402,9 @@ app.put(
 
               b.ativo !== false,
 
-              req.params.id
+              req.params.id,
+              req.user.empresa_id,
+              req.user.unidade_id
             ]
           );
 
@@ -1428,9 +1472,13 @@ app.put(
                 unidade
               FROM insumos
               WHERE id = $1
+                AND empresa_id = $2
+                AND unidade_id = $3
               `,
               [
-                item.insumo_id
+                item.insumo_id,
+                req.user.empresa_id,
+                req.user.unidade_id
               ]
             );
 
@@ -1524,9 +1572,13 @@ app.delete(
           `
           DELETE FROM fichas
           WHERE id = $1
+            AND empresa_id = $2
+            AND unidade_id = $3
           `,
           [
-            req.params.id
+            req.params.id,
+            req.user.empresa_id,
+            req.user.unidade_id
           ]
         );
 
@@ -1557,7 +1609,7 @@ app.get(
 
   asyncRoute(
     async (
-      _,
+      req,
       res
     ) => {
 
@@ -1565,12 +1617,16 @@ app.get(
         await pool.query(
           fichaSelect +
           `
+          WHERE f.empresa_id = $1
+            AND f.unidade_id = $2
+
           GROUP BY
             f.id
 
           ORDER BY
             f.nome_prato
-          `
+          `,
+          [req.user.empresa_id, req.user.unidade_id]
         );
 
       const validas =
@@ -1620,7 +1676,7 @@ app.get(
 
   asyncRoute(
     async (
-      _,
+      req,
       res
     ) => {
 
@@ -1633,7 +1689,10 @@ app.get(
           FROM insumos
           WHERE
             ativo = TRUE
-          `
+            AND empresa_id = $1
+            AND unidade_id = $2
+          `,
+          [req.user.empresa_id, req.user.unidade_id]
         );
 
       const fichas =
@@ -1645,7 +1704,10 @@ app.get(
           FROM fichas
           WHERE
             ativo = TRUE
-          `
+            AND empresa_id = $1
+            AND unidade_id = $2
+          `,
+          [req.user.empresa_id, req.user.unidade_id]
         );
 
       const custos =
@@ -1654,10 +1716,13 @@ app.get(
           `
           WHERE
             f.ativo = TRUE
+            AND f.empresa_id = $1
+            AND f.unidade_id = $2
 
           GROUP BY
             f.id
-          `
+          `,
+          [req.user.empresa_id, req.user.unidade_id]
         );
 
       const comCmv =
@@ -1771,7 +1836,7 @@ init()
         () => {
 
           console.log(
-            `Ficha Técnica Rafael Vidal rodando na porta ${port}`
+            `MISEVO rodando na porta ${port}`
           );
 
         }
