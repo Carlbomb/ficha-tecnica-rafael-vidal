@@ -97,20 +97,41 @@ export async function installAuth(app, pool) {
 
   await pool.query(`DELETE FROM sessoes WHERE expires_at <= NOW()`);
 
-  const count = await pool.query(`SELECT COUNT(*)::integer AS total FROM usuarios`);
-  if (count.rows[0].total === 0) {
-    const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-    const password = String(process.env.ADMIN_PASSWORD || "");
-    const nome = String(process.env.ADMIN_NAME || "Administrador").trim();
+  /*
+   * Sincroniza o administrador definido no Railway.
+   * Isso permite recuperar o acesso caso ADMIN_EMAIL/ADMIN_PASSWORD sejam alterados.
+   * Não altera fichas, insumos, CMV ou qualquer outra tabela do sistema.
+   */
+  const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const password = String(process.env.ADMIN_PASSWORD || "");
+  const nome = String(process.env.ADMIN_NAME || "Administrador").trim();
 
-    if (email && password.length >= 10) {
+  if (email && password.length >= 10) {
+    const existingAdmin = await pool.query(
+      `SELECT id FROM usuarios WHERE perfil='admin' ORDER BY id LIMIT 1`
+    );
+
+    if (existingAdmin.rows[0]) {
+      const adminId = existingAdmin.rows[0].id;
+      await pool.query(
+        `UPDATE usuarios
+         SET nome=$1,email=$2,senha_hash=$3,perfil='admin',ativo=TRUE,updated_at=NOW()
+         WHERE id=$4`,
+        [nome, email, hashPassword(password), adminId]
+      );
+      await pool.query(`DELETE FROM sessoes WHERE usuario_id=$1`, [adminId]);
+      console.log("Usuário administrador sincronizado com as variáveis do Railway.");
+    } else {
       await pool.query(
         `INSERT INTO usuarios (nome,email,senha_hash,perfil)
          VALUES ($1,$2,$3,'admin')`,
         [nome, email, hashPassword(password)]
       );
       console.log("Usuário administrador inicial criado.");
-    } else {
+    }
+  } else {
+    const count = await pool.query(`SELECT COUNT(*)::integer AS total FROM usuarios`);
+    if (count.rows[0].total === 0) {
       console.warn("ATENÇÃO: nenhum usuário cadastrado. Defina ADMIN_EMAIL e ADMIN_PASSWORD (mín. 10 caracteres) no Railway e reinicie.");
     }
   }
