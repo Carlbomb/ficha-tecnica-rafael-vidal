@@ -2,6 +2,7 @@ import express from "express";
 import pg from "pg";
 import { installAuth } from "./auth.js";
 import { initCoreTenancy, migrateOperationalTenancy } from "./multitenancy.js";
+import { initPreparacoes, installPreparacoes } from "./preparacoes.js";
 
 const { Pool } = pg;
 
@@ -47,6 +48,9 @@ await initCoreTenancy(pool);
 
 // Login, sessões e permissões
 await installAuth(app, pool);
+
+// Preparações / Sub-receitas
+installPreparacoes(app, pool);
 
 const n = value => {
   const number =
@@ -222,6 +226,9 @@ async function init() {
 
   // Vincula os dados operacionais existentes à empresa/unidade inicial.
   await migrateOperationalTenancy(pool);
+
+  // Estrutura de Preparações / Sub-receitas
+  await initPreparacoes(pool);
 
   console.log(
     "Banco de dados pronto"
