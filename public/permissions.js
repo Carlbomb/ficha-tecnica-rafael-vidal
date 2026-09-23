@@ -72,7 +72,7 @@ function formUsuarioPerm(u=null){
 }
 function ajustarMenu(user){
  const p=permsFor(user);
- const map={painel:"painel",insumos:"insumos",fichas:"fichas",preparacoes:"preparacoes",cmv:"custos",usuarios:"usuarios"};
+ const map={painel:"painel",insumos:"insumos",fichas:"fichas",preparacoes:"preparacoes",categorias:"fichas",cmv:"custos",usuarios:"usuarios"};
  document.querySelectorAll(".main-nav [data-tab]").forEach(b=>{
   const m=map[b.dataset.tab]; if(!m)return;
   const ok=user.perfil==="admin"||m==="usuarios"&&user.perfil==="admin"||has(p,m,"visualizar");
