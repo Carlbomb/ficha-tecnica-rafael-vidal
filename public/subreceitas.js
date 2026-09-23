@@ -52,16 +52,26 @@
     const area=document.querySelector("#prepItens");if(!area)return;
     if(!ITENS.length){area.innerHTML='<div class="empty">Adicione insumos ou preparações.</div>';calcular();return}
     area.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Componente</th><th>Quantidade</th><th>Unid.</th><th>Custo/Unid.</th><th>Custo</th><th>Observação</th><th></th></tr></thead><tbody>
-    ${ITENS.map((it,k)=>`<tr>
+    ${ITENS.map((it,k)=>`<tr data-prep-row="${k}">
       <td><select onchange="prepTipo(${k},this.value)"><option value="insumo" ${it.tipo==="insumo"?"selected":""}>Insumo</option><option value="preparacao" ${it.tipo==="preparacao"?"selected":""}>Preparação</option></select></td>
       <td><select onchange="prepFonte(${k},this.value)"><option value="">Selecione...</option>${(it.tipo==="preparacao"?PREPS.filter(x=>!EDITANDO||Number(x.id)!==Number(EDITANDO.id)):INSUMOS.filter(x=>x.ativo!==false)).map(x=>`<option value="${x.id}" ${Number(x.id)===Number(it.id)?"selected":""}>${esc(it.tipo==="preparacao"?x.nome:x.ingrediente)}</option>`).join("")}</select></td>
-      <td><input type="number" min="0" step=".0001" value="${it.quantidade||""}" oninput="prepQtd(${k},this.value)"></td>
-      <td>${esc(unidade(it))}</td><td>${moeda(preco(it))}</td><td><b>${moeda(num(it.quantidade)*preco(it))}</b></td>
+      <td><input class="prep-qtd" type="number" inputmode="decimal" min="0" step="0.0001" value="${it.quantidade||""}" oninput="prepQtd(${k},this.value)"></td>
+      <td>${esc(unidade(it))}</td><td>${moeda(preco(it))}</td><td><b data-custo-item>${moeda(num(it.quantidade)*preco(it))}</b></td>
       <td><input value="${esc(it.observacoes)}" oninput="prepObsItem(${k},this.value)"></td><td><button type="button" class="danger" onclick="prepRemover(${k})">×</button></td></tr>`).join("")}</tbody></table></div>`;calcular();
   }
   window.prepTipo=(k,v)=>{ITENS[k].tipo=v;ITENS[k].id="";renderItens()};
   window.prepFonte=(k,v)=>{ITENS[k].id=v?Number(v):"";renderItens()};
-  window.prepQtd=(k,v)=>{ITENS[k].quantidade=num(v);renderItens()};
+  window.prepQtd=(k,v)=>{
+    ITENS[k].quantidade=num(String(v).replace(",","."));
+    atualizarTotaisLinha(k);
+    calcular();
+  };
+  function atualizarTotaisLinha(k){
+    const row=document.querySelector(`[data-prep-row="${k}"]`);
+    if(!row)return;
+    const custo=row.querySelector("[data-custo-item]");
+    if(custo)custo.textContent=moeda(num(ITENS[k].quantidade)*preco(ITENS[k]));
+  }
   window.prepObsItem=(k,v)=>ITENS[k].observacoes=v;
   window.prepRemover=k=>{ITENS.splice(k,1);renderItens()};
 
