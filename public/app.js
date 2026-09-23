@@ -868,8 +868,28 @@ function alterarInsumo(index, value) {
 window.alterarInsumo = alterarInsumo;
 
 function alterarPesoLiquido(index, value) {
-  ITENS_FICHA[index].peso_liquido = num(value);
-  renderizarIngredientes();
+  const bruto = String(value ?? "").trim().replace(/\s/g, "");
+  const normalizado = bruto.includes(",")
+    ? bruto.replace(/\./g, "").replace(",", ".")
+    : bruto;
+  const valor = parseFloat(normalizado);
+  ITENS_FICHA[index].peso_liquido = Number.isFinite(valor) ? valor : 0;
+  atualizarLinhaFicha(index);
+  calcularFicha();
+}
+function atualizarLinhaFicha(index) {
+  const row = document.querySelector(`[data-ficha-row="${index}"]`);
+  if (!row) return;
+  const item = ITENS_FICHA[index];
+  const fonte = fonteFicha(item);
+  const q = num(item.peso_liquido);
+  const fc = item.tipo === "insumo" ? num(fonte?.fc) : 1;
+  const bruto = q * fc;
+  const custo = q * precoFicha(item);
+  const brutoEl = row.querySelector("[data-ficha-bruto]");
+  const custoEl = row.querySelector("[data-ficha-custo]");
+  if (brutoEl) brutoEl.textContent = numero(bruto, 4);
+  if (custoEl) custoEl.textContent = moeda(custo);
 }
 window.alterarPesoLiquido = alterarPesoLiquido;
 
@@ -901,15 +921,15 @@ function renderizarIngredientes() {
         const opcoes=item.tipo==="preparacao"
           ? PREPARACOES.map(p=>`<option value="${p.id}" ${Number(item.id)===Number(p.id)?"selected":""}>${esc(p.nome)}</option>`).join("")
           : INSUMOS.filter(i=>i.ativo!==false).map(i=>`<option value="${i.id}" ${Number(item.id)===Number(i.id)?"selected":""}>${esc(i.ingrediente)}</option>`).join("");
-        return `<tr>
+        return `<tr data-ficha-row="${index}">
           <td><select onchange="alterarTipoItem(${index},this.value)"><option value="insumo" ${item.tipo!=="preparacao"?"selected":""}>Insumo</option><option value="preparacao" ${item.tipo==="preparacao"?"selected":""}>Preparação</option></select></td>
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
-          <td><input type="number" step="0.0001" min="0" value="${item.peso_liquido||""}" oninput="alterarPesoLiquido(${index},this.value)"></td>
+          <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${item.peso_liquido?String(item.peso_liquido).replace(".",","):""}" oninput="alterarPesoLiquido(${index},this.value)"></td>
           <td>${esc(unidadeFicha(item))}</td>
           <td>${numero(fc,4)}</td>
-          <td>${numero(bruto,4)}</td>
+          <td data-ficha-bruto>${numero(bruto,4)}</td>
           <td>${moeda(precoFicha(item))}</td>
-          <td><b>${moeda(custo)}</b></td>
+          <td><b data-ficha-custo>${moeda(custo)}</b></td>
           <td><input value="${esc(item.observacoes||"")}" oninput="alterarObservacao(${index},this.value)"></td>
           <td><button type="button" class="danger" onclick="removerIngrediente(${index})">×</button></td>
         </tr>`;
