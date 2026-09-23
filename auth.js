@@ -241,14 +241,26 @@ export async function installAuth(app, pool) {
       if (!user) return res.status(401).json({ error: "Sessão não autenticada." });
       if (user.perfil !== "admin") return res.status(403).json({ error: "Acesso restrito ao administrador." });
 
-      const perfil = String(req.body?.perfil || "");
+      const atual = await pool.query(`SELECT * FROM usuarios WHERE id=$1`, [req.params.id]);
+      if (!atual.rows[0]) return res.status(404).json({ error: "Usuário não encontrado." });
+
+      const nome = String(req.body?.nome ?? atual.rows[0].nome).trim();
+      const email = String(req.body?.email ?? atual.rows[0].email).trim().toLowerCase();
+      const perfil = String(req.body?.perfil ?? atual.rows[0].perfil);
+      const ativo = req.body?.ativo === undefined ? atual.rows[0].ativo : req.body.ativo !== false;
+      const senha = String(req.body?.senha || "");
+
+      if (!nome || !email) return res.status(400).json({ error: "Informe nome e e-mail." });
       if (!ROLES.has(perfil)) return res.status(400).json({ error: "Perfil inválido." });
-      const ativo = req.body?.ativo !== false;
+      if (senha && senha.length < 10) return res.status(400).json({ error: "A senha deve ter pelo menos 10 caracteres." });
+
+      const senhaHash = senha ? hashPassword(senha) : atual.rows[0].senha_hash;
 
       const { rows } = await pool.query(
-        `UPDATE usuarios SET perfil=$1,ativo=$2,updated_at=NOW()
-         WHERE id=$3 RETURNING id,nome,email,perfil,ativo`,
-        [perfil, ativo, req.params.id]
+        `UPDATE usuarios
+         SET nome=$1,email=$2,senha_hash=$3,perfil=$4,ativo=$5,updated_at=NOW()
+         WHERE id=$6 RETURNING id,nome,email,perfil,ativo`,
+        [nome, email, senhaHash, perfil, ativo, req.params.id]
       );
       if (!rows[0]) return res.status(404).json({ error: "Usuário não encontrado." });
       res.json(rows[0]);
