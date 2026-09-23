@@ -882,13 +882,14 @@ function atualizarLinhaFicha(index) {
   if (!row) return;
   const item = ITENS_FICHA[index];
   const fonte = fonteFicha(item);
+  const ehPrep = item.tipo === "preparacao";
   const q = num(item.peso_liquido);
-  const fc = item.tipo === "insumo" ? num(fonte?.fc) : 1;
+  const fc = ehPrep ? 1 : num(fonte?.fc);
   const bruto = q * fc;
   const custo = q * precoFicha(item);
   const brutoEl = row.querySelector("[data-ficha-bruto]");
   const custoEl = row.querySelector("[data-ficha-custo]");
-  if (brutoEl) brutoEl.textContent = numero(bruto, 4);
+  if (brutoEl) brutoEl.textContent = ehPrep ? "—" : numero(bruto, 4);
   if (custoEl) custoEl.textContent = moeda(custo);
 }
 window.alterarPesoLiquido = alterarPesoLiquido;
@@ -903,32 +904,54 @@ function renderizarIngredientes() {
   if (!area) return;
 
   if (!ITENS_FICHA.length) {
-    area.innerHTML = `<div class="empty">Nenhum componente adicionado. Clique em "+ Ingrediente".</div>`;
+    area.innerHTML = `<div class="empty">Nenhum componente adicionado. Clique em "+ Componente".</div>`;
     calcularFicha();
     return;
   }
 
   area.innerHTML = `
-    <div class="table-wrap"><table>
-      <thead><tr><th>Tipo</th><th>Ingrediente / Preparação</th><th>Quantidade</th><th>Unid.</th><th>FC</th><th>P. Bruto</th><th>Preço / Custo Unit.</th><th>Custo</th><th>Observação</th><th></th></tr></thead>
+    <div class="table-wrap ficha-planilha"><table>
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Código</th>
+          <th>Ingrediente / Preparação</th>
+          <th>Peso Líquido</th>
+          <th>Unidade</th>
+          <th>FC</th>
+          <th>Peso Bruto</th>
+          <th>Preço de Compra</th>
+          <th>Preço Real</th>
+          <th>Custo do Insumo</th>
+          <th>Observação</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
       ${ITENS_FICHA.map((item,index)=>{
         const fonte=fonteFicha(item);
+        const ehPrep=item.tipo==="preparacao";
         const q=num(item.peso_liquido);
-        const fc=item.tipo==="insumo"?num(fonte?.fc):1;
+        const fc=ehPrep?1:num(fonte?.fc);
         const bruto=q*fc;
-        const custo=q*precoFicha(item);
-        const opcoes=item.tipo==="preparacao"
+        const precoCompra=ehPrep?null:num(fonte?.preco_compra);
+        const precoReal=precoFicha(item);
+        const custo=q*precoReal;
+        const codigo=ehPrep?"—":(fonte?.codigo||"—");
+        const opcoes=ehPrep
           ? PREPARACOES.map(p=>`<option value="${p.id}" ${Number(item.id)===Number(p.id)?"selected":""}>${esc(p.nome)}</option>`).join("")
           : INSUMOS.filter(i=>i.ativo!==false).map(i=>`<option value="${i.id}" ${Number(item.id)===Number(i.id)?"selected":""}>${esc(i.ingrediente)}</option>`).join("");
+
         return `<tr data-ficha-row="${index}">
-          <td><select onchange="alterarTipoItem(${index},this.value)"><option value="insumo" ${item.tipo!=="preparacao"?"selected":""}>Insumo</option><option value="preparacao" ${item.tipo==="preparacao"?"selected":""}>Preparação</option></select></td>
+          <td><select onchange="alterarTipoItem(${index},this.value)"><option value="insumo" ${!ehPrep?"selected":""}>Insumo</option><option value="preparacao" ${ehPrep?"selected":""}>Preparação</option></select></td>
+          <td data-ficha-codigo><b>${esc(codigo)}</b></td>
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
           <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${item.peso_liquido?String(item.peso_liquido).replace(".",","):""}" oninput="alterarPesoLiquido(${index},this.value)"></td>
-          <td>${esc(unidadeFicha(item))}</td>
-          <td>${numero(fc,4)}</td>
-          <td data-ficha-bruto>${numero(bruto,4)}</td>
-          <td>${moeda(precoFicha(item))}</td>
+          <td data-ficha-unidade>${esc(unidadeFicha(item))}</td>
+          <td data-ficha-fc>${ehPrep?"—":numero(fc,4)}</td>
+          <td data-ficha-bruto>${ehPrep?"—":numero(bruto,4)}</td>
+          <td data-ficha-compra>${ehPrep?"—":moeda(precoCompra)}</td>
+          <td data-ficha-real>${moeda(precoReal)}</td>
           <td><b data-ficha-custo>${moeda(custo)}</b></td>
           <td><input value="${esc(item.observacoes||"")}" oninput="alterarObservacao(${index},this.value)"></td>
           <td><button type="button" class="danger" onclick="removerIngrediente(${index})">×</button></td>
@@ -938,7 +961,6 @@ function renderizarIngredientes() {
     </table></div>`;
   calcularFicha();
 }
-
 function calcularFicha() {
   let custoTotal = 0;
   let rendimento = 0;
