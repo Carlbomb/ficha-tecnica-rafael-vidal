@@ -11,6 +11,7 @@
       overlay.innerHTML = `
         <div class="auth-card">
           <div class="auth-brand">
+            <img src="/misevo-logo.svg" alt="MISEVO" class="auth-logo">
             <small>GESTÃO INTELIGENTE DE COZINHA</small>
             <h1>MISEVO</h1>
             <p>Acesse sua operação com seu usuário.</p>
@@ -40,9 +41,7 @@
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || "Não foi possível entrar.");
           location.reload();
-        } catch (e) {
-          erro.textContent = e.message;
-        }
+        } catch (e) { erro.textContent = e.message; }
       });
     }
     $("#loginErro").textContent = message;
@@ -51,7 +50,6 @@
   function showUser(user) {
     document.body.classList.remove("auth-locked");
     $("#authOverlay")?.remove();
-
     const footer = document.querySelector(".sidebar-footer");
     if (footer) {
       footer.innerHTML = `
@@ -63,10 +61,8 @@
         location.reload();
       };
     }
-
     const navUsuarios = $("#navUsuarios");
     if (navUsuarios) navUsuarios.hidden = String(user.perfil).toLowerCase() !== "admin";
-
     window.USUARIO_ATUAL = user;
     window.dispatchEvent(new CustomEvent("usuario:autenticado", { detail: user }));
   }
@@ -77,10 +73,7 @@
       if (!response.ok) return showLogin();
       const data = await response.json();
       showUser(data.usuario);
-    } catch {
-      showLogin("Não foi possível verificar a sessão.");
-    }
+    } catch { showLogin("Não foi possível verificar a sessão."); }
   }
-
   window.AUTH_READY = boot();
 })();
