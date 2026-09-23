@@ -11,9 +11,9 @@
       overlay.innerHTML = `
         <div class="auth-card">
           <div class="auth-brand">
-            <small>GESTÃO DE COZINHA</small>
-            <h1>Ficha Técnica <span>Rafael Vidal</span></h1>
-            <p>Acesse o sistema com seu usuário.</p>
+            <small>GESTÃO INTELIGENTE DE COZINHA</small>
+            <h1>MISEVO</h1>
+            <p>Acesse sua operação com seu usuário.</p>
           </div>
           <form id="loginForm">
             <label>E-mail<input id="loginEmail" type="email" autocomplete="username" required></label>
@@ -64,7 +64,6 @@
       };
     }
 
-    // Exibe o gerenciamento de usuários imediatamente após autenticar o admin.
     const navUsuarios = $("#navUsuarios");
     if (navUsuarios) navUsuarios.hidden = String(user.perfil).toLowerCase() !== "admin";
 
