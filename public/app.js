@@ -122,6 +122,7 @@ document.addEventListener("click", event => {
 
   if (botao.dataset.tab === "insumos") telaInsumos();
   if (botao.dataset.tab === "fichas") telaFichas();
+  if (botao.dataset.tab === "preparacoes") telaPreparacoes();
   if (botao.dataset.tab === "cmv") telaCMV();
   if (botao.dataset.tab === "usuarios") telaUsuarios();
 });
