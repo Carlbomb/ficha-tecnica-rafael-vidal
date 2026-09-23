@@ -1,4 +1,4 @@
-/* MISEVO V20 — Estoque da Cozinha + novo insumo na entrada */
+/* MISEVO V20.1 — Estoque da Cozinha + novo insumo na entrada */
 (()=>{const C=document.querySelector("#content"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const num=v=>{let s=String(v??"").trim();if(!s)return 0;if(s.includes(",")&&s.includes("."))s=s.replaceAll(".","").replace(",",".");else s=s.replace(",",".");const x=Number(s);return Number.isFinite(x)?x:0},fmt=(v,d=3)=>num(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:d}),money=v=>num(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 async function apiE(url,opt={}){const r=await fetch(url,{...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}}),d=r.status===204?null:await r.json().catch(()=>({}));if(!r.ok){const e=new Error(d?.error||"Erro no estoque.");e.data=d;throw e}return d}
@@ -27,7 +27,7 @@ function formMov(id=""){const itens=window.__ESTOQUE||[];C.innerHTML=`<div class
 </div></div>
 <label style="margin-top:13px">Observações<textarea id="mObs"></textarea></label><div class="actions"><button type="button" class="secondary" id="cancelMov">Cancelar</button><button class="primary">Registrar movimentação</button></div></form>`;
 const sel=document.querySelector("#mInsumo"),tipo=document.querySelector("#mTipo"),box=document.querySelector("#novoInsumoBox");
-const gruposPadrao=["Carnes e Aves","Pescados e Frutos do Mar","Laticínios e Queijos","Hortifruti","Grãos, Cereais e Leguminosas","Massas e Farinhas","Óleos, Gorduras e Azeites","Temperos, Ervas e Especiarias","Molhos e Condimentos","Enlatados e Conservas","Bebidas e Líquidos","Confeitaria","Congelados","Outros"];
+const gruposPadrao=["Carnes e Aves","Pescados e Frutos do Mar","Laticínios e Queijos","Hortifruti","Grãos, Cereais e Leguminosas","Massas e Farinhas","Óleos, Gorduras e Azeites","Temperos, Ervas e Especiarias","Molhos e Condimentos","Enlatados e Conservas","Bebidas e Líquidos","Confeitaria","Congelados","Produções da Cozinha","Outros"];
 const ng=document.querySelector("#nGrupo");if(ng){ng.innerHTML=gruposPadrao.map(g=>`<option>${esc(g)}</option>`).join("");ng.value="Outros";}
 const sync=()=>{const novo=sel.value==="__NOVO__";box.style.display=novo?"block":"none";if(novo){tipo.value="entrada";tipo.disabled=true}else tipo.disabled=false;document.querySelector("#mQtdLabel").childNodes[0].textContent=tipo.value==="ajuste"?"Novo saldo ":"Quantidade "};
 sel.onchange=sync;tipo.onchange=sync;sync();document.querySelector("#voltarMov").onclick=telaEstoque;document.querySelector("#cancelMov").onclick=telaEstoque;
