@@ -738,7 +738,17 @@ SELECT
 
   COALESCE(
     SUM(
-      i.quantidade *
+      (
+  i.quantidade *
+  CASE
+    WHEN UPPER(i.unidade)=UPPER(ins.unidade) THEN 1
+    WHEN UPPER(i.unidade)='G'  AND UPPER(ins.unidade)='KG' THEN 0.001
+    WHEN UPPER(i.unidade)='KG' AND UPPER(ins.unidade)='G'  THEN 1000
+    WHEN UPPER(i.unidade)='ML' AND UPPER(ins.unidade)='L'  THEN 0.001
+    WHEN UPPER(i.unidade)='L'  AND UPPER(ins.unidade)='ML' THEN 1000
+    ELSE 1
+  END
+) *
       ins.preco_real
     ),
     0
@@ -754,7 +764,17 @@ SELECT
       (
         COALESCE(
           SUM(
-            i.quantidade *
+            (
+  i.quantidade *
+  CASE
+    WHEN UPPER(i.unidade)=UPPER(ins.unidade) THEN 1
+    WHEN UPPER(i.unidade)='G'  AND UPPER(ins.unidade)='KG' THEN 0.001
+    WHEN UPPER(i.unidade)='KG' AND UPPER(ins.unidade)='G'  THEN 1000
+    WHEN UPPER(i.unidade)='ML' AND UPPER(ins.unidade)='L'  THEN 0.001
+    WHEN UPPER(i.unidade)='L'  AND UPPER(ins.unidade)='ML' THEN 1000
+    ELSE 1
+  END
+) *
             ins.preco_real
           ),
           0
@@ -780,7 +800,17 @@ SELECT
         (
           COALESCE(
             SUM(
-              i.quantidade *
+              (
+  i.quantidade *
+  CASE
+    WHEN UPPER(i.unidade)=UPPER(ins.unidade) THEN 1
+    WHEN UPPER(i.unidade)='G'  AND UPPER(ins.unidade)='KG' THEN 0.001
+    WHEN UPPER(i.unidade)='KG' AND UPPER(ins.unidade)='G'  THEN 1000
+    WHEN UPPER(i.unidade)='ML' AND UPPER(ins.unidade)='L'  THEN 0.001
+    WHEN UPPER(i.unidade)='L'  AND UPPER(ins.unidade)='ML' THEN 1000
+    ELSE 1
+  END
+) *
               ins.preco_real
             ),
             0
@@ -828,7 +858,17 @@ SELECT
         (
           COALESCE(
             SUM(
-              i.quantidade *
+              (
+  i.quantidade *
+  CASE
+    WHEN UPPER(i.unidade)=UPPER(ins.unidade) THEN 1
+    WHEN UPPER(i.unidade)='G'  AND UPPER(ins.unidade)='KG' THEN 0.001
+    WHEN UPPER(i.unidade)='KG' AND UPPER(ins.unidade)='G'  THEN 1000
+    WHEN UPPER(i.unidade)='ML' AND UPPER(ins.unidade)='L'  THEN 0.001
+    WHEN UPPER(i.unidade)='L'  AND UPPER(ins.unidade)='ML' THEN 1000
+    ELSE 1
+  END
+) *
               ins.preco_real
             ),
             0
@@ -1010,7 +1050,17 @@ app.get(
             ins.fc,
 
             (
-              i.quantidade *
+              (
+  i.quantidade *
+  CASE
+    WHEN UPPER(i.unidade)=UPPER(ins.unidade) THEN 1
+    WHEN UPPER(i.unidade)='G'  AND UPPER(ins.unidade)='KG' THEN 0.001
+    WHEN UPPER(i.unidade)='KG' AND UPPER(ins.unidade)='G'  THEN 1000
+    WHEN UPPER(i.unidade)='ML' AND UPPER(ins.unidade)='L'  THEN 0.001
+    WHEN UPPER(i.unidade)='L'  AND UPPER(ins.unidade)='ML' THEN 1000
+    ELSE 1
+  END
+) *
               ins.fc
             )::numeric
               AS peso_bruto,
@@ -1019,7 +1069,17 @@ app.get(
             ins.preco_real,
 
             (
-              i.quantidade *
+              (
+  i.quantidade *
+  CASE
+    WHEN UPPER(i.unidade)=UPPER(ins.unidade) THEN 1
+    WHEN UPPER(i.unidade)='G'  AND UPPER(ins.unidade)='KG' THEN 0.001
+    WHEN UPPER(i.unidade)='KG' AND UPPER(ins.unidade)='G'  THEN 1000
+    WHEN UPPER(i.unidade)='ML' AND UPPER(ins.unidade)='L'  THEN 0.001
+    WHEN UPPER(i.unidade)='L'  AND UPPER(ins.unidade)='ML' THEN 1000
+    ELSE 1
+  END
+) *
               ins.preco_real
             )::numeric
               AS custo_insumo,
@@ -1307,9 +1367,12 @@ app.post(
 
               quantidade,
 
-              insumo
-                .rows[0]
-                .unidade,
+              (() => {
+                const base = String(insumo.rows[0].unidade || "KG").toUpperCase();
+                const pedida = String(item.unidade || base).toUpperCase();
+                const grupo = u => ["KG","G"].includes(u) ? "massa" : ["L","ML"].includes(u) ? "volume" : u === "UN" ? "unidade" : "outro";
+                return grupo(base) === grupo(pedida) ? pedida : base;
+              })(),
 
               ordem,
 
@@ -1630,9 +1693,12 @@ app.put(
 
               quantidade,
 
-              insumo
-                .rows[0]
-                .unidade,
+              (() => {
+                const base = String(insumo.rows[0].unidade || "KG").toUpperCase();
+                const pedida = String(item.unidade || base).toUpperCase();
+                const grupo = u => ["KG","G"].includes(u) ? "massa" : ["L","ML"].includes(u) ? "volume" : u === "UN" ? "unidade" : "outro";
+                return grupo(base) === grupo(pedida) ? pedida : base;
+              })(),
 
               ordem,
 
