@@ -2,7 +2,59 @@ import crypto from "node:crypto";
 
 const SESSION_DAYS = 7;
 const MIN_PASSWORD = 8;
-const ROLES = new Set(["admin", "gestor", "cozinha", "estoque"]);
+const ROLES = new Set(["admin", "chef", "subchef", "cozinha", "estoque", "consulta"]);
+
+const ROLE_DEFAULTS = {
+  admin: { "*": ["visualizar","criar","editar","excluir","executar"] },
+  chef: {
+    painel:["visualizar"], insumos:["visualizar","criar","editar"], fichas:["visualizar","criar","editar","excluir"],
+    preparacoes:["visualizar","criar","editar","excluir"], estoque:["visualizar","criar","editar","executar"],
+    producao:["visualizar","criar","editar","executar"], etiquetas:["visualizar","criar","executar"],
+    perdas:["visualizar","criar","editar"], custos:["visualizar"], configuracoes:["visualizar"]
+  },
+  subchef: {
+    painel:["visualizar"], insumos:["visualizar"], fichas:["visualizar"], preparacoes:["visualizar","criar","editar"],
+    estoque:["visualizar"], producao:["visualizar","criar","editar","executar"], etiquetas:["visualizar","criar","executar"],
+    perdas:["visualizar","criar"]
+  },
+  cozinha: {
+    painel:["visualizar"], insumos:["visualizar"], fichas:["visualizar"], preparacoes:["visualizar"],
+    producao:["visualizar","executar"], etiquetas:["visualizar","executar"], perdas:["criar"]
+  },
+  estoque: {
+    painel:["visualizar"], insumos:["visualizar"], estoque:["visualizar","criar","editar","executar"],
+    etiquetas:["visualizar","executar"], perdas:["visualizar","criar"]
+  },
+  consulta: { painel:["visualizar"], fichas:["visualizar"], preparacoes:["visualizar"] }
+};
+
+function moduleForPath(path="") {
+  if (path.startsWith("/dashboard")) return "painel";
+  if (path.startsWith("/insumos")) return "insumos";
+  if (path.startsWith("/fichas")) return "fichas";
+  if (path.startsWith("/preparacoes")) return "preparacoes";
+  if (path.startsWith("/cmv")) return "custos";
+  if (path.startsWith("/estoque")) return "estoque";
+  if (path.startsWith("/producao")) return "producao";
+  if (path.startsWith("/etiquetas")) return "etiquetas";
+  if (path.startsWith("/perdas")) return "perdas";
+  return null;
+}
+
+function actionForRequest(req) {
+  const method=req.method.toUpperCase();
+  if (method==="GET" || method==="HEAD") return "visualizar";
+  if (method==="POST") return "criar";
+  if (method==="PUT" || method==="PATCH") return "editar";
+  if (method==="DELETE") return "excluir";
+  return "executar";
+}
+
+function effectivePermissions(user) {
+  const base = ROLE_DEFAULTS[user?.perfil] || {};
+  const custom = user?.permissoes && typeof user.permissoes === "object" ? user.permissoes : {};
+  return {...base, ...custom};
+}
 
 const b64url = (buf) => buf.toString("base64url");
 const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
@@ -35,31 +87,36 @@ function publicUser(row) {
     id: Number(row.id), nome: row.nome, email: row.email, perfil: row.perfil, ativo: row.ativo,
     empresa_id: row.empresa_id ? Number(row.empresa_id) : null,
     unidade_id: row.unidade_id ? Number(row.unidade_id) : null,
-    empresa_nome: row.empresa_nome || null, unidade_nome: row.unidade_nome || null
+    empresa_nome: row.empresa_nome || null, unidade_nome: row.unidade_nome || null, permissoes: effectivePermissions(row)
   };
 }
 
 function canAccess(user, req) {
   if (!user) return false;
   if (user.perfil === "admin") return true;
-  const method = req.method.toUpperCase(), path = req.path;
-  const read = method === "GET" || method === "HEAD";
-  if (user.perfil === "gestor") return !path.startsWith("/usuarios");
-  if (user.perfil === "cozinha") return read && (path.startsWith("/fichas") || path.startsWith("/insumos") || path.startsWith("/dashboard"));
-  if (user.perfil === "estoque") return read && (path.startsWith("/insumos") || path.startsWith("/dashboard"));
-  return false;
+  const modulo = moduleForPath(req.path);
+  if (!modulo) return false;
+  const acao = actionForRequest(req);
+  const permissoes = effectivePermissions(user);
+  const lista = permissoes[modulo] || [];
+  return Array.isArray(lista) && (lista.includes(acao) || (acao === "criar" && lista.includes("executar")));
 }
 
 export async function installAuth(app, pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id BIGSERIAL PRIMARY KEY, nome TEXT NOT NULL, email TEXT NOT NULL UNIQUE, senha_hash TEXT NOT NULL,
-      perfil TEXT NOT NULL DEFAULT 'cozinha' CHECK (perfil IN ('admin','gestor','cozinha','estoque')),
+      perfil TEXT NOT NULL DEFAULT 'cozinha',
       ativo BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permissoes JSONB NOT NULL DEFAULT '{}'::jsonb;
+    UPDATE usuarios SET perfil='chef' WHERE perfil='gestor';
+    ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_perfil_check;
+    ALTER TABLE usuarios ADD CONSTRAINT usuarios_perfil_check
+      CHECK (perfil IN ('admin','chef','subchef','cozinha','estoque','consulta'));
     CREATE TABLE IF NOT EXISTS sessoes (
       id BIGSERIAL PRIMARY KEY, usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
       token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -102,7 +159,7 @@ export async function installAuth(app, pool) {
     const token = parseCookies(req.headers.cookie).rv_session;
     if (!token) return null;
     const { rows } = await pool.query(
-      `SELECT u.id,u.nome,u.email,u.perfil,u.ativo,u.empresa_id,u.unidade_id,e.nome AS empresa_nome,un.nome AS unidade_nome
+      `SELECT u.id,u.nome,u.email,u.perfil,u.ativo,u.empresa_id,u.unidade_id,u.permissoes,e.nome AS empresa_nome,un.nome AS unidade_nome
        FROM sessoes s JOIN usuarios u ON u.id=s.usuario_id
        LEFT JOIN empresas e ON e.id=u.empresa_id LEFT JOIN unidades un ON un.id=u.unidade_id
        WHERE s.token_hash=$1 AND s.expires_at>NOW() AND u.ativo=TRUE`, [sha256(token)]
@@ -177,7 +234,7 @@ export async function installAuth(app, pool) {
       const user = await currentUser(req);
       if (!user) return res.status(401).json({error:"Sessão não autenticada."});
       if (user.perfil !== "admin") return res.status(403).json({error:"Acesso restrito ao administrador."});
-      const { rows } = await pool.query(`SELECT id,nome,email,perfil,ativo,empresa_id,unidade_id,created_at FROM usuarios WHERE empresa_id=$1 ORDER BY nome`,[user.empresa_id]);
+      const { rows } = await pool.query(`SELECT id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes,created_at FROM usuarios WHERE empresa_id=$1 ORDER BY nome`,[user.empresa_id]);
       res.json(rows);
     } catch(e){ next(e); }
   });
@@ -189,13 +246,14 @@ export async function installAuth(app, pool) {
       if (user.perfil !== "admin") return res.status(403).json({error:"Acesso restrito ao administrador."});
       const nome = String(req.body?.nome || "").trim(), email = String(req.body?.email || "").trim().toLowerCase();
       const senha = String(req.body?.senha || ""), perfil = String(req.body?.perfil || "cozinha");
+      const permissoes = req.body?.permissoes && typeof req.body.permissoes === "object" ? req.body.permissoes : {};
       if (!nome || !email) return res.status(400).json({error:"Informe nome e e-mail."});
       if (senha.length < MIN_PASSWORD) return res.status(400).json({error:`A senha deve ter pelo menos ${MIN_PASSWORD} caracteres.`});
       if (!ROLES.has(perfil)) return res.status(400).json({error:"Perfil inválido."});
       const { rows } = await pool.query(
-        `INSERT INTO usuarios (nome,email,senha_hash,perfil,empresa_id,unidade_id) VALUES ($1,$2,$3,$4,$5,$6)
-         RETURNING id,nome,email,perfil,ativo,empresa_id,unidade_id`,
-        [nome,email,hashPassword(senha),perfil,user.empresa_id,user.unidade_id]
+        `INSERT INTO usuarios (nome,email,senha_hash,perfil,empresa_id,unidade_id,permissoes) VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes`,
+        [nome,email,hashPassword(senha),perfil,user.empresa_id,user.unidade_id,JSON.stringify(permissoes)]
       );
       res.status(201).json(rows[0]);
     } catch(e) { if (e.code==="23505") return res.status(409).json({error:"Este e-mail já está cadastrado."}); next(e); }
@@ -213,16 +271,28 @@ export async function installAuth(app, pool) {
       const perfil = String(req.body?.perfil ?? atual.rows[0].perfil);
       const ativo = req.body?.ativo === undefined ? atual.rows[0].ativo : req.body.ativo !== false;
       const senha = String(req.body?.senha || "");
+      const permissoes = req.body?.permissoes === undefined
+        ? (atual.rows[0].permissoes || {})
+        : (req.body.permissoes && typeof req.body.permissoes === "object" ? req.body.permissoes : {});
       if (!nome || !email) return res.status(400).json({error:"Informe nome e e-mail."});
       if (!ROLES.has(perfil)) return res.status(400).json({error:"Perfil inválido."});
       if (senha && senha.length < MIN_PASSWORD) return res.status(400).json({error:`A senha deve ter pelo menos ${MIN_PASSWORD} caracteres.`});
       const senhaHash = senha ? hashPassword(senha) : atual.rows[0].senha_hash;
       const { rows } = await pool.query(
-        `UPDATE usuarios SET nome=$1,email=$2,senha_hash=$3,perfil=$4,ativo=$5,updated_at=NOW()
-         WHERE id=$6 AND empresa_id=$7 RETURNING id,nome,email,perfil,ativo,empresa_id,unidade_id`,
-        [nome,email,senhaHash,perfil,ativo,req.params.id,user.empresa_id]
+        `UPDATE usuarios SET nome=$1,email=$2,senha_hash=$3,perfil=$4,ativo=$5,permissoes=$6,updated_at=NOW()
+         WHERE id=$7 AND empresa_id=$8 RETURNING id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes`,
+        [nome,email,senhaHash,perfil,ativo,JSON.stringify(permissoes),req.params.id,user.empresa_id]
       );
       res.json(rows[0]);
+    } catch(e){ next(e); }
+  });
+
+
+  app.get("/api/auth/perfis", async (req,res,next) => {
+    try {
+      const user = await currentUser(req);
+      if (!user) return res.status(401).json({error:"Sessão não autenticada."});
+      res.json({perfis: ROLE_DEFAULTS});
     } catch(e){ next(e); }
   });
 
