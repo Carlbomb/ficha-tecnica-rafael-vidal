@@ -6,6 +6,7 @@ let FICHAS = [];
 let EDITANDO_INSUMO = null;
 let EDITANDO_FICHA = null;
 let ITENS_FICHA = [];
+let PREPARACOES = [];
 
 /* =========================================================
    UTILIDADES
@@ -81,6 +82,9 @@ async function carregarDados() {
   INSUMOS = insumos || [];
   FICHAS = fichas || [];
   atualizarPainel();
+
+  PREPARACOES = await api("/api/preparacoes");
+  window.PREPARACOES_PUBLIC = PREPARACOES;
 }
 
 function atualizarPainel() {
@@ -568,11 +572,20 @@ window.editarFicha = async function(id) {
     const ficha = await api(`/api/fichas/${id}`);
     EDITANDO_FICHA = ficha;
 
-    ITENS_FICHA = (ficha.ingredientes || []).map(item => ({
-      insumo_id: Number(item.insumo_id),
-      peso_liquido: num(item.peso_liquido),
-      observacoes: item.observacoes || ""
-    }));
+    ITENS_FICHA = [
+      ...(ficha.ingredientes || []).map(item => ({
+        tipo: "insumo",
+        id: Number(item.insumo_id),
+        peso_liquido: num(item.peso_liquido),
+        observacoes: item.observacoes || ""
+      })),
+      ...(ficha.preparacoes || []).map(item => ({
+        tipo: "preparacao",
+        id: Number(item.preparacao_id),
+        peso_liquido: num(item.quantidade),
+        observacoes: item.observacoes || ""
+      }))
+    ];
 
     formularioFicha(ficha);
   } catch (error) {
@@ -696,12 +709,12 @@ function formularioFicha(ficha = null) {
       <div class="card">
         <div class="section-head">
           <div>
-            <small>INGREDIENTES</small>
-            <h3>Composição da Receita</h3>
+            <small>COMPOSIÇÃO</small>
+            <h3>Insumos e Preparações</h3>
           </div>
 
           <button type="button" class="primary" id="adicionarItem">
-            + Ingrediente
+            + Componente
           </button>
         </div>
 
@@ -799,20 +812,39 @@ function formularioFicha(ficha = null) {
 }
 
 /* =========================================================
-   INGREDIENTES
+   INGREDIENTES E PREPARAÇÕES
 ========================================================= */
 
 function obterInsumo(id) {
   return INSUMOS.find(item => Number(item.id) === Number(id));
 }
 
-function adicionarIngrediente() {
-  ITENS_FICHA.push({
-    insumo_id: "",
-    peso_liquido: 0,
-    observacoes: ""
-  });
+function obterPreparacao(id) {
+  return PREPARACOES.find(item => Number(item.id) === Number(id));
+}
 
+function fonteFicha(item) {
+  return item.tipo === "preparacao"
+    ? obterPreparacao(item.id)
+    : obterInsumo(item.id);
+}
+
+function precoFicha(item) {
+  const fonte = fonteFicha(item);
+  return item.tipo === "preparacao"
+    ? num(fonte?.custo_unitario)
+    : num(fonte?.preco_real);
+}
+
+function unidadeFicha(item) {
+  const fonte = fonteFicha(item);
+  return item.tipo === "preparacao"
+    ? (fonte?.unidade_rendimento || "—")
+    : (fonte?.unidade || "—");
+}
+
+function adicionarIngrediente() {
+  ITENS_FICHA.push({ tipo: "insumo", id: "", peso_liquido: 0, observacoes: "" });
   renderizarIngredientes();
 }
 
@@ -820,241 +852,102 @@ function removerIngrediente(index) {
   ITENS_FICHA.splice(index, 1);
   renderizarIngredientes();
 }
-
 window.removerIngrediente = removerIngrediente;
 
-function alterarInsumo(index, value) {
-  ITENS_FICHA[index].insumo_id = value ? Number(value) : "";
+function alterarTipoItem(index, value) {
+  ITENS_FICHA[index].tipo = value;
+  ITENS_FICHA[index].id = "";
   renderizarIngredientes();
 }
+window.alterarTipoItem = alterarTipoItem;
 
+function alterarInsumo(index, value) {
+  ITENS_FICHA[index].id = value ? Number(value) : "";
+  renderizarIngredientes();
+}
 window.alterarInsumo = alterarInsumo;
 
 function alterarPesoLiquido(index, value) {
   ITENS_FICHA[index].peso_liquido = num(value);
-  calcularFicha();
-  atualizarLinhaIngrediente(index);
+  renderizarIngredientes();
 }
-
 window.alterarPesoLiquido = alterarPesoLiquido;
 
 function alterarObservacao(index, value) {
   ITENS_FICHA[index].observacoes = value;
 }
-
 window.alterarObservacao = alterarObservacao;
-
-/* =========================================================
-   TABELA DE INGREDIENTES
-========================================================= */
 
 function renderizarIngredientes() {
   const area = $("#ingredientesFicha");
   if (!area) return;
 
   if (!ITENS_FICHA.length) {
-    area.innerHTML = `
-      <div class="empty">
-        Nenhum ingrediente adicionado. Clique em "+ Ingrediente".
-      </div>
-    `;
-
+    area.innerHTML = `<div class="empty">Nenhum componente adicionado. Clique em "+ Ingrediente".</div>`;
     calcularFicha();
     return;
   }
 
   area.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Código</th>
-            <th>Ingrediente</th>
-            <th>P. Líq.</th>
-            <th>Unid.</th>
-            <th>FC</th>
-            <th>P. Bruto</th>
-            <th>Preço Compra</th>
-            <th>Preço Real</th>
-            <th>Custo Insumo</th>
-            <th>Observação</th>
-            <th></th>
-          </tr>
-        </thead>
-
-        <tbody>
-          ${ITENS_FICHA.map((item, index) => {
-            const insumo = obterInsumo(item.insumo_id);
-            const pesoLiquido = num(item.peso_liquido);
-            const fc = num(insumo?.fc);
-            const pesoBruto = pesoLiquido * fc;
-            const custo = pesoLiquido * num(insumo?.preco_real);
-
-            return `
-              <tr id="linhaIngrediente-${index}">
-                <td>${insumo ? esc(insumo.codigo) : "—"}</td>
-
-                <td>
-                  <select onchange="alterarInsumo(${index}, this.value)">
-                    <option value="">Selecione...</option>
-
-                    ${INSUMOS
-                      .filter(i => i.ativo !== false)
-                      .map(i => `
-                        <option
-                          value="${i.id}"
-                          ${
-                            Number(item.insumo_id) === Number(i.id)
-                              ? "selected"
-                              : ""
-                          }
-                        >
-                          ${esc(i.ingrediente)}
-                        </option>
-                      `)
-                      .join("")}
-                  </select>
-                </td>
-
-                <td>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    value="${item.peso_liquido || ""}"
-                    oninput="alterarPesoLiquido(${index}, this.value)"
-                  >
-                </td>
-
-                <td>${insumo ? esc(insumo.unidade) : "—"}</td>
-                <td>${numero(fc, 4)}</td>
-
-                <td data-campo="bruto">
-                  ${numero(pesoBruto, 4)}
-                </td>
-
-                <td>${moeda(insumo?.preco_compra)}</td>
-                <td>${moeda(insumo?.preco_real)}</td>
-
-                <td data-campo="custo">
-                  <b>${moeda(custo)}</b>
-                </td>
-
-                <td>
-                  <input
-                    value="${esc(item.observacoes || "")}"
-                    oninput="alterarObservacao(${index}, this.value)"
-                  >
-                </td>
-
-                <td>
-                  <button
-                    type="button"
-                    class="danger"
-                    onclick="removerIngrediente(${index})"
-                  >
-                    ×
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tipo</th><th>Ingrediente / Preparação</th><th>Quantidade</th><th>Unid.</th><th>FC</th><th>P. Bruto</th><th>Preço / Custo Unit.</th><th>Custo</th><th>Observação</th><th></th></tr></thead>
+      <tbody>
+      ${ITENS_FICHA.map((item,index)=>{
+        const fonte=fonteFicha(item);
+        const q=num(item.peso_liquido);
+        const fc=item.tipo==="insumo"?num(fonte?.fc):1;
+        const bruto=q*fc;
+        const custo=q*precoFicha(item);
+        const opcoes=item.tipo==="preparacao"
+          ? PREPARACOES.map(p=>`<option value="${p.id}" ${Number(item.id)===Number(p.id)?"selected":""}>${esc(p.nome)}</option>`).join("")
+          : INSUMOS.filter(i=>i.ativo!==false).map(i=>`<option value="${i.id}" ${Number(item.id)===Number(i.id)?"selected":""}>${esc(i.ingrediente)}</option>`).join("");
+        return `<tr>
+          <td><select onchange="alterarTipoItem(${index},this.value)"><option value="insumo" ${item.tipo!=="preparacao"?"selected":""}>Insumo</option><option value="preparacao" ${item.tipo==="preparacao"?"selected":""}>Preparação</option></select></td>
+          <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
+          <td><input type="number" step="0.0001" min="0" value="${item.peso_liquido||""}" oninput="alterarPesoLiquido(${index},this.value)"></td>
+          <td>${esc(unidadeFicha(item))}</td>
+          <td>${numero(fc,4)}</td>
+          <td>${numero(bruto,4)}</td>
+          <td>${moeda(precoFicha(item))}</td>
+          <td><b>${moeda(custo)}</b></td>
+          <td><input value="${esc(item.observacoes||"")}" oninput="alterarObservacao(${index},this.value)"></td>
+          <td><button type="button" class="danger" onclick="removerIngrediente(${index})">×</button></td>
+        </tr>`;
+      }).join("")}
+      </tbody>
+    </table></div>`;
   calcularFicha();
 }
-
-function atualizarLinhaIngrediente(index) {
-  const linha = $(`#linhaIngrediente-${index}`);
-  if (!linha) return;
-
-  const item = ITENS_FICHA[index];
-  const insumo = obterInsumo(item.insumo_id);
-  if (!insumo) return;
-
-  const pesoLiquido = num(item.peso_liquido);
-  const pesoBruto = pesoLiquido * num(insumo.fc);
-  const custo = pesoLiquido * num(insumo.preco_real);
-
-  const bruto = linha.querySelector('[data-campo="bruto"]');
-  const custoEl = linha.querySelector('[data-campo="custo"]');
-
-  if (bruto) bruto.textContent = numero(pesoBruto, 4);
-  if (custoEl) custoEl.innerHTML = `<b>${moeda(custo)}</b>`;
-}
-
-/* =========================================================
-   CÁLCULOS DA FICHA
-========================================================= */
 
 function calcularFicha() {
   let custoTotal = 0;
   let rendimento = 0;
 
   ITENS_FICHA.forEach(item => {
-    const pesoLiquido = num(item.peso_liquido);
-    rendimento += pesoLiquido;
-
-    const insumo = obterInsumo(item.insumo_id);
-    if (!insumo) return;
-
-    custoTotal += pesoLiquido * num(insumo.preco_real);
+    const quantidade = num(item.peso_liquido);
+    rendimento += quantidade;
+    if (!fonteFicha(item)) return;
+    custoTotal += quantidade * precoFicha(item);
   });
 
-  const porcoes = num($("#porcoes")?.value);
-  const precoVenda = num($("#precoVenda")?.value);
-  const metaCMV = num($("#metaCMV")?.value) || 30;
+  const porcoes=num($("#porcoes")?.value);
+  const precoVenda=num($("#precoVenda")?.value);
+  const metaCMV=num($("#metaCMV")?.value)||30;
+  const pesoPorcao=porcoes>0?rendimento/porcoes:0;
+  const custoPorcao=porcoes>0?custoTotal/porcoes:0;
+  const cmv=precoVenda>0?(custoPorcao/precoVenda)*100:0;
+  const precoSugerido=custoPorcao>0&&metaCMV>0?custoPorcao/(metaCMV/100):0;
 
-  const pesoPorcao =
-    porcoes > 0 ? rendimento / porcoes : 0;
+  if($("#rendimento"))$("#rendimento").value=rendimento.toFixed(4);
+  if($("#pesoPorcao"))$("#pesoPorcao").value=pesoPorcao.toFixed(4);
+  if($("#resumoTotal"))$("#resumoTotal").textContent=moeda(custoTotal);
+  if($("#resumoPorcao"))$("#resumoPorcao").textContent=moeda(custoPorcao);
+  if($("#resumoVenda"))$("#resumoVenda").textContent=moeda(precoVenda);
+  if($("#resumoCMV"))$("#resumoCMV").textContent=`${numero(cmv,1)}%`;
+  if($("#resumoMetaPercentual"))$("#resumoMetaPercentual").textContent=`${numero(metaCMV,1)}%`;
+  if($("#resumoMeta"))$("#resumoMeta").textContent=moeda(precoSugerido);
 
-  const custoPorcao =
-    porcoes > 0 ? custoTotal / porcoes : 0;
-
-  const cmv =
-    precoVenda > 0
-      ? (custoPorcao / precoVenda) * 100
-      : 0;
-
-  const precoSugerido =
-    custoPorcao > 0 && metaCMV > 0
-      ? custoPorcao / (metaCMV / 100)
-      : 0;
-
-  const rendimentoEl = $("#rendimento");
-  const pesoPorcaoEl = $("#pesoPorcao");
-  const totalEl = $("#resumoTotal");
-  const porcaoEl = $("#resumoPorcao");
-  const vendaEl = $("#resumoVenda");
-  const cmvEl = $("#resumoCMV");
-  const metaPercentualEl = $("#resumoMetaPercentual");
-  const metaEl = $("#resumoMeta");
-
-  if (rendimentoEl) rendimentoEl.value = rendimento.toFixed(4);
-  if (pesoPorcaoEl) pesoPorcaoEl.value = pesoPorcao.toFixed(4);
-  if (totalEl) totalEl.textContent = moeda(custoTotal);
-  if (porcaoEl) porcaoEl.textContent = moeda(custoPorcao);
-  if (vendaEl) vendaEl.textContent = moeda(precoVenda);
-  if (cmvEl) cmvEl.textContent = `${numero(cmv, 1)}%`;
-  if (metaPercentualEl) {
-    metaPercentualEl.textContent = `${numero(metaCMV, 1)}%`;
-  }
-  if (metaEl) metaEl.textContent = moeda(precoSugerido);
-
-  return {
-    rendimento,
-    porcoes,
-    pesoPorcao,
-    custoTotal,
-    custoPorcao,
-    precoVenda,
-    metaCMV,
-    precoSugerido,
-    cmv
-  };
+  return {rendimento,porcoes,pesoPorcao,custoTotal,custoPorcao,precoVenda,metaCMV,precoSugerido,cmv};
 }
 
 /* =========================================================
@@ -1065,11 +958,11 @@ async function salvarFicha(event) {
   event.preventDefault();
 
   const itensValidos = ITENS_FICHA.filter(
-    item => item.insumo_id && num(item.peso_liquido) > 0
+    item => item.id && num(item.peso_liquido) > 0
   );
 
   if (!itensValidos.length) {
-    alert("Adicione pelo menos um ingrediente à ficha técnica.");
+    alert("Adicione pelo menos um insumo ou preparação à ficha técnica.");
     return;
   }
 
@@ -1097,11 +990,21 @@ async function salvarFicha(event) {
     status: "Ativa",
     ativo: true,
 
-    ingredientes: itensValidos.map(item => ({
-      insumo_id: item.insumo_id,
-      peso_liquido: num(item.peso_liquido),
-      observacoes: item.observacoes || ""
-    }))
+    ingredientes: itensValidos
+      .filter(item => item.tipo !== "preparacao")
+      .map(item => ({
+        insumo_id: item.id,
+        peso_liquido: num(item.peso_liquido),
+        observacoes: item.observacoes || ""
+      })),
+
+    preparacoes: itensValidos
+      .filter(item => item.tipo === "preparacao")
+      .map(item => ({
+        preparacao_id: item.id,
+        quantidade: num(item.peso_liquido),
+        observacoes: item.observacoes || ""
+      }))
   };
 
   try {
