@@ -1,0 +1,61 @@
+/* MISEVO V22 — interface fiel à referência mobile */
+:root{
+ --v22-green:#075e63;--v22-green2:#0a6b70;--v22-yellow:#f3b61f;--v22-bg:#f4f5f3;
+ --v22-card:#fff;--v22-text:#1f3034;--v22-muted:#7b878a;--v22-line:#e2e6e5;
+}
+body{background:var(--v22-bg)!important;color:var(--v22-text)}
+.workspace main{max-width:1180px}
+.card{background:#fff;border:1px solid var(--v22-line);border-radius:12px;box-shadow:0 2px 7px rgba(22,50,54,.05)}
+.primary{background:var(--v22-green)!important;border-radius:8px!important}
+.secondary{border-color:#d9dfde!important;color:#344a4e!important}
+.desktop-header{background:#fff!important;color:var(--v22-text)!important;border-bottom:1px solid var(--v22-line)!important;box-shadow:none!important}
+.desktop-header small{color:var(--v22-green)!important}.desktop-header h2{color:var(--v22-text)!important}
+.v22-cat-list{display:grid;gap:10px}
+.v22-cat-row{display:grid;grid-template-columns:46px 1fr auto;align-items:center;gap:12px;background:#fff;border:1px solid #e0e5e4;border-radius:10px;padding:11px 12px;box-shadow:0 1px 4px rgba(20,45,49,.04)}
+.v22-cat-icon{width:42px;height:42px;border-radius:9px;display:grid;place-items:center;background:#e8f3f1;color:var(--v22-green);font-size:20px;font-weight:800}
+.v22-cat-row:nth-child(4n+2) .v22-cat-icon{background:#fff0d8;color:#c77a00}
+.v22-cat-row:nth-child(4n+3) .v22-cat-icon{background:#f1e9fb;color:#7547a8}
+.v22-cat-row:nth-child(4n+4) .v22-cat-icon{background:#e9f0ff;color:#4169a9}
+.v22-cat-main{min-width:0}.v22-cat-main b{display:block;font-size:14px}.v22-cat-main small{display:block;margin-top:3px;color:#8a9497;font-size:11px}
+.v22-edit{width:38px;height:38px;border:0!important;border-radius:8px!important;background:#f2f4f3!important;color:#5c6a6d!important;font-size:0!important;padding:0!important}
+.v22-edit:after{content:"✎";font-size:18px}
+.v22-search{position:relative}.v22-search input{padding-left:39px}.v22-search:before{content:"⌕";position:absolute;left:13px;top:9px;color:#7b898b;font-size:21px;z-index:1}
+.v22-page-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.v22-page-title h2{margin:0;font-size:22px}.v22-page-title p{margin:4px 0 0;color:#818c8e;font-size:12px}
+.v22-add{width:44px;height:44px;border:0;border-radius:9px;background:var(--v22-green);color:#fff;font-size:26px;line-height:1}
+.v22-modal-backdrop{position:fixed;inset:0;background:rgba(20,31,33,.38);z-index:80;display:grid;place-items:center;padding:18px}
+.v22-modal{width:min(430px,100%);max-height:88dvh;overflow:auto;background:#fff;border-radius:13px;box-shadow:0 20px 55px rgba(0,0,0,.25)}
+.v22-modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 17px;border-bottom:1px solid #e6e9e8}.v22-modal-head h3{margin:0;font-size:18px}.v22-modal-close{border:0;background:transparent;font-size:24px;color:#738083}
+.v22-modal-body{padding:17px}.v22-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}.v22-modal-actions button{min-height:44px;border-radius:8px;font-weight:750}
+@media(max-width:700px){
+ body{padding-bottom:74px!important;background:#f4f5f3!important}
+ .mobile-topbar{height:61px;min-height:61px!important;padding:7px 13px!important;background:var(--v22-green)!important;border:0!important;box-shadow:none!important;position:sticky}
+ .mobile-brand{position:absolute;left:50%;transform:translateX(-50%)}.mobile-brand img{display:none!important}.mobile-brand strong{font-size:19px!important;letter-spacing:.3px}
+ .menu-toggle{width:40px!important;height:40px!important;background:transparent!important;font-size:22px!important}
+ .mobile-new{width:39px!important;height:39px!important;border-radius:8px!important;background:var(--v22-yellow)!important;color:#244247!important;font-size:22px!important;box-shadow:none!important}
+ .workspace main{width:100%!important;margin:0!important;padding:18px 14px 22px}
+ .workspace main>.stats{margin:0 0 14px}.workspace main>.stats article{box-shadow:none;border-radius:10px}
+ .section-head{display:flex!important;flex-direction:row!important;align-items:center!important;margin:0 0 14px!important}
+ .section-head small,.section-head p{display:none!important}.section-head h2{font-size:22px!important;letter-spacing:0!important;margin:0!important}
+ .section-head button{width:auto!important;min-height:42px!important}
+ .card{border-radius:11px!important;padding:13px!important;box-shadow:0 1px 5px rgba(22,50,54,.04)!important}
+ .mobile-bottom-nav.v22-bottom{height:65px;min-height:65px!important;padding:3px 4px calc(3px + env(safe-area-inset-bottom))!important;background:#fff!important;border-top:1px solid #e1e5e4!important;box-shadow:0 -2px 8px rgba(20,50,54,.05)!important}
+ .mobile-bottom-nav.v22-bottom button{color:#7d898b!important;border-radius:0!important;gap:1px!important}
+ .mobile-bottom-nav.v22-bottom button.active{background:transparent!important;color:var(--v22-green)!important}
+ .mobile-bottom-nav.v22-bottom button span{font-size:21px!important}.mobile-bottom-nav.v22-bottom button small{font-size:9px!important;font-weight:650!important}
+ .estoque-stats{grid-template-columns:repeat(2,1fr)!important}
+ .estoque-tools{grid-template-columns:1fr!important}
+ .grupo-insumos{margin:12px 0 18px}.grupo-insumos>h3{font-size:15px}
+ /* tabelas operacionais viram cartões visuais sem alterar os dados */
+ .content-area .table-wrap{overflow:visible!important;border:0!important}
+ .content-area .table-wrap:after{display:none!important}
+ .content-area table{min-width:0!important;border:0!important;background:transparent!important}
+ .content-area table thead{display:none!important}
+ .content-area table tbody{display:grid;gap:9px}
+ .content-area table tr{display:block;background:#fff;border:1px solid #e0e5e4;border-radius:10px;padding:11px 12px;box-shadow:0 1px 4px rgba(20,45,49,.035)}
+ .content-area table td{display:flex!important;justify-content:space-between;align-items:center;gap:12px;border:0!important;padding:5px 0!important;white-space:normal!important;font-size:12px}
+ .content-area table td:before{content:attr(data-v22-label);color:#8a9497;font-size:10px;font-weight:700;text-transform:uppercase}
+ .content-area table td:first-child{font-size:14px}
+ .content-area table button{min-height:36px}
+ .form-grid,.form-grid-2{grid-template-columns:1fr!important}
+ .actions,.form-actions{position:static!important;margin:15px 0 0!important;padding:0!important;background:transparent!important;box-shadow:none!important;border:0!important}
+}
