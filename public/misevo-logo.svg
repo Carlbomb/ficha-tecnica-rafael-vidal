@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 190" role="img" aria-labelledby="title">
+<title>MISEVO</title>
+<g fill="#0F4C5C">
+  <path d="M28 72h35l47 47 47-47h35v92h-34v-48l-48 47-48-47v48H28z"/>
+</g>
+<g fill="#D4A62A">
+  <circle cx="110" cy="30" r="20"/>
+  <circle cx="88" cy="42" r="17"/>
+  <circle cx="132" cy="42" r="17"/>
+  <rect x="91" y="40" width="38" height="26" rx="13"/>
+  <rect x="91" y="176" width="38" height="8" rx="4"/>
+</g>
+</svg>
