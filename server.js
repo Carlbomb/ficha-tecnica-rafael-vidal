@@ -4,6 +4,7 @@ import { installAuth } from "./auth.js";
 import { initCoreTenancy, migrateOperationalTenancy } from "./multitenancy.js";
 import { initPreparacoes, installPreparacoes, calcularCustoPreparacao, listarPreparacoesComCusto } from "./preparacoes.js";
 import { initCategorias, installCategorias } from "./categorias.js";
+import { initEstoque, installEstoque } from "./estoque.js";
 
 const { Pool } = pg;
 
@@ -53,6 +54,7 @@ await installAuth(app, pool);
 // Preparações / Sub-receitas
 installPreparacoes(app, pool);
 installCategorias(app, pool);
+installEstoque(app, pool);
 
 const n = value => {
   const number =
@@ -232,6 +234,7 @@ async function init() {
   // Estrutura de Preparações / Sub-receitas
   await initPreparacoes(pool);
   await initCategorias(pool);
+  await initEstoque(pool);
 
   console.log(
     "Banco de dados pronto"
