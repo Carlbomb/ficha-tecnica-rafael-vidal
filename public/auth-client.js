@@ -63,6 +63,11 @@
         location.reload();
       };
     }
+
+    // Exibe o gerenciamento de usuários imediatamente após autenticar o admin.
+    const navUsuarios = $("#navUsuarios");
+    if (navUsuarios) navUsuarios.hidden = String(user.perfil).toLowerCase() !== "admin";
+
     window.USUARIO_ATUAL = user;
     window.dispatchEvent(new CustomEvent("usuario:autenticado", { detail: user }));
   }
