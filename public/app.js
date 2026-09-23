@@ -712,6 +712,7 @@ window.editarFicha = async function(id) {
         tipo: "insumo",
         id: Number(item.insumo_id),
         peso_liquido: num(item.peso_liquido),
+        unidade: item.unidade || unidadeFicha(item),
         observacoes: item.observacoes || ""
       })),
       ...(ficha.preparacoes || []).map(item => ({
@@ -957,6 +958,38 @@ function formularioFicha(ficha = null) {
   calcularFicha();
 }
 
+
+/* =========================================================
+   UNIDADES E CONVERSÕES — MISEVO V18
+========================================================= */
+const UNIDADES_PADRAO = ["KG","G","L","ML","UN"];
+function grupoUnidade(u){
+  u=String(u||"").toUpperCase();
+  if(["KG","G"].includes(u)) return "massa";
+  if(["L","ML"].includes(u)) return "volume";
+  if(u==="UN") return "unidade";
+  return "outro";
+}
+function unidadesCompativeis(u){
+  const g=grupoUnidade(u);
+  return g==="massa"?["KG","G"]:g==="volume"?["L","ML"]:g==="unidade"?["UN"]:[String(u||"KG").toUpperCase()];
+}
+function converterQuantidade(valor,de,para){
+  valor=num(valor); de=String(de||"").toUpperCase(); para=String(para||"").toUpperCase();
+  if(de===para) return valor;
+  if(grupoUnidade(de)!==grupoUnidade(para)) return NaN;
+  const f={KG:1000,G:1,L:1000,ML:1,UN:1};
+  return valor*(f[de]/f[para]);
+}
+function quantidadeNaUnidadeBase(item){
+  const fonte=fonteFicha(item);
+  if(!fonte) return num(item.peso_liquido);
+  const base=item.tipo==="preparacao"?(fonte.unidade_rendimento||"UN"):(fonte.unidade||"KG");
+  const usada=item.unidade||base;
+  const c=converterQuantidade(item.peso_liquido,usada,base);
+  return Number.isFinite(c)?c:num(item.peso_liquido);
+}
+
 /* =========================================================
    INGREDIENTES E PREPARAÇÕES
 ========================================================= */
@@ -990,7 +1023,7 @@ function unidadeFicha(item) {
 }
 
 function adicionarIngrediente() {
-  ITENS_FICHA.push({ tipo: "insumo", id: "", peso_liquido: 0, observacoes: "" });
+  ITENS_FICHA.push({ tipo: "insumo", id: "", peso_liquido: 0, unidade: "", observacoes: "" });
   renderizarIngredientes();
 }
 
@@ -1009,6 +1042,10 @@ window.alterarTipoItem = alterarTipoItem;
 
 function alterarInsumo(index, value) {
   ITENS_FICHA[index].id = value ? Number(value) : "";
+  const fonte = fonteFicha(ITENS_FICHA[index]);
+  ITENS_FICHA[index].unidade = ITENS_FICHA[index].tipo === "preparacao"
+    ? (fonte?.unidade_rendimento || "")
+    : (fonte?.unidade || "");
   renderizarIngredientes();
 }
 window.alterarInsumo = alterarInsumo;
@@ -1030,15 +1067,21 @@ function atualizarLinhaFicha(index) {
   const fonte = fonteFicha(item);
   const ehPrep = item.tipo === "preparacao";
   const q = num(item.peso_liquido);
+  const qBase = quantidadeNaUnidadeBase(item);
   const fc = ehPrep ? 1 : num(fonte?.fc);
-  const bruto = q * fc;
-  const custo = q * precoFicha(item);
+  const bruto = qBase * fc;
+  const custo = qBase * precoFicha(item);
   const brutoEl = row.querySelector("[data-ficha-bruto]");
   const custoEl = row.querySelector("[data-ficha-custo]");
   if (brutoEl) brutoEl.textContent = ehPrep ? "—" : numero(bruto, 4);
   if (custoEl) custoEl.textContent = moeda(custo);
 }
 window.alterarPesoLiquido = alterarPesoLiquido;
+function alterarUnidadeFicha(index,value){
+  ITENS_FICHA[index].unidade=String(value||"").toUpperCase();
+  atualizarLinhaFicha(index); calcularFicha();
+}
+window.alterarUnidadeFicha=alterarUnidadeFicha;
 
 function alterarObservacao(index, value) {
   ITENS_FICHA[index].observacoes = value;
@@ -1078,11 +1121,12 @@ function renderizarIngredientes() {
         const fonte=fonteFicha(item);
         const ehPrep=item.tipo==="preparacao";
         const q=num(item.peso_liquido);
+        const qBase=quantidadeNaUnidadeBase(item);
         const fc=ehPrep?1:num(fonte?.fc);
-        const bruto=q*fc;
+        const bruto=qBase*fc;
         const precoCompra=ehPrep?null:num(fonte?.preco_compra);
         const precoReal=precoFicha(item);
-        const custo=q*precoReal;
+        const custo=qBase*precoReal;
         const codigo=ehPrep?"—":(fonte?.codigo||"—");
         const opcoes=ehPrep
           ? PREPARACOES.map(p=>`<option value="${p.id}" ${Number(item.id)===Number(p.id)?"selected":""}>${esc(p.nome)}</option>`).join("")
@@ -1093,7 +1137,7 @@ function renderizarIngredientes() {
           <td data-ficha-codigo><b>${esc(codigo)}</b></td>
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
           <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${item.peso_liquido?String(item.peso_liquido).replace(".",","):""}" oninput="alterarPesoLiquido(${index},this.value)"></td>
-          <td data-ficha-unidade>${esc(unidadeFicha(item))}</td>
+          <td data-ficha-unidade><select onchange="alterarUnidadeFicha(${index},this.value)">${unidadesCompativeis(unidadeFicha(item)).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
           <td data-ficha-fc>${ehPrep?"—":numero(fc,4)}</td>
           <td data-ficha-bruto>${ehPrep?"—":numero(bruto,4)}</td>
           <td data-ficha-compra>${ehPrep?"—":moeda(precoCompra)}</td>
@@ -1113,9 +1157,15 @@ function calcularFicha() {
 
   ITENS_FICHA.forEach(item => {
     const quantidade = num(item.peso_liquido);
-    rendimento += quantidade;
-    if (!fonteFicha(item)) return;
-    custoTotal += quantidade * precoFicha(item);
+    const fonte = fonteFicha(item);
+    if (!fonte) return;
+    const base = item.tipo==="preparacao" ? (fonte.unidade_rendimento||"UN") : (fonte.unidade||"KG");
+    const usada = item.unidade || base;
+    const grupo = grupoUnidade(usada);
+    if (grupo==="massa") rendimento += converterQuantidade(quantidade,usada,"KG");
+    else if (grupo==="volume") rendimento += converterQuantidade(quantidade,usada,"L");
+    else rendimento += quantidade;
+    custoTotal += quantidadeNaUnidadeBase(item) * precoFicha(item);
   });
 
   const porcoes=num($("#porcoes")?.value);
