@@ -1,0 +1,44 @@
+INTEGRAÇÃO DO LOGIN NO server.js
+=================================
+
+1) No início do server.js, logo abaixo de:
+
+import pg from "pg";
+
+adicione:
+
+import { installAuth } from "./auth.js";
+
+
+2) Encontre este bloco:
+
+app.use(
+  express.static(
+    "public"
+  )
+);
+
+Logo DEPOIS dele, adicione:
+
+await installAuth(app, pool);
+
+
+IMPORTANTE
+---------
+A linha "await installAuth(app, pool);" precisa ficar ANTES das rotas:
+  /api/insumos
+  /api/fichas
+  /api/cmv
+  /api/dashboard
+
+Não altere nenhuma dessas rotas.
+
+3) No Railway, antes do redeploy, crie estas variáveis:
+
+ADMIN_NAME=Administrador
+ADMIN_EMAIL=SEU_EMAIL
+ADMIN_PASSWORD=SUA_SENHA
+
+A senha inicial precisa ter pelo menos 10 caracteres.
+
+Depois do primeiro início bem-sucedido, o administrador será criado no PostgreSQL.
