@@ -1,6 +1,7 @@
 import express from "express";
 import pg from "pg";
 import { installAuth } from "./auth.js";
+import { initCoreTenancy, migrateOperationalTenancy } from "./multitenancy.js";
 
 const { Pool } = pg;
 
@@ -40,6 +41,9 @@ app.use(
     "public"
   )
 );
+
+// Fundação multiempresa precisa existir antes da autenticação.
+await initCoreTenancy(pool);
 
 // Login, sessões e permissões
 await installAuth(app, pool);
@@ -215,6 +219,9 @@ async function init() {
   await pool.query(
     schema
   );
+
+  // Vincula os dados operacionais existentes à empresa/unidade inicial.
+  await migrateOperationalTenancy(pool);
 
   console.log(
     "Banco de dados pronto"
