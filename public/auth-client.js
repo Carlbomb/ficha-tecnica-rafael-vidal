@@ -64,6 +64,7 @@
       };
     }
     window.USUARIO_ATUAL = user;
+    window.dispatchEvent(new CustomEvent("usuario:autenticado", { detail: user }));
   }
 
   async function boot() {
