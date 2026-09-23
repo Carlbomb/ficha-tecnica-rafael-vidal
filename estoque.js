@@ -1,4 +1,4 @@
-/* MISEVO V19 — Estoque da Cozinha */
+/* MISEVO V19.1 — Estoque da Cozinha + criação automática de insumo */
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
 
 export async function initEstoque(pool){
@@ -77,6 +77,48 @@ export function installEstoque(app,pool){
       [minimo,maximo,String(req.body.local_estoque||"").trim(),req.params.id,req.user.empresa_id,req.user.unidade_id]);
     if(!rows[0])return res.status(404).json({error:"Insumo não encontrado."});res.json(rows[0]);
   }catch(e){next(e)}});
+
+  /* Cria o insumo e a primeira entrada em uma única transação. */
+  app.post("/api/estoque/novo-insumo",async(req,res,next)=>{
+    const client=await pool.connect();
+    try{
+      const b=req.body||{},ingrediente=String(b.ingrediente||"").trim();
+      const unidade=String(b.unidade||"KG").trim().toUpperCase();
+      const quantidade=n(b.quantidade),precoCompra=Math.max(0,n(b.preco_compra));
+      const fornecedor=String(b.fornecedor||"").trim(),local=String(b.local_estoque||"").trim();
+      const minimo=Math.max(0,n(b.estoque_minimo)),maximo=Math.max(0,n(b.estoque_maximo));
+      if(!ingrediente)return res.status(400).json({error:"Informe o nome do novo insumo."});
+      if(!["KG","G","L","ML","UN"].includes(unidade))return res.status(400).json({error:"Unidade inválida."});
+      if(quantidade<=0)return res.status(400).json({error:"Informe uma quantidade de entrada maior que zero."});
+      if(maximo>0&&maximo<minimo)return res.status(400).json({error:"O estoque máximo não pode ser menor que o mínimo."});
+
+      await client.query("BEGIN");
+      const dup=await client.query(`SELECT id,ingrediente FROM insumos
+        WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE AND LOWER(TRIM(ingrediente))=LOWER(TRIM($3)) LIMIT 1`,
+        [req.user.empresa_id,req.user.unidade_id,ingrediente]);
+      if(dup.rows[0]){
+        await client.query("ROLLBACK");
+        return res.status(409).json({error:`O insumo "${dup.rows[0].ingrediente}" já existe. Selecione-o para registrar a entrada.`,insumo_id:dup.rows[0].id});
+      }
+
+      /* Entrada de estoque usa FC=1 inicialmente. O FC pode ser refinado depois no cadastro de Insumos. */
+      const ins=await client.query(`INSERT INTO insumos
+        (ingrediente,unidade,peso_bruto,peso_liquido,fc,preco_compra,preco_real,fornecedor,data_cotacao,ativo,observacoes,
+         empresa_id,unidade_id,estoque_minimo,estoque_maximo,local_estoque,updated_at)
+        VALUES($1,$2,1,1,1,$3,$3,$4,CURRENT_DATE,TRUE,$5,$6,$7,$8,$9,$10,NOW())
+        RETURNING id,ingrediente,unidade,preco_compra,preco_real`,
+        [ingrediente,unidade,precoCompra,fornecedor,String(b.observacoes||"").trim(),
+         req.user.empresa_id,req.user.unidade_id,minimo,maximo,local]);
+      const novo=ins.rows[0];
+      const mov=await client.query(`INSERT INTO estoque_movimentacoes
+        (insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id)
+        VALUES($1,'entrada',$2,0,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [novo.id,quantidade,String(b.motivo||"Primeira entrada").trim(),String(b.observacoes||"").trim(),
+         req.user.id,req.user.empresa_id,req.user.unidade_id]);
+      await client.query("COMMIT");
+      res.status(201).json({insumo:novo,movimentacao:mov.rows[0],message:"Insumo criado e entrada registrada com sucesso."});
+    }catch(e){await client.query("ROLLBACK");next(e)}finally{client.release()}
+  });
 
   app.post("/api/estoque/movimentacoes",async(req,res,next)=>{
     const client=await pool.connect();
