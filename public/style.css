@@ -82,3 +82,8 @@ table button{border:1px solid #cad8db;border-radius:7px;padding:7px 10px;backgro
 .table-wrap::after{content:"←  DESLIZE PARA VER MAIS  →";background:var(--accent-soft);color:#72550c}table{min-width:900px}th,td{padding:9px 8px;font-size:12px}
 .actions,.form-actions{flex-direction:column-reverse}.actions button,.form-actions button{width:100%;min-height:44px}input,select,textarea{font-size:16px}.workspace footer{width:calc(100% - 20px);padding-bottom:calc(25px + env(safe-area-inset-bottom));flex-direction:column;gap:4px}}
 @media(max-width:380px){.stats{grid-template-columns:1fr}.stats article{flex-direction:row;justify-content:space-between;align-items:center}.summary-grid{grid-template-columns:1fr}.main-nav .nav-icon{display:none}}
+/* MISEVO logo integration */
+.brand-lockup{display:flex;align-items:center;gap:11px}
+.brand-logo{width:48px;height:48px;object-fit:contain;flex:0 0 48px;background:#fff;border-radius:10px;padding:5px}
+.brand-lockup h1{margin:5px 0 0}
+@media(max-width:700px){.brand-logo{width:42px;height:42px;flex-basis:42px}.brand-lockup{gap:9px}}
