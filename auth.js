@@ -39,6 +39,10 @@ function moduleForPath(path="") {
   if (path.startsWith("/producao")) return "producao";
   if (path.startsWith("/etiquetas")) return "etiquetas";
   if (path.startsWith("/perdas")) return "perdas";
+  if (path.startsWith("/inventarios")) return "estoque";
+  if (path.startsWith("/fornecedores") || path.startsWith("/compras") || path.startsWith("/historico-precos")) return "estoque";
+  if (path.startsWith("/documentos-operacionais")) return "configuracoes";
+  if (path.startsWith("/empresa/")) return "configuracoes";
   return null;
 }
 
@@ -257,6 +261,7 @@ export async function installAuth(app, pool) {
          RETURNING id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes`,
         [nome,email,hashPassword(senha),perfil,user.empresa_id,user.unidade_id,JSON.stringify(permissoes)]
       );
+      await pool.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[rows[0].id,user.unidade_id,user.empresa_id]);
       res.status(201).json(rows[0]);
     } catch(e) { if (e.code==="23505") return res.status(409).json({error:"Este e-mail já está cadastrado."}); next(e); }
   });
