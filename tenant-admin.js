@@ -11,7 +11,7 @@ export async function initTenantAdmin(pool){
  SELECT id,unidade_id,empresa_id FROM usuarios WHERE unidade_id IS NOT NULL AND empresa_id IS NOT NULL
  ON CONFLICT(usuario_id,unidade_id) DO NOTHING`);
  const pa=await pool.query(`SELECT id FROM usuarios WHERE plataforma_admin=TRUE LIMIT 1`);
- if(!pa.rows[0]){const a=await pool.query(`SELECT id FROM usuarios WHERE perfil=\'admin\' ORDER BY id LIMIT 1`);if(a.rows[0])await pool.query(`UPDATE usuarios SET plataforma_admin=TRUE WHERE id=$1`,[a.rows[0].id])}
+ if(!pa.rows[0]) console.warn("MISEVO: nenhum administrador principal da plataforma configurado.");
 }
 export function installTenantAdmin(app,pool){
  const platform=(req,res,next)=>req.user?.plataforma_admin===true?next():res.status(403).json({error:"Acesso restrito ao Admin MISEVO."});
