@@ -1203,13 +1203,21 @@ app.post(
           });
       }
 
-      // Regra da planilha de referência: meta de CMV fixa em 30%.
-      const metaCmv = 30;
+      const metaCmv =
+        n(
+          b.meta_cmv
+        ) || 30;
 
-      if (itens.length > 30) {
-        return res.status(400).json({
-          error: "A ficha técnica aceita no máximo 30 insumos, conforme a planilha de referência."
-        });
+      if (
+        metaCmv <= 0 ||
+        metaCmv > 100
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "A meta de CMV deve estar entre 0,1% e 100%."
+          });
       }
 
       const client =
@@ -1493,13 +1501,21 @@ app.put(
           });
       }
 
-      // Regra da planilha de referência: meta de CMV fixa em 30%.
-      const metaCmv = 30;
+      const metaCmv =
+        n(
+          b.meta_cmv
+        ) || 30;
 
-      if (itens.length > 30) {
-        return res.status(400).json({
-          error: "A ficha técnica aceita no máximo 30 insumos, conforme a planilha de referência."
-        });
+      if (
+        metaCmv <= 0 ||
+        metaCmv > 100
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "A meta de CMV deve estar entre 0,1% e 100%."
+          });
       }
 
       const client =
