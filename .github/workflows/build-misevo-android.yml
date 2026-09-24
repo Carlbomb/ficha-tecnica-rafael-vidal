@@ -30,6 +30,22 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Generate official MISEVO Android icon
+        run: |
+          mkdir -p assets
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          S=1024
+          im=Image.new("RGBA",(S,S),(0,0,0,0)); d=ImageDraw.Draw(im)
+          white=(255,255,255,255); gold=(212,166,42,255)
+          # chef hat
+          d.ellipse((410,120,614,324),fill=gold); d.ellipse((315,190,505,380),fill=gold); d.ellipse((519,190,709,380),fill=gold); d.rounded_rectangle((370,245,654,400),55,fill=gold)
+          # M mark
+          d.polygon([(210,385),(360,385),(512,540),(664,385),(814,385),(814,780),(664,780),(664,590),(512,742),(360,590),(360,780),(210,780)],fill=white)
+          d.rounded_rectangle((430,835,594,875),18,fill=gold)
+          im.save("assets/misevo-icon.png")
+          PY
+
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean --non-interactive
 
