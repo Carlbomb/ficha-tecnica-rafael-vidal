@@ -1,2 +1,65 @@
-import { useCallback,useState } from "react";import { View,Text,StyleSheet,Pressable } from "react-native";import { useFocusEffect,router } from "expo-router";import { dashboard } from "../src/db";
-export default function Home(){const [d,setD]=useState({insumos:0,fichas:0});useFocusEffect(useCallback(()=>{dashboard().then(setD);},[]));return <View style={s.c}><Text style={s.logo}>MISEVO</Text><Text style={s.sub}>Gestão de cozinha • Offline</Text><View style={s.row}><View style={s.card}><Text style={s.n}>{d.insumos}</Text><Text>Insumos</Text></View><View style={s.card}><Text style={s.n}>{d.fichas}</Text><Text>Fichas</Text></View></View><Pressable style={s.btn} onPress={()=>router.push("/insumos")}><Text style={s.bt}>Banco de Insumos</Text></Pressable><Pressable style={s.btn} onPress={()=>router.push("/fichas")}><Text style={s.bt}>Fichas Técnicas</Text></Pressable></View>};const s=StyleSheet.create({c:{flex:1,padding:24,paddingTop:70,backgroundColor:"#f5f5f5"},logo:{fontSize:34,fontWeight:"800"},sub:{fontSize:16,marginBottom:28},row:{flexDirection:"row",gap:12,marginBottom:24},card:{flex:1,padding:20,backgroundColor:"white",borderRadius:14},n:{fontSize:30,fontWeight:"700"},btn:{padding:18,backgroundColor:"#111",borderRadius:12,marginBottom:12},bt:{color:"white",fontSize:17,fontWeight:"700"}});
+import { useEffect, useState } from "react";
+import { ActivityIndicator, BackHandler, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { WebView } from "react-native-webview";
+
+const MISEVO_URL = "https://ficha-tecnica-docker-production.up.railway.app/";
+
+export default function MisevoApp() {
+  const [loading, setLoading] = useState(true);
+  const [web, setWeb] = useState(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (canGoBack && web) {
+        web.goBack();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [canGoBack, web]);
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <WebView
+        ref={setWeb}
+        source={{ uri: MISEVO_URL }}
+        style={styles.web}
+        javaScriptEnabled
+        domStorageEnabled
+        sharedCookiesEnabled
+        thirdPartyCookiesEnabled
+        startInLoadingState
+        onLoadEnd={() => setLoading(false)}
+        onNavigationStateChange={(s) => setCanGoBack(s.canGoBack)}
+        renderError={() => (
+          <View style={styles.center}>
+            <Text style={styles.title}>Sem conexão</Text>
+            <Text style={styles.text}>Não foi possível carregar o MISEVO.</Text>
+          </View>
+        )}
+      />
+      {loading && (
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.text}>Carregando MISEVO...</Text>
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#fff" },
+  web: { flex: 1, backgroundColor: "#fff" },
+  loading: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff"
+  },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  title: { fontSize: 24, fontWeight: "800", marginBottom: 8 },
+  text: { fontSize: 15, marginTop: 10, textAlign: "center" }
+});
