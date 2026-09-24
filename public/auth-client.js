@@ -43,7 +43,7 @@
         <button class="logout-button" id="cancelPasswordButton" type="button">Cancelar</button>
       </form></div>`;
     document.body.appendChild(overlay);
-    const closePassword = () => { overlay.remove(); document.body.classList.remove("menu-open"); document.querySelector("#menuToggle")?.setAttribute("aria-expanded","false"); const painel=document.querySelector('.main-nav [data-tab="painel"]'); if(painel){ painel.click(); } else { location.href="/"; } };\n    $("#passwordBackButton").onclick = closePassword;\n    $("#cancelPasswordButton").onclick = closePassword;
+    const closePassword = () => { overlay.remove(); document.body.classList.remove("menu-open"); document.querySelector("#menuToggle")?.setAttribute("aria-expanded","false"); if(window.MISEVO_NAVIGATE) window.MISEVO_NAVIGATE("painel"); else window.dispatchEvent(new Event("misevo:home")); };\n    $("#passwordBackButton").onclick = closePassword;\n    $("#cancelPasswordButton").onclick = closePassword;
     $("#changePasswordForm").onsubmit = async (event) => {
       event.preventDefault(); const erro = $("#passwordErro"); erro.textContent = "";
       const atual = $("#senhaAtual").value, nova = $("#novaSenha").value, confirmar = $("#confirmarSenha").value;
