@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "MISEVO",
+    "slug": "misevo",
+    "scheme": "misevo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "plugins": [
+      "expo-router",
+      "expo-sqlite"
+    ],
+    "android": {
+      "package": "com.misevo.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.misevo.app"
+    }
+  }
+}
