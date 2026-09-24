@@ -11,3 +11,5 @@
 .auth-brand{text-align:center}
 .auth-brand p{text-align:center}
 .auth-card form{text-align:left}
+
+.auth-back{display:inline-flex;align-items:center;gap:6px;margin:0 0 18px;padding:8px 2px;border:0;background:transparent;color:#0f4c5c;font-weight:900;font-size:14px;cursor:pointer}.auth-back:hover{opacity:.75}
