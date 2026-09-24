@@ -1,0 +1,9 @@
+(()=>{const routes={painel:"telaPainel",insumos:"telaInsumos",fichas:"telaFichas",preparacoes:"telaPreparacoes",cmv:"telaCMV",usuarios:"telaUsuarios",categorias:"telaCategorias",unidades:"telaUnidades",estoque:"telaEstoque",movimentacoes:"telaMovimentacoes",producao:"telaProducao",fornecedores:"telaFornecedores",compras:"telaCompras",inventario:"telaInventario",perdas:"telaPerdas",documentos:"telaDocumentos","admin-misevo":"telaAdminMISEVO"};
+let current="painel";
+function closeChrome(){document.body.classList.remove("menu-open");document.querySelector("#menuToggle")?.setAttribute("aria-expanded","false")}
+window.MISEVO_NAVIGATE=(name,push=true)=>{const fn=window[routes[name]];if(typeof fn!=="function")return false;closeChrome();document.querySelectorAll("[data-tab],[data-v21-tab]").forEach(x=>x.classList.toggle("active",(x.dataset.tab||x.dataset.v21Tab)===name));current=name;if(push&&location.hash!=="#"+name)history.pushState({misevo:name},"","#"+name);Promise.resolve(fn()).catch(e=>{const c=document.querySelector("#content");if(c)c.innerHTML='<div class="card"><h3>Não foi possível abrir esta tela</h3><p>'+String(e.message||e)+'</p><button onclick="MISEVO_NAVIGATE(\'painel\')">Voltar ao painel</button></div>'});return true};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data-v21-tab]");if(!b)return;const n=b.dataset.tab||b.dataset.v21Tab;if(routes[n]){e.preventDefault();e.stopImmediatePropagation();MISEVO_NAVIGATE(n)}},true);
+window.addEventListener("popstate",e=>MISEVO_NAVIGATE(e.state?.misevo||location.hash.slice(1)||"painel",false));
+window.addEventListener("misevo:home",()=>MISEVO_NAVIGATE("painel",false));
+window.MISEVO_CURRENT=()=>current;
+})();
