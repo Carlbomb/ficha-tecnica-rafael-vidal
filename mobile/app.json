@@ -3,17 +3,16 @@
     "name": "MISEVO",
     "slug": "misevo",
     "scheme": "misevo",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "plugins": [
-      "expo-router",
-      "expo-sqlite"
-    ],
+    "plugins": ["expo-router","expo-sqlite"],
     "android": {
-      "package": "com.misevo.app"
+      "package": "com.misevo.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/misevo-icon.png",
+        "backgroundColor": "#0F4C5C"
+      }
     },
-    "ios": {
-      "bundleIdentifier": "com.misevo.app"
-    }
+    "ios": {"bundleIdentifier": "com.misevo.app"}
   }
 }
