@@ -414,7 +414,7 @@ function formularioInsumo(item = null) {
         <label>
           Unidade
           <select id="unidade">
-            ${["KG", "L", "UN", "PCT", "CX"].map(unidade => `
+            ${["KG", "L", "UN", "MC", "PCT"].map(unidade => `
               <option
                 value="${unidade}"
                 ${
@@ -806,9 +806,8 @@ function formularioFicha(ficha = null) {
             id="rendimento"
             type="number"
             step="0.0001"
-            min="0"
-            required
-            value="${ficha?.rendimento_kg ?? 0}"
+            value="0"
+            disabled
           >
         </label>
 
@@ -845,8 +844,10 @@ function formularioFicha(ficha = null) {
           <input
             id="metaCMV"
             type="number"
-            value="30"
-            disabled
+            step="0.1"
+            min="0.1"
+            max="100"
+            value="${ficha?.meta_cmv ?? 30}"
           >
         </label>
 
@@ -944,7 +945,6 @@ function formularioFicha(ficha = null) {
   $("#voltarFichas").onclick = telaFichas;
   $("#cancelarFicha").onclick = telaFichas;
   $("#adicionarItem").onclick = adicionarIngrediente;
-  $("#rendimento").oninput = calcularFicha;
   $("#porcoes").oninput = calcularFicha;
   $("#precoVenda").oninput = calcularFicha;
   $("#metaCMV").oninput = calcularFicha;
@@ -1023,11 +1023,6 @@ function unidadeFicha(item) {
 }
 
 function adicionarIngrediente() {
-  const insumosAtuais = ITENS_FICHA.filter(item => item.tipo !== "preparacao").length;
-  if (insumosAtuais >= 30) {
-    alert("A ficha técnica segue o modelo da planilha e aceita até 30 insumos.");
-    return;
-  }
   ITENS_FICHA.push({ tipo: "insumo", id: "", peso_liquido: 0, unidade: "", observacoes: "" });
   renderizarIngredientes();
 }
@@ -1143,7 +1138,7 @@ function renderizarIngredientes() {
           <td data-ficha-codigo><b>${esc(codigo)}</b></td>
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
           <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(item.peso_liquido_texto !== undefined ? item.peso_liquido_texto : (item.peso_liquido?String(item.peso_liquido).replace(".",","):""))}" oninput="alterarPesoLiquido(${index},this.value)"></td>
-          <td data-ficha-unidade><b>${esc(unidadeFicha(item))}</b></td>
+          <td data-ficha-unidade><select class="ficha-unidade-select" aria-label="Unidade" onchange="alterarUnidadeFicha(${index},this.value)">${unidadesCompativeis(unidadeFicha(item)).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
           <td data-ficha-fc>${ehPrep?"—":numero(fc,4)}</td>
           <td data-ficha-bruto>${ehPrep?"—":numero(bruto,4)}</td>
           <td data-ficha-compra>${ehPrep?"—":moeda(precoCompra)}</td>
@@ -1159,24 +1154,30 @@ function renderizarIngredientes() {
 }
 function calcularFicha() {
   let custoTotal = 0;
+  let rendimento = 0;
 
   ITENS_FICHA.forEach(item => {
+    const quantidade = num(item.peso_liquido);
     const fonte = fonteFicha(item);
     if (!fonte) return;
+    const base = item.tipo==="preparacao" ? (fonte.unidade_rendimento||"UN") : (fonte.unidade||"KG");
+    const usada = item.unidade || base;
+    const grupo = grupoUnidade(usada);
+    if (grupo==="massa") rendimento += converterQuantidade(quantidade,usada,"KG");
+    else if (grupo==="volume") rendimento += converterQuantidade(quantidade,usada,"L");
+    else rendimento += quantidade;
     custoTotal += quantidadeNaUnidadeBase(item) * precoFicha(item);
   });
 
-  // Regra da planilha: rendimento é informado pelo usuário.
-  const rendimento=num($("#rendimento")?.value);
   const porcoes=num($("#porcoes")?.value);
   const precoVenda=num($("#precoVenda")?.value);
-  // A planilha usa meta fixa de 30%.
-  const metaCMV=30;
+  const metaCMV=num($("#metaCMV")?.value)||30;
   const pesoPorcao=porcoes>0?rendimento/porcoes:0;
   const custoPorcao=porcoes>0?custoTotal/porcoes:0;
   const cmv=precoVenda>0?(custoPorcao/precoVenda)*100:0;
   const precoSugerido=custoPorcao>0&&metaCMV>0?custoPorcao/(metaCMV/100):0;
 
+  if($("#rendimento"))$("#rendimento").value=rendimento.toFixed(4);
   if($("#pesoPorcao"))$("#pesoPorcao").value=pesoPorcao.toFixed(4);
   if($("#resumoTotal"))$("#resumoTotal").textContent=moeda(custoTotal);
   if($("#resumoPorcao"))$("#resumoPorcao").textContent=moeda(custoPorcao);
@@ -1222,7 +1223,7 @@ async function salvarFicha(event) {
     rendimento_kg: calculos.rendimento,
     porcoes: calculos.porcoes,
     preco_venda: calculos.precoVenda,
-    meta_cmv: 30,
+    meta_cmv: calculos.metaCMV,
     modo_preparo: $("#modoPreparo").value.trim(),
     observacoes: $("#observacoesFicha").value.trim(),
     status: "Ativa",
