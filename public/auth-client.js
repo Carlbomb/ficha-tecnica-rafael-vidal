@@ -34,7 +34,7 @@
     overlay.innerHTML = `<div class="auth-card"><div class="auth-brand">
       <img src="/misevo-logo.svg" alt="MISEVO" class="auth-logo"><small>MINHA CONTA</small>
       <h1>Alterar senha</h1><p>A nova senha deve ter pelo menos 8 caracteres.</p></div>
-      <form id="changePasswordForm">
+      <button class="auth-back" id="passwordBackButton" type="button" aria-label="Voltar">← Voltar</button>\n      <form id="changePasswordForm">
         <label>Senha atual<input id="senhaAtual" type="password" autocomplete="current-password" required></label>
         <label>Nova senha<input id="novaSenha" type="password" autocomplete="new-password" minlength="8" required></label>
         <label>Confirmar nova senha<input id="confirmarSenha" type="password" autocomplete="new-password" minlength="8" required></label>
@@ -43,7 +43,7 @@
         <button class="logout-button" id="cancelPasswordButton" type="button">Cancelar</button>
       </form></div>`;
     document.body.appendChild(overlay);
-    $("#cancelPasswordButton").onclick = () => overlay.remove();
+    const closePassword = () => overlay.remove();\n    $("#passwordBackButton").onclick = closePassword;\n    $("#cancelPasswordButton").onclick = closePassword;
     $("#changePasswordForm").onsubmit = async (event) => {
       event.preventDefault(); const erro = $("#passwordErro"); erro.textContent = "";
       const atual = $("#senhaAtual").value, nova = $("#novaSenha").value, confirmar = $("#confirmarSenha").value;
