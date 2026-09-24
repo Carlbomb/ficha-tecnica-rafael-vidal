@@ -5,6 +5,7 @@ import { initCoreTenancy, migrateOperationalTenancy } from "./multitenancy.js";
 import { initPreparacoes, installPreparacoes, calcularCustoPreparacao, listarPreparacoesComCusto } from "./preparacoes.js";
 import { initCategorias, installCategorias } from "./categorias.js";
 import { initEstoque, installEstoque } from "./estoque.js";
+import { initProducao, installProducao } from "./producao.js";
 
 const { Pool } = pg;
 
@@ -55,6 +56,7 @@ await installAuth(app, pool);
 installPreparacoes(app, pool);
 installCategorias(app, pool);
 installEstoque(app, pool);
+installProducao(app, pool);
 
 const n = value => {
   const number =
@@ -235,6 +237,7 @@ async function init() {
   await initPreparacoes(pool);
   await initCategorias(pool);
   await initEstoque(pool);
+  await initProducao(pool);
 
   console.log(
     "Banco de dados pronto"
