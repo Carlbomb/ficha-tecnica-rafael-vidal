@@ -88,7 +88,7 @@ function publicUser(row) {
     id: Number(row.id), nome: row.nome, email: row.email, perfil: row.perfil, ativo: row.ativo,
     empresa_id: row.empresa_id ? Number(row.empresa_id) : null,
     unidade_id: row.unidade_id ? Number(row.unidade_id) : null,
-    empresa_nome: row.empresa_nome || null, unidade_nome: row.unidade_nome || null, permissoes: effectivePermissions(row)
+    empresa_nome: row.empresa_nome || null, unidade_nome: row.unidade_nome || null, plataforma_admin: row.plataforma_admin === true, permissoes: effectivePermissions(row)
   };
 }
 
@@ -114,6 +114,7 @@ export async function installAuth(app, pool) {
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permissoes JSONB NOT NULL DEFAULT '{}'::jsonb;
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plataforma_admin BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_perfil_check;
     UPDATE usuarios SET perfil='chef' WHERE perfil='gestor';
     ALTER TABLE usuarios ADD CONSTRAINT usuarios_perfil_check
@@ -160,7 +161,7 @@ export async function installAuth(app, pool) {
     const token = parseCookies(req.headers.cookie).rv_session;
     if (!token) return null;
     const { rows } = await pool.query(
-      `SELECT u.id,u.nome,u.email,u.perfil,u.ativo,u.empresa_id,u.unidade_id,u.permissoes,e.nome AS empresa_nome,un.nome AS unidade_nome
+      `SELECT u.id,u.nome,u.email,u.perfil,u.ativo,u.empresa_id,u.unidade_id,u.permissoes,u.plataforma_admin,e.nome AS empresa_nome,un.nome AS unidade_nome
        FROM sessoes s JOIN usuarios u ON u.id=s.usuario_id
        LEFT JOIN empresas e ON e.id=u.empresa_id LEFT JOIN unidades un ON un.id=u.unidade_id
        WHERE s.token_hash=$1 AND s.expires_at>NOW() AND u.ativo=TRUE`, [sha256(token)]
