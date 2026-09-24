@@ -11,7 +11,7 @@
         <img src="/misevo-logo.svg" alt="MISEVO" class="auth-logo"><small>GESTÃO INTELIGENTE DE COZINHA</small>
         <h1>MISEVO</h1><p>Acesse sua operação com seu usuário.</p></div>
         <form id="loginForm"><label>E-mail<input id="loginEmail" type="email" autocomplete="username" required></label>
-        <label>Senha<input id="loginSenha" type="password" autocomplete="current-password" required></label>
+        <label>Senha<span class="password-field"><input id="loginSenha" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" aria-label="Mostrar senha" onclick="window.MISEVO_TOGGLE_PASSWORD(this)">👁</button></span></label>
         <p id="loginErro" class="auth-error"></p><button class="auth-submit" type="submit">Entrar</button></form></div>`;
       document.body.appendChild(overlay);
       $("#loginForm").addEventListener("submit", async (event) => {
@@ -35,9 +35,9 @@
       <img src="/misevo-logo.svg" alt="MISEVO" class="auth-logo"><small>MINHA CONTA</small>
       <h1>Alterar senha</h1><p>A nova senha deve ter pelo menos 8 caracteres.</p></div>
       <button class="auth-back" id="passwordBackButton" type="button" aria-label="Voltar">← Voltar</button>\n      <form id="changePasswordForm">
-        <label>Senha atual<input id="senhaAtual" type="password" autocomplete="current-password" required></label>
-        <label>Nova senha<input id="novaSenha" type="password" autocomplete="new-password" minlength="8" required></label>
-        <label>Confirmar nova senha<input id="confirmarSenha" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Senha atual<span class="password-field"><input id="senhaAtual" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" aria-label="Mostrar senha" onclick="window.MISEVO_TOGGLE_PASSWORD(this)">👁</button></span></label>
+        <label>Nova senha<span class="password-field"><input id="novaSenha" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="password-toggle" aria-label="Mostrar senha" onclick="window.MISEVO_TOGGLE_PASSWORD(this)">👁</button></span></label>
+        <label>Confirmar nova senha<span class="password-field"><input id="confirmarSenha" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="password-toggle" aria-label="Mostrar senha" onclick="window.MISEVO_TOGGLE_PASSWORD(this)">👁</button></span></label>
         <p id="passwordErro" class="auth-error"></p>
         <button class="auth-submit" type="submit">Salvar nova senha</button>
         <button class="logout-button" id="cancelPasswordButton" type="button">Cancelar</button>
