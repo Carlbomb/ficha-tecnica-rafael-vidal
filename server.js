@@ -7,6 +7,7 @@ import { initCategorias, installCategorias } from "./categorias.js";
 import { initEstoque, installEstoque } from "./estoque.js";
 import { initProducao, installProducao } from "./producao.js";
 import { initOperacao, installOperacao } from "./operacao.js";
+import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 
 const { Pool } = pg;
 
@@ -59,6 +60,7 @@ installCategorias(app, pool);
 installEstoque(app, pool);
 installProducao(app, pool);
 installOperacao(app, pool);
+installTenantAdmin(app, pool);
 
 const n = value => {
   const number =
@@ -241,6 +243,7 @@ async function init() {
   await initEstoque(pool);
   await initProducao(pool);
   await initOperacao(pool);
+  await initTenantAdmin(pool);
 
   console.log(
     "Banco de dados pronto"
