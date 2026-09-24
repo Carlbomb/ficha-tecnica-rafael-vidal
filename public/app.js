@@ -1143,7 +1143,7 @@ function renderizarIngredientes() {
           <td data-ficha-codigo><b>${esc(codigo)}</b></td>
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
           <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(item.peso_liquido_texto !== undefined ? item.peso_liquido_texto : (item.peso_liquido?String(item.peso_liquido).replace(".",","):""))}" oninput="alterarPesoLiquido(${index},this.value)"></td>
-          <td data-ficha-unidade><select class="ficha-unidade-select" aria-label="Unidade" onchange="alterarUnidadeFicha(${index},this.value)">${unidadesCompativeis(unidadeFicha(item)).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
+          <td data-ficha-unidade><b>${esc(unidadeFicha(item))}</b></td>
           <td data-ficha-fc>${ehPrep?"—":numero(fc,4)}</td>
           <td data-ficha-bruto>${ehPrep?"—":numero(bruto,4)}</td>
           <td data-ficha-compra>${ehPrep?"—":moeda(precoCompra)}</td>
@@ -1222,7 +1222,7 @@ async function salvarFicha(event) {
     rendimento_kg: calculos.rendimento,
     porcoes: calculos.porcoes,
     preco_venda: calculos.precoVenda,
-    meta_cmv: calculos.metaCMV,
+    meta_cmv: 30,
     modo_preparo: $("#modoPreparo").value.trim(),
     observacoes: $("#observacoesFicha").value.trim(),
     status: "Ativa",
