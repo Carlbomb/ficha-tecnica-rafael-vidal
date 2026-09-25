@@ -7,7 +7,7 @@ import { initCategorias, installCategorias } from "./categorias.js";
 import { initEstoque, installEstoque } from "./estoque.js";
 import { initProducao, installProducao } from "./producao.js";
 import { initOperacao, installOperacao } from "./operacao.js";
-import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
+import { initOperacaoCompleta, installOperacaoCompleta, runHomologacaoReset } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 
 const { Pool } = pg;
@@ -246,6 +246,7 @@ async function init() {
   await initProducao(pool);
   await initOperacao(pool);
   await initOperacaoCompleta(pool);
+await runHomologacaoReset(pool);
   await initTenantAdmin(pool);
 
   console.log(
