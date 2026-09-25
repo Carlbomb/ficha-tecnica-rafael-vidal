@@ -29,6 +29,17 @@ export async function initOperacaoCompleta(pool){
  }
 }
 export function installOperacaoCompleta(app,pool){
+ app.get("/api/plataforma/homologacao/auditoria",async(req,res,next)=>{try{
+  if(req.user?.plataforma_admin!==true)return res.status(403).json({error:"Acesso restrito."});
+  const e=(await pool.query("SELECT id,nome FROM empresas WHERE nome=$1",["MISEVO — Ambiente de Teste"])).rows[0];
+  if(!e)return res.status(404).json({error:"Ambiente de homologação não encontrado."});
+  const u=(await pool.query("SELECT id,nome FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
+  const ins=(await pool.query("SELECT id,ingrediente,unidade,fc,preco_compra,preco_real FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 ORDER BY ingrediente",[e.id,u.id])).rows;
+  const forn=(await pool.query("SELECT id,nome FROM fornecedores WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id])).rows;
+  const counts={};for(const [k,t] of Object.entries({compras:"compras",movimentos:"estoque_movimentacoes",perdas:"perdas",inventarios:"inventarios",ordens:"ordens_producao",estoque_preparacoes:"estoque_preparacoes"})){counts[k]=Number((await pool.query(`SELECT COUNT(*)::int n FROM ${t} WHERE empresa_id=$1 AND unidade_id=$2`,[e.id,u.id])).rows[0].n)}
+  res.json({empresa:e,unidade:u,insumos:ins,fornecedores:forn,counts})
+ }catch(e){next(e)}});
+
  app.get("/api/estoque/preparacoes",ar(async(req,res)=>{
   const {rows}=await pool.query(`SELECT p.id,p.nome,p.unidade_rendimento,COALESCE(SUM(e.quantidade),0)::numeric saldo,
    COALESCE((SELECT e2.custo_unitario FROM estoque_preparacoes e2 WHERE e2.preparacao_id=p.id AND e2.empresa_id=$1 AND e2.unidade_id=$2 ORDER BY e2.created_at DESC,e2.id DESC LIMIT 1),0)::numeric custo_unitario
