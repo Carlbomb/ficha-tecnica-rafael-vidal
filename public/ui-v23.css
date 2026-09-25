@@ -16,3 +16,6 @@
 
 /* Relatórios — visão gerencial mobile */
 .report-period{display:flex;flex-direction:column;gap:3px;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:#F8F6F2;color:#2E3A42}.report-period small{color:#718084}.report-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}.report-stats article{min-width:0}.report-stats b{overflow-wrap:anywhere}.report-note{margin-top:16px}.report-note p{margin:6px 0 0;color:#667477;line-height:1.45}@media(max-width:420px){.report-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* Relatórios — filtros de período */
+.report-filters{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 14px}.report-filter{min-height:42px;border:1px solid #d9dfdd;border-radius:10px;background:#fff;color:#526164;font-weight:700;font-size:12px;padding:8px}.report-filter.active{background:#0F4C5C;color:#fff;border-color:#0F4C5C}.report-filter:focus{outline:2px solid #D4A62A;outline-offset:2px}@media(max-width:430px){.report-filters{grid-template-columns:repeat(2,1fr)}}
