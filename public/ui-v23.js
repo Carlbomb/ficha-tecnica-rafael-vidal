@@ -4,7 +4,7 @@ const I={ingredient:'<svg viewBox="0 0 24 24"><path d="M7 3v8M10 3v8M4 3v5c0 2 1
 const row=(ic,t,s,a,ai="edit")=>`<div class="v23-row"><div class="v23-icon">${I[ic]}</div><div class="v23-main"><b>${t}</b><small>${s}</small></div><button class="v23-action" ${a}>${I[ai]}</button></div>`;
 function convert(){
  const c=C();if(!c)return;
- const tables=[...c.querySelectorAll(".table-wrap table")];tables.forEach(t=>{if(t.dataset.v23||t.closest(".ficha-planilha"))return;
+ const tables=[...c.querySelectorAll(".table-wrap table")];tables.forEach(t=>{if(t.dataset.v23||t.closest(".ficha-planilha")||t.querySelector("input,select,textarea"))return;
  // Inventário possui campos e ação interativos; não converter a tabela em cards,
  // pois a conversão antiga descartava o input e o handler do botão Ajustar.
  if(/Inventário/i.test(c.querySelector("h2")?.textContent||""))return;const h=[...t.querySelectorAll("th")].map(x=>x.textContent.trim()),trs=[...t.querySelectorAll("tbody tr")];if(!trs.length)return;let type="recipe";const title=c.querySelector("h2")?.textContent||"";if(/Insum/i.test(title))type="ingredient";else if(/Prepara/i.test(title))type="prep";else if(/Estoque/i.test(title))type="stock";else if(/Movimenta/i.test(title))type="move";else if(/Usu/i.test(title))type="user";
