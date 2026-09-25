@@ -29,6 +29,25 @@ export async function initOperacaoCompleta(pool){
  }
 }
 export function installOperacaoCompleta(app,pool){
+ app.post("/api/plataforma/homologacao/reset",async(req,res,next)=>{const db=await pool.connect();try{
+  if(req.user?.plataforma_admin!==true||String(req.user?.email||"").trim().toLowerCase()!=="charlcooking@gmail.com")return res.status(403).json({error:"Acesso restrito."});
+  const e=(await db.query("SELECT id FROM empresas WHERE nome=$1",["MISEVO — Ambiente de Teste"])).rows[0];
+  if(!e)return res.status(404).json({error:"Ambiente de homologação não encontrado."});
+  const u=(await db.query("SELECT id FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
+  if(!u)return res.status(404).json({error:"Unidade de homologação não encontrada."});
+  await db.query("BEGIN");
+  await db.query("DELETE FROM estoque_preparacoes WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("DELETE FROM producao_consumos WHERE ordem_id IN (SELECT id FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
+  await db.query("DELETE FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("DELETE FROM perdas WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("DELETE FROM inventarios WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("DELETE FROM estoque_movimentacoes WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("DELETE FROM historico_precos WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("DELETE FROM compra_itens WHERE compra_id IN (SELECT id FROM compras WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
+  await db.query("DELETE FROM compras WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("COMMIT");
+  res.json({ok:true,empresa_id:e.id,unidade_id:u.id});
+ }catch(err){await db.query("ROLLBACK").catch(()=>{});next(err)}finally{db.release()}});
  app.get("/api/plataforma/homologacao/auditoria",async(req,res,next)=>{try{
   if(req.user?.plataforma_admin!==true)return res.status(403).json({error:"Acesso restrito."});
   const e=(await pool.query("SELECT id,nome FROM empresas WHERE nome=$1",["MISEVO — Ambiente de Teste"])).rows[0];
