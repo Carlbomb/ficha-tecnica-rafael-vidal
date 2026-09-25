@@ -8,6 +8,7 @@ async function saldoInsumo(db,id,empresaId,unidadeId){
 }
 
 export async function initProducao(pool){
+  await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida'));`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ordens_producao(
       id BIGSERIAL PRIMARY KEY,
@@ -15,7 +16,7 @@ export async function initProducao(pool){
       quantidade_planejada NUMERIC(14,4) NOT NULL,
       rendimento_real NUMERIC(14,4),
       unidade TEXT NOT NULL DEFAULT 'KG',
-      status TEXT NOT NULL DEFAULT 'planejada' CHECK(status IN ('planejada','finalizada','cancelada','anulada')),
+      status TEXT NOT NULL DEFAULT 'planejada' CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida')),
       custo_teorico NUMERIC(14,4) NOT NULL DEFAULT 0,
       custo_real NUMERIC(14,4),
       observacoes TEXT NOT NULL DEFAULT '',
@@ -150,5 +151,14 @@ export function installProducao(app,pool){
       res.json({ok:true,id:Number(ordem.id)});
     }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
   });
+
+  app.post("/api/producao/ordens/:id/status",async(req,res,next)=>{try{
+    const novo=String(req.body?.status||"");
+    if(!["planejada","em_producao","concluida"].includes(novo))return res.status(400).json({error:"Status inválido."});
+    const {rows}=await pool.query(`UPDATE ordens_producao SET status=$1 WHERE id=$2 AND empresa_id=$3 AND unidade_id=$4 AND status NOT IN ('anulada','cancelada') RETURNING *`,
+      [novo,req.params.id,req.user.empresa_id,req.user.unidade_id]);
+    if(!rows[0])return res.status(404).json({error:"Tarefa não encontrada."});
+    res.json(rows[0]);
+  }catch(e){next(e)}});
 
 }
