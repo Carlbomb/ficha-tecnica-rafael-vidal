@@ -295,6 +295,21 @@ export async function installAuth(app, pool) {
   });
 
 
+  app.get("/api/auth/usuarios/:id/diagnostico", async (req,res,next) => {
+    try {
+      const admin = await currentUser(req);
+      if (!admin || admin.perfil !== "admin") return res.status(403).json({error:"Acesso restrito ao administrador."});
+      const {rows}=await pool.query(`SELECT u.id,u.nome,u.email,u.perfil,u.ativo,u.empresa_id,u.unidade_id,
+        (u.senha_hash IS NOT NULL AND u.senha_hash<>'') AS senha_configurada,
+        (length(u.senha_hash)-length(replace(u.senha_hash,':',''))=1) AS hash_formato_valido,
+        e.nome empresa_nome,e.ativo empresa_ativa,un.nome unidade_nome,un.ativo unidade_ativa
+        FROM usuarios u LEFT JOIN empresas e ON e.id=u.empresa_id LEFT JOIN unidades un ON un.id=u.unidade_id
+        WHERE u.id=$1 AND u.empresa_id=$2`,[req.params.id,admin.empresa_id]);
+      if(!rows[0])return res.status(404).json({error:"Usuário não encontrado."});
+      res.json(rows[0]);
+    } catch(e){next(e)}
+  });
+
   app.get("/api/auth/perfis", async (req,res,next) => {
     try {
       const user = await currentUser(req);
