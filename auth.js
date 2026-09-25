@@ -180,7 +180,7 @@ export async function installAuth(app, pool) {
       const { rows } = await pool.query(
         `SELECT u.*,e.nome AS empresa_nome,un.nome AS unidade_nome FROM usuarios u
          LEFT JOIN empresas e ON e.id=u.empresa_id LEFT JOIN unidades un ON un.id=u.unidade_id
-         WHERE u.email=$1 AND u.ativo=TRUE`, [email]
+         WHERE LOWER(TRIM(u.email))=$1 AND u.ativo=TRUE`, [email]
       );
       const user = rows[0];
       if (!user || !verifyPassword(password,user.senha_hash)) return res.status(401).json({error:"E-mail ou senha inválidos."});
