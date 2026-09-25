@@ -16,6 +16,24 @@ export async function initTenantAdmin(pool){
 }
 export function installTenantAdmin(app,pool){
  const platform=(req,res,next)=>req.user?.plataforma_admin===true?next():res.status(403).json({error:"Acesso restrito ao Admin MISEVO."});
+ app.get("/api/plataforma/contextos",platform,async(req,res,next)=>{try{
+  const {rows}=await pool.query(`SELECT e.id empresa_id,e.nome empresa_nome,u.id unidade_id,u.nome unidade_nome,u.codigo
+    FROM empresas e JOIN unidades u ON u.empresa_id=e.id
+    WHERE e.ativo=TRUE AND u.ativo=TRUE ORDER BY e.nome,u.nome`);
+  res.json(rows)
+ }catch(e){next(e)}});
+ app.post("/api/plataforma/trocar-contexto",platform,async(req,res,next)=>{const db=await pool.connect();try{
+  const empresaId=Number(req.body?.empresa_id),unidadeId=Number(req.body?.unidade_id);
+  const alvo=(await db.query(`SELECT e.id empresa_id,e.nome empresa_nome,u.id unidade_id,u.nome unidade_nome
+    FROM empresas e JOIN unidades u ON u.empresa_id=e.id
+    WHERE e.id=$1 AND u.id=$2 AND u.empresa_id=e.id AND e.ativo=TRUE AND u.ativo=TRUE`,[empresaId,unidadeId])).rows[0];
+  if(!alvo)return res.status(404).json({error:"Restaurante ou unidade não encontrado."});
+  await db.query("BEGIN");
+  await db.query("UPDATE usuarios SET empresa_id=$1,unidade_id=$2,updated_at=NOW() WHERE id=$3 AND plataforma_admin=TRUE",[empresaId,unidadeId,req.user.id]);
+  await db.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id,ativo) VALUES($1,$2,$3,TRUE)
+    ON CONFLICT(usuario_id,unidade_id) DO UPDATE SET empresa_id=EXCLUDED.empresa_id,ativo=TRUE`,[req.user.id,unidadeId,empresaId]);
+  await db.query("COMMIT");res.json({ok:true,...alvo})
+ }catch(e){await db.query("ROLLBACK");next(e)}finally{db.release()}});
  app.get("/api/plataforma/empresas",platform,async(req,res,next)=>{try{const {rows}=await pool.query(`SELECT e.*,COUNT(DISTINCT u.id)::integer AS unidades,COUNT(DISTINCT us.id)::integer AS usuarios FROM empresas e LEFT JOIN unidades u ON u.empresa_id=e.id LEFT JOIN usuarios us ON us.empresa_id=e.id GROUP BY e.id ORDER BY e.nome`);res.json(rows)}catch(e){next(e)}});
  app.post("/api/plataforma/empresas",platform,async(req,res,next)=>{const db=await pool.connect();try{const b=req.body||{},nome=String(b.nome||"").trim(),an=String(b.admin_nome||"").trim(),email=String(b.admin_email||"").trim().toLowerCase(),senha=String(b.admin_senha||"");if(!nome||!an||!email)return res.status(400).json({error:"Preencha empresa, administrador e e-mail."});if(senha.length<8)return res.status(400).json({error:"A senha inicial deve ter pelo menos 8 caracteres."});await db.query("BEGIN");const emp=(await db.query(`INSERT INTO empresas(nome,nome_fantasia,documento) VALUES($1,$2,$3) RETURNING *`,[nome,String(b.nome_fantasia||nome),String(b.documento||"")])).rows[0];const un=(await db.query(`INSERT INTO unidades(empresa_id,nome,codigo) VALUES($1,$2,$3) RETURNING *`,[emp.id,String(b.unidade_nome||"Unidade Principal"),String(b.unidade_codigo||"MATRIZ")])).rows[0];const us=(await db.query(`INSERT INTO usuarios(nome,email,senha_hash,perfil,empresa_id,unidade_id) VALUES($1,$2,$3,\'admin\',$4,$5) RETURNING id,nome,email`,[an,email,hp(senha),emp.id,un.id])).rows[0];await db.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id) VALUES($1,$2,$3)`,[us.id,un.id,emp.id]);await db.query("COMMIT");res.status(201).json({empresa:emp,unidade:un,administrador:us})}catch(e){await db.query("ROLLBACK");if(e.code==="23505")return res.status(409).json({error:"E-mail já cadastrado."});next(e)}finally{db.release()}});
  app.delete("/api/plataforma/empresas/:id",platform,async(req,res,next)=>{const db=await pool.connect();try{const id=Number(req.params.id);if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Restaurante inválido."});if(Number(req.user?.empresa_id)===id)return res.status(400).json({error:"O restaurante vinculado ao usuário principal não pode ser removido por esta tela."});const emp=(await db.query("SELECT id,nome FROM empresas WHERE id=$1",[id])).rows[0];if(!emp)return res.status(404).json({error:"Restaurante não encontrado."});await db.query("BEGIN");const tables=(await db.query(`SELECT DISTINCT tc.table_name FROM information_schema.table_constraints tc JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name=tc.constraint_name AND ccu.constraint_schema=tc.constraint_schema WHERE tc.constraint_type='FOREIGN KEY' AND ccu.table_schema='public' AND ccu.table_name='empresas' AND tc.table_schema='public'`)).rows.map(r=>r.table_name).filter(t=>/^[a-z_][a-z0-9_]*$/.test(t)&&t!=="empresas");for(const t of tables)await db.query(`DELETE FROM "${t}" WHERE empresa_id=$1`,[id]);await db.query("DELETE FROM empresas WHERE id=$1",[id]);await db.query("COMMIT");res.json({ok:true,nome:emp.nome})}catch(e){await db.query("ROLLBACK");next(e)}finally{db.release()}});
