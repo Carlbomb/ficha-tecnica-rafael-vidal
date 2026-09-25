@@ -1,0 +1,19 @@
+name: Teste Ficha + Preparação
+on:
+  push:
+    branches: [mobile-mvp]
+    paths:
+      - "public/app.js"
+      - "tests/ficha-preparacao-selector.test.mjs"
+      - ".github/workflows/test-ficha-preparacao.yml"
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validar seletor de preparação
+        run: node tests/ficha-preparacao-selector.test.mjs
