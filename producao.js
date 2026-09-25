@@ -15,7 +15,7 @@ export async function initProducao(pool){
       quantidade_planejada NUMERIC(14,4) NOT NULL,
       rendimento_real NUMERIC(14,4),
       unidade TEXT NOT NULL DEFAULT 'KG',
-      status TEXT NOT NULL DEFAULT 'planejada' CHECK(status IN ('planejada','finalizada','cancelada')),
+      status TEXT NOT NULL DEFAULT 'planejada' CHECK(status IN ('planejada','finalizada','cancelada','anulada')),
       custo_teorico NUMERIC(14,4) NOT NULL DEFAULT 0,
       custo_real NUMERIC(14,4),
       observacoes TEXT NOT NULL DEFAULT '',
@@ -119,4 +119,36 @@ export function installProducao(app,pool){
       await c.query("COMMIT");res.json({...rows[0],entrada_estoque:true,custo_unitario:custoUnitario});
     }catch(e){await c.query("ROLLBACK");next(e)}finally{c.release()}
   });
+  app.post("/api/producao/ordens/:id/anular",async(req,res,next)=>{
+    const db=await pool.connect();
+    try{
+      await db.query("BEGIN");
+      const q=await db.query(`SELECT * FROM ordens_producao WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 FOR UPDATE`,
+        [req.params.id,req.user.empresa_id,req.user.unidade_id]);
+      const ordem=q.rows[0];
+      if(!ordem){await db.query("ROLLBACK");return res.status(404).json({error:"Ordem de produção não encontrada."})}
+      if(ordem.status==="anulada"){await db.query("ROLLBACK");return res.status(409).json({error:"Esta produção já foi excluída."})}
+      if(ordem.status==="finalizada"){
+        const consumos=await db.query(`SELECT pc.*,i.ingrediente FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1`,[ordem.id]);
+        const produzido=n(ordem.rendimento_real)||n(ordem.quantidade_planejada);
+        const ep=await db.query(`SELECT COALESCE(SUM(quantidade),0)::numeric saldo FROM estoque_preparacoes WHERE preparacao_id=$1 AND empresa_id=$2 AND unidade_id=$3`,
+          [ordem.preparacao_id,req.user.empresa_id,req.user.unidade_id]);
+        if(n(ep.rows[0]?.saldo)<produzido){await db.query("ROLLBACK");return res.status(409).json({error:"Não é possível excluir: a preparação produzida já foi consumida."})}
+        for(const x of consumos.rows){
+          const qtd=n(x.quantidade_real)||n(x.quantidade_teorica); if(qtd<=0)continue;
+          const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
+          await db.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id)
+            VALUES($1,'entrada',$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [x.insumo_id,qtd,anterior,anterior+qtd,`Estorno OP #${ordem.id}`,"Estorno automático por exclusão da produção",req.user.id,req.user.empresa_id,req.user.unidade_id]);
+        }
+        await db.query(`INSERT INTO estoque_preparacoes(preparacao_id,quantidade,tipo,referencia,custo_unitario,usuario_id,empresa_id,unidade_id)
+          VALUES($1,$2,'estorno',$3,0,$4,$5,$6)`,
+          [ordem.preparacao_id,-produzido,`Estorno OP #${ordem.id}`,req.user.id,req.user.empresa_id,req.user.unidade_id]);
+      }
+      await db.query(`UPDATE ordens_producao SET status='anulada',observacoes=CONCAT(observacoes,CASE WHEN observacoes='' THEN '' ELSE E'\\n' END,'Excluída pelo usuário') WHERE id=$1`,[ordem.id]);
+      await db.query("COMMIT");
+      res.json({ok:true,id:Number(ordem.id)});
+    }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
+  });
+
 }
