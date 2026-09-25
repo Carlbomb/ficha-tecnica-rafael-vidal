@@ -7,7 +7,7 @@
   const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   let PREPS=[],INSUMOS=[],ITENS=[],EDITANDO=null;
 
-  async function apiSR(url,opt={}){const r=await fetch(url,{...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}});const d=r.status===204?null:await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||"Não foi possível concluir a operação.");return d}
+  async function apiSR(url,opt={}){const r=await fetch(url,{cache:"no-store",...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}});const d=r.status===204?null:await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||"Não foi possível concluir a operação.");return d}
   async function carregar(){[PREPS,INSUMOS]=await Promise.all([apiSR("/api/preparacoes"),apiSR("/api/insumos")]);window.PREPARACOES_PUBLIC=PREPS}
 
   window.telaPreparacoes=async function(){C.innerHTML='<div class="card">Carregando preparações...</div>';try{await carregar();renderLista()}catch(e){C.innerHTML=`<div class="card"><h3>Erro</h3><p>${esc(e.message)}</p></div>`}};
