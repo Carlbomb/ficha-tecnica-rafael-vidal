@@ -4,3 +4,6 @@
 /* CMV — ação principal legível */
 .cmv-card .cmv-open{background:#0F4C5C!important;color:#fff!important;border-color:#0F4C5C!important;font-weight:700!important;opacity:1!important;-webkit-text-fill-color:#fff!important}
 .cmv-card .cmv-open:hover,.cmv-card .cmv-open:focus{color:#fff!important;-webkit-text-fill-color:#fff!important}
+
+/* Compras — cartões mobile */
+.compras-list{display:grid;gap:14px}.compra-card{border:1px solid #dfe5e4;border-radius:14px;padding:18px;background:#fff}.compra-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.compra-top small,.compra-dados span{display:block;font-size:11px;font-weight:700;color:#7b878a;text-transform:uppercase}.compra-top h3{margin:4px 0 0;color:#2E3A42}.compra-dados{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.compra-dados>div{padding:12px;border-radius:10px;background:#F8F6F2}.compra-dados b{display:block;margin-top:4px;color:#2E3A42}.compra-card .actions{margin-top:16px}.compra-card .recC{width:100%}@media(max-width:520px){.compra-top{align-items:center}.compra-dados{grid-template-columns:1fr 1fr}}
