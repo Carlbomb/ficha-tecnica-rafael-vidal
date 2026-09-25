@@ -733,8 +733,17 @@ window.editarFicha = async function(id) {
    FORMULÁRIO DA FICHA
 ========================================================= */
 
-function formularioFicha(ficha = null) {
+async function formularioFicha(ficha = null) {
   const editando = Boolean(ficha);
+
+  // Recarrega as preparações ao abrir a ficha. Assim uma sub-receita criada
+  // nesta mesma sessão aparece imediatamente no seletor da Ficha Técnica.
+  try {
+    PREPARACOES = (await api("/api/preparacoes")) || [];
+    window.PREPARACOES_PUBLIC = PREPARACOES;
+  } catch (e) {
+    console.error("Não foi possível atualizar as preparações da ficha:", e);
+  }
 
   C.innerHTML = `
     <div class="section-head">
@@ -1033,9 +1042,20 @@ function removerIngrediente(index) {
 }
 window.removerIngrediente = removerIngrediente;
 
-function alterarTipoItem(index, value) {
+async function alterarTipoItem(index, value) {
   ITENS_FICHA[index].tipo = value;
   ITENS_FICHA[index].id = "";
+  ITENS_FICHA[index].unidade = "";
+
+  // Garante lista fresca quando o usuário troca Insumo -> Preparação.
+  if (value === "preparacao") {
+    try {
+      PREPARACOES = (await api("/api/preparacoes")) || [];
+      window.PREPARACOES_PUBLIC = PREPARACOES;
+    } catch (e) {
+      console.error("Não foi possível atualizar as preparações:", e);
+    }
+  }
   renderizarIngredientes();
 }
 window.alterarTipoItem = alterarTipoItem;
