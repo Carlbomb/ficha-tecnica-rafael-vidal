@@ -150,6 +150,43 @@ export function installPreparacoes(app,pool) {
     res.json(lista);
   }));
 
+  app.post("/api/preparacoes/homologacao/cebola-refogada",asyncRoute(async(req,res)=>{
+    const tenant = await pool.query(
+      `SELECT e.nome AS empresa_nome, u.nome AS unidade_nome
+         FROM empresas e JOIN unidades u ON u.empresa_id=e.id
+        WHERE e.id=$1 AND u.id=$2`,
+      [req.user.empresa_id,req.user.unidade_id]
+    );
+    const ctx=tenant.rows[0];
+    if(ctx?.empresa_nome!=="MISEVO — Ambiente de Teste" || ctx?.unidade_nome!=="Cozinha de Homologação")
+      return res.status(403).json({error:"A preparação de homologação só pode ser criada no ambiente de teste."});
+
+    const ins=await pool.query(
+      `SELECT id FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND LOWER(ingrediente)=LOWER('Cebola') AND ativo=TRUE ORDER BY id LIMIT 1`,
+      [req.user.empresa_id,req.user.unidade_id]
+    );
+    if(!ins.rows[0]) return res.status(409).json({error:"O insumo Cebola não existe neste ambiente de homologação."});
+
+    const existing=await pool.query(
+      `SELECT id FROM preparacoes WHERE empresa_id=$1 AND unidade_id=$2 AND LOWER(nome)=LOWER('Cebola refogada teste') LIMIT 1`,
+      [req.user.empresa_id,req.user.unidade_id]
+    );
+    let id=existing.rows[0]?.id;
+    if(!id){
+      const r=await pool.query(
+        `INSERT INTO preparacoes(nome,categoria,rendimento,unidade_rendimento,modo_preparo,observacoes,empresa_id,unidade_id)
+         VALUES('Cebola refogada teste','Pré-preparos',1,'KG','Refogar a cebola conforme padrão de homologação.','Preparação criada exclusivamente para teste de integração.', $1,$2) RETURNING id`,
+        [req.user.empresa_id,req.user.unidade_id]
+      );
+      id=r.rows[0].id;
+      await pool.query(
+        `INSERT INTO preparacao_ingredientes(preparacao_id,insumo_id,quantidade,ordem,observacoes) VALUES($1,$2,0.9,0,'')`,
+        [id,ins.rows[0].id]
+      );
+    }
+    res.status(existing.rows[0]?200:201).json({id,nome:"Cebola refogada teste"});
+  }));
+
   app.get("/api/preparacoes/:id",asyncRoute(async(req,res)=>{
     const {rows}=await pool.query(
       `SELECT * FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3`,
