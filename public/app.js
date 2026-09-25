@@ -39,6 +39,7 @@ const esc = value =>
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
+    cache: "no-store",
     ...options,
     headers: {
       "Content-Type": "application/json",
