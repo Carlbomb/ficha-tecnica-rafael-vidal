@@ -1332,69 +1332,12 @@ async function excluirFicha() {
 
 function telaCMV() {
   C.innerHTML = `
-    <div class="section-head">
-      <div>
-        <small>CONTROLE DE CMV</small>
-        <h2>Análise das Fichas</h2>
-        <p>
-          Compare o CMV atual de cada preparação com a meta definida na ficha.
-        </p>
-      </div>
-    </div>
-
+    <div class="section-head"><div><small>CONTROLE DE CMV</small><h2>Análise das Fichas</h2><p>Compare custo, preço de venda, CMV e margem bruta de cada ficha.</p></div></div>
     <div class="card">
-      ${
-        !FICHAS.length
-          ? `
-            <div class="empty">
-              Nenhuma ficha técnica cadastrada.
-            </div>
-          `
-          : `
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Preparação</th>
-                    <th>Custo Total</th>
-                    <th>Porções</th>
-                    <th>Custo/Porção</th>
-                    <th>Preço Venda</th>
-                    <th>CMV Atual</th>
-                    <th>Meta</th>
-                    <th>Preço Sugerido</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  ${FICHAS.map(ficha => {
-                    const meta = num(ficha.meta_cmv) || 30;
-                    const custoPorcao = num(ficha.custo_por_porcao);
-                    const precoSugerido =
-                      meta > 0
-                        ? custoPorcao / (meta / 100)
-                        : 0;
-
-                    return `
-                      <tr>
-                        <td><b>${esc(ficha.nome_prato)}</b></td>
-                        <td>${moeda(ficha.custo_total)}</td>
-                        <td>${numero(ficha.porcoes, 0)}</td>
-                        <td>${moeda(ficha.custo_por_porcao)}</td>
-                        <td>${moeda(ficha.preco_venda)}</td>
-                        <td><b>${numero(ficha.cmv_percentual, 1)}%</b></td>
-                        <td>${numero(meta, 1)}%</td>
-                        <td><b>${moeda(precoSugerido)}</b></td>
-                      </tr>
-                    `;
-                  }).join("")}
-                </tbody>
-              </table>
-            </div>
-          `
-      }
-    </div>
-  `;
+      ${!FICHAS.length?'<div class="empty">Nenhuma ficha técnica cadastrada.</div>':`
+      <div class="table-wrap"><table><thead><tr><th>Preparação</th><th>Custo/Porção</th><th>Preço de Venda</th><th>CMV</th><th>Margem Bruta</th><th>Meta CMV</th><th>Preço Sugerido</th><th>Ação</th></tr></thead><tbody>
+      ${FICHAS.map(ficha=>{const meta=num(ficha.meta_cmv)||30,custo=num(ficha.custo_por_porcao),pv=num(ficha.preco_venda),cmv=pv>0?custo/pv*100:0,margem=pv>0?pv-custo:0,mp=pv>0?(margem/pv*100):0,sug=meta>0?custo/(meta/100):0;return `<tr><td><b>${esc(ficha.nome_prato)}</b></td><td>${moeda(custo)}</td><td><b>${moeda(pv)}</b></td><td><b>${pv>0?numero(cmv,1)+"%":"—"}</b></td><td>${pv>0?moeda(margem)+" ("+numero(mp,1)+"%)":"—"}</td><td>${numero(meta,1)}%</td><td><b>${moeda(sug)}</b></td><td><button class="secondary" onclick="editarFicha(${ficha.id})">Definir preço</button></td></tr>`}).join("")}
+      </tbody></table></div>`}</div>`;
 }
 
 
