@@ -1008,8 +1008,22 @@ function obterInsumo(id) {
   return INSUMOS.find(item => Number(item.id) === Number(id));
 }
 
+function preparacoesDisponiveisFicha() {
+  const compartilhadas = Array.isArray(window.PREPARACOES_PUBLIC)
+    ? window.PREPARACOES_PUBLIC
+    : [];
+  // A tela de Preparações mantém a fonte compartilhada atualizada.
+  // Unifica as duas fontes por id para evitar que um estado local antigo
+  // deixe o seletor da Ficha Técnica vazio.
+  const porId = new Map();
+  [...PREPARACOES, ...compartilhadas].forEach(item => {
+    if (item && item.id != null) porId.set(Number(item.id), item);
+  });
+  return [...porId.values()].filter(item => item.ativo !== false);
+}
+
 function obterPreparacao(id) {
-  return PREPARACOES.find(item => Number(item.id) === Number(id));
+  return preparacoesDisponiveisFicha().find(item => Number(item.id) === Number(id));
 }
 
 function fonteFicha(item) {
@@ -1151,7 +1165,7 @@ function renderizarIngredientes() {
         const custo=qBase*precoReal;
         const codigo=ehPrep?"—":(fonte?.codigo||"—");
         const opcoes=ehPrep
-          ? PREPARACOES.map(p=>`<option value="${p.id}" ${Number(item.id)===Number(p.id)?"selected":""}>${esc(p.nome)}</option>`).join("")
+          ? preparacoesDisponiveisFicha().map(p=>`<option value="${p.id}" ${Number(item.id)===Number(p.id)?"selected":""}>${esc(p.nome)}</option>`).join("")
           : INSUMOS.filter(i=>i.ativo!==false).map(i=>`<option value="${i.id}" ${Number(item.id)===Number(i.id)?"selected":""}>${esc(i.ingrediente)}</option>`).join("");
 
         return `<tr data-ficha-row="${index}">
