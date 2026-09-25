@@ -13,3 +13,6 @@
 
 /* Fornecedores — separação visual de rótulo e valor */
 .fornecedor-dados{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:6px!important}.fornecedor-dados span,.fornecedor-dados b{display:block!important;width:100%!important;margin:0!important}.fornecedor-dados b{line-height:1.35!important}
+
+/* Relatórios — visão gerencial mobile */
+.report-period{display:flex;flex-direction:column;gap:3px;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:#F8F6F2;color:#2E3A42}.report-period small{color:#718084}.report-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}.report-stats article{min-width:0}.report-stats b{overflow-wrap:anywhere}.report-note{margin-top:16px}.report-note p{margin:6px 0 0;color:#667477;line-height:1.45}@media(max-width:420px){.report-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
