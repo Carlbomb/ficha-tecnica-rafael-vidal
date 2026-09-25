@@ -240,7 +240,7 @@ export async function installAuth(app, pool) {
       const user = await currentUser(req);
       if (!user) return res.status(401).json({error:"Sessão não autenticada."});
       if (user.perfil !== "admin") return res.status(403).json({error:"Acesso restrito ao administrador."});
-      const { rows } = await pool.query(`SELECT id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes,created_at FROM usuarios WHERE empresa_id=$1 ORDER BY nome`,[user.empresa_id]);
+      const { rows } = await pool.query(`SELECT id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes,created_at FROM usuarios WHERE empresa_id=$1 AND (plataforma_admin IS NOT TRUE OR id=$2) ORDER BY nome`,[user.empresa_id,user.id]);
       res.json(rows);
     } catch(e){ next(e); }
   });
