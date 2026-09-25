@@ -13,7 +13,20 @@ export async function initOperacaoCompleta(pool){
  CREATE INDEX IF NOT EXISTS idx_estprep_tenant ON estoque_preparacoes(empresa_id,unidade_id,preparacao_id);
  ALTER TABLE perdas ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
  ALTER TABLE inventarios ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
+ CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
  `);
+ const done=(await pool.query("SELECT 1 FROM misevo_migrations WHERE chave='homologacao_v1'")).rows[0];
+ if(!done){
+  const db=await pool.connect();try{await db.query("BEGIN");
+   const e=(await db.query(`INSERT INTO empresas(nome,nome_fantasia,ativo) VALUES($1,$2,TRUE) RETURNING id`,["MISEVO — Ambiente de Teste","MISEVO Teste"])).rows[0];
+   const u=(await db.query(`INSERT INTO unidades(empresa_id,nome,codigo,ativo) VALUES($1,$2,$3,TRUE) RETURNING id`,[e.id,"Cozinha de Homologação","TESTE"])).rows[0];
+   const itens=[["Cebola","KG",1,.9,6],["Cenoura","KG",1,.85,7],["Manteiga","KG",1,1,45],["Caldo Base","L",1,1,12],["Sal","KG",1,1,4]];
+   for(const [nome,un,pb,pl,preco] of itens){const fc=pb/pl;await db.query(`INSERT INTO insumos(ingrediente,unidade,peso_bruto,peso_liquido,fc,preco_compra,preco_real,fornecedor,ativo,empresa_id,unidade_id) VALUES($1,$2,$3,$4,$5,$6,$7,'',TRUE,$8,$9)`,[nome,un,pb,pl,fc,preco,preco*fc,e.id,u.id])}
+   await db.query(`INSERT INTO fornecedores(nome,contato,email,telefone,observacoes,ativo,empresa_id,unidade_id) VALUES($1,'','','','Fornecedor exclusivo para homologação',TRUE,$2,$3)`,["Fornecedor Homologação MISEVO",e.id,u.id]);
+   await db.query("INSERT INTO misevo_migrations(chave) VALUES('homologacao_v1')");
+   await db.query("COMMIT");console.log("MISEVO homologação: ambiente isolado criado.",e.id,u.id);
+  }catch(err){await db.query("ROLLBACK");throw err}finally{db.release()}
+ }
 }
 export function installOperacaoCompleta(app,pool){
  app.get("/api/estoque/preparacoes",ar(async(req,res)=>{
