@@ -28,6 +28,30 @@ export async function initOperacaoCompleta(pool){
   }catch(err){await db.query("ROLLBACK");throw err}finally{db.release()}
  }
 }
+
+// One-time homologation cleanup requested by the platform owner.
+const resetDone=(await pool.query("SELECT 1 FROM misevo_migrations WHERE chave='homologacao_reset_20260925_01'")).rows[0];
+if(!resetDone){
+ const db=await pool.connect();try{await db.query("BEGIN");
+  const e=(await db.query("SELECT id FROM empresas WHERE nome=$1",["MISEVO — Ambiente de Teste"])).rows[0];
+  if(e){const u=(await db.query("SELECT id FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
+   if(u){
+    await db.query("DELETE FROM estoque_preparacoes WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+    await db.query("DELETE FROM producao_consumos WHERE ordem_id IN (SELECT id FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
+    await db.query("DELETE FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+    await db.query("DELETE FROM perdas WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+    await db.query("DELETE FROM inventarios WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+    await db.query("DELETE FROM estoque_movimentacoes WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+    await db.query("DELETE FROM historico_precos WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+    await db.query("DELETE FROM compra_itens WHERE compra_id IN (SELECT id FROM compras WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
+    await db.query("DELETE FROM compras WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+   }
+  }
+  await db.query("INSERT INTO misevo_migrations(chave) VALUES('homologacao_reset_20260925_01')");
+  await db.query("COMMIT");console.log("MISEVO homologação: reset transacional concluído.");
+ }catch(err){await db.query("ROLLBACK");throw err}finally{db.release()}
+}
+
 export function installOperacaoCompleta(app,pool){
  app.post("/api/plataforma/homologacao/reset",async(req,res,next)=>{const db=await pool.connect();try{
   if(req.user?.plataforma_admin!==true||String(req.user?.email||"").trim().toLowerCase()!=="charlcooking@gmail.com")return res.status(403).json({error:"Acesso restrito."});
