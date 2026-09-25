@@ -1331,13 +1331,9 @@ async function excluirFicha() {
 ========================================================= */
 
 function telaCMV() {
-  C.innerHTML = `
-    <div class="section-head"><div><small>CONTROLE DE CMV</small><h2>Análise das Fichas</h2><p>Compare custo, preço de venda, CMV e margem bruta de cada ficha.</p></div></div>
-    <div class="card">
-      ${!FICHAS.length?'<div class="empty">Nenhuma ficha técnica cadastrada.</div>':`
-      <div class="table-wrap"><table><thead><tr><th>Preparação</th><th>Custo/Porção</th><th>Preço de Venda</th><th>CMV</th><th>Margem Bruta</th><th>Meta CMV</th><th>Preço Sugerido</th><th>Ação</th></tr></thead><tbody>
-      ${FICHAS.map(ficha=>{const meta=num(ficha.meta_cmv)||30,custo=num(ficha.custo_por_porcao),pv=num(ficha.preco_venda),cmv=pv>0?custo/pv*100:0,margem=pv>0?pv-custo:0,mp=pv>0?(margem/pv*100):0,sug=meta>0?custo/(meta/100):0;return `<tr><td><b>${esc(ficha.nome_prato)}</b></td><td>${moeda(custo)}</td><td><b>${moeda(pv)}</b></td><td><b>${pv>0?numero(cmv,1)+"%":"—"}</b></td><td>${pv>0?moeda(margem)+" ("+numero(mp,1)+"%)":"—"}</td><td>${numero(meta,1)}%</td><td><b>${moeda(sug)}</b></td><td><button class="secondary" onclick="editarFicha(${ficha.id})">Definir preço</button></td></tr>`}).join("")}
-      </tbody></table></div>`}</div>`;
+  C.innerHTML=`<div class="section-head"><div><small>CONTROLE DE CMV</small><h2>Análise das Fichas</h2><p>Compare custo, preço de venda, CMV e margem bruta de cada ficha.</p></div></div>
+  <div class="card cmv-list">${!FICHAS.length?'<div class="empty">Nenhuma ficha técnica cadastrada.</div>':FICHAS.map(f=>{const meta=num(f.meta_cmv)||30,custo=num(f.custo_por_porcao),pv=num(f.preco_venda),cmv=pv>0?custo/pv*100:0,margem=pv>0?pv-custo:0,mp=pv>0?margem/pv*100:0,sug=meta>0?custo/(meta/100):0;return `<article class="cmv-card"><div class="section-head"><div><small>FICHA TÉCNICA</small><h3>${esc(f.nome_prato)}</h3></div><button class="secondary cmv-open" data-id="${f.id}">Abrir ficha</button></div><div class="stats"><article><span>Custo/Porção</span><b>${moeda(custo)}</b></article><article><span>Preço de Venda</span><b>${moeda(pv)}</b></article><article><span>CMV</span><b>${pv>0?numero(cmv,1)+"%":"—"}</b></article><article><span>Margem Bruta</span><b>${pv>0?moeda(margem):"—"}</b><small>${pv>0?numero(mp,1)+"%":""}</small></article></div><div class="cmv-meta"><span>Meta de CMV: <b>${numero(meta,1)}%</b></span><span>Preço sugerido: <b>${moeda(sug)}</b></span></div></article>`}).join("")}</div>`;
+  document.querySelectorAll(".cmv-open").forEach(bt=>bt.onclick=()=>editarFicha(Number(bt.dataset.id)));
 }
 
 
