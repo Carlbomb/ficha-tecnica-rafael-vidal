@@ -10,3 +10,6 @@
 
 /* Fornecedores — cartões mobile */
 .fornecedores-list{display:grid;gap:14px}.fornecedor-card{border:1px solid #dfe5e4;border-radius:14px;padding:18px;background:#fff}.fornecedor-top{display:flex;justify-content:space-between;align-items:center;gap:12px}.fornecedor-top small,.fornecedor-dados span{display:block;font-size:11px;font-weight:700;color:#7b878a;text-transform:uppercase}.fornecedor-top h3{margin:4px 0 0;color:#2E3A42}.fornecedor-dados{margin-top:16px;padding:12px;border-radius:10px;background:#F8F6F2}.fornecedor-dados b{display:block;margin-top:4px;color:#2E3A42;overflow-wrap:anywhere}.fornecedor-card .actions{margin-top:16px}.fornecedor-card .editF{width:100%;color:#0F4C5C!important;font-weight:700!important}
+
+/* Fornecedores — separação visual de rótulo e valor */
+.fornecedor-dados{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:6px!important}.fornecedor-dados span,.fornecedor-dados b{display:block!important;width:100%!important;margin:0!important}.fornecedor-dados b{line-height:1.35!important}
