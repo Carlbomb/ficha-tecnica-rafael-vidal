@@ -1369,7 +1369,8 @@ function telaCMV() {
 
 const PERFIS_USUARIO = {
   admin: "Administrador",
-  gestor: "Gestor / Chef",
+  chef: "Gestor / Chef",
+  subchef: "Subchef",
   cozinha: "Cozinha",
   estoque: "Estoque"
 };
@@ -1441,7 +1442,7 @@ function formularioUsuario(usuario = null) {
           </select>
         </label>
         <label>${editando ? "Nova senha (opcional)" : "Senha"}
-          <span class="password-field"><input id="usuarioSenha" type="password" minlength="10" ${editando ? "" : "required"} autocomplete="new-password" placeholder="Mínimo de 10 caracteres"><button type="button" class="password-toggle" aria-label="Mostrar senha" onclick="window.MISEVO_TOGGLE_PASSWORD(this)">👁</button></span>
+          <span class="password-field"><input id="usuarioSenha" type="password" minlength="8" ${editando ? "" : "required"} autocomplete="new-password" placeholder="Mínimo de 8 caracteres"><button type="button" class="password-toggle" aria-label="Mostrar senha" onclick="window.MISEVO_TOGGLE_PASSWORD(this)">👁</button></span>
         </label>
         ${editando ? `<label>Status
           <select id="usuarioAtivo">
