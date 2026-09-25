@@ -61,13 +61,22 @@ export function installProducao(app,pool){
       const rendimento=n(p.rows[0].rendimento);
       if(rendimento<=0){await c.query("ROLLBACK");return res.status(400).json({error:"A preparação não possui rendimento válido."})}
       const fator=quantidade/rendimento;
-      const ing=await c.query(`SELECT pi.insumo_id,pi.quantidade,i.ingrediente,i.unidade,i.preco_real
-        FROM preparacao_ingredientes pi JOIN insumos i ON i.id=pi.insumo_id
-        WHERE pi.preparacao_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3 ORDER BY pi.ordem,pi.id`,
-        [preparacaoId,req.user.empresa_id,req.user.unidade_id]);
+      const ing=await c.query(`WITH RECURSIVE arvore(preparacao_id,fator,caminho) AS (
+          SELECT $1::bigint,$4::numeric,ARRAY[$1::bigint]
+          UNION ALL
+          SELECT pc.componente_id,a.fator*pc.quantidade/NULLIF(p.rendimento,0),a.caminho||pc.componente_id
+          FROM arvore a JOIN preparacao_componentes pc ON pc.preparacao_id=a.preparacao_id
+          JOIN preparacoes p ON p.id=pc.componente_id AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE
+          WHERE NOT pc.componente_id=ANY(a.caminho)
+        )
+        SELECT pi.insumo_id,SUM(pi.quantidade*a.fator)::numeric quantidade,i.ingrediente,i.unidade,i.preco_real
+        FROM arvore a JOIN preparacao_ingredientes pi ON pi.preparacao_id=a.preparacao_id
+        JOIN insumos i ON i.id=pi.insumo_id AND i.empresa_id=$2 AND i.unidade_id=$3
+        GROUP BY pi.insumo_id,i.ingrediente,i.unidade,i.preco_real ORDER BY i.ingrediente`,
+        [preparacaoId,req.user.empresa_id,req.user.unidade_id,fator]);
       let custo=0;const itens=[];
       for(const x of ing.rows){
-        const necessaria=n(x.quantidade)*fator,disponivel=await saldoInsumo(c,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
+        const necessaria=n(x.quantidade),disponivel=await saldoInsumo(c,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
         custo+=necessaria*n(x.preco_real);
         itens.push({...x,quantidade_necessaria:necessaria,saldo_disponivel:disponivel,falta:Math.max(0,necessaria-disponivel)});
       }
@@ -104,7 +113,10 @@ export function installProducao(app,pool){
       const rendimentoReal=n(req.body.rendimento_real)||n(o.rows[0].quantidade_planejada);
       const {rows}=await c.query(`UPDATE ordens_producao SET status='finalizada',rendimento_real=$1,custo_real=$2,finalizada_at=NOW()
         WHERE id=$3 RETURNING *`,[rendimentoReal,custoReal,req.params.id]);
-      await c.query("COMMIT");res.json(rows[0]);
+      const custoUnitario=rendimentoReal>0?custoReal/rendimentoReal:0;
+      await c.query(`INSERT INTO estoque_preparacoes(preparacao_id,quantidade,tipo,referencia,custo_unitario,usuario_id,empresa_id,unidade_id)
+        VALUES($1,$2,'producao',$3,$4,$5,$6,$7)`,[o.rows[0].preparacao_id,rendimentoReal,`OP #${req.params.id}`,custoUnitario,req.user.id,req.user.empresa_id,req.user.unidade_id]);
+      await c.query("COMMIT");res.json({...rows[0],entrada_estoque:true,custo_unitario:custoUnitario});
     }catch(e){await c.query("ROLLBACK");next(e)}finally{c.release()}
   });
 }
