@@ -139,7 +139,15 @@ async function criaCiclo(db, origem, destino, empresaId, unidadeId) {
 
 export function installPreparacoes(app,pool) {
   app.get("/api/preparacoes",asyncRoute(async(req,res)=>{
-    res.json(await listarPreparacoesComCusto(pool,req.user.empresa_id,req.user.unidade_id));
+    const lista = await listarPreparacoesComCusto(pool,req.user.empresa_id,req.user.unidade_id);
+    console.log("[MISEVO][preparacoes]", JSON.stringify({
+      empresa_id:req.user.empresa_id,
+      unidade_id:req.user.unidade_id,
+      quantidade:lista.length,
+      ids:lista.map(p=>Number(p.id))
+    }));
+    res.set("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.json(lista);
   }));
 
   app.get("/api/preparacoes/:id",asyncRoute(async(req,res)=>{
