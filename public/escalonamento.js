@@ -219,12 +219,20 @@
       const unidade=item.unidade||unidadeFicha(item);
       const nome=item.tipo==="preparacao"?fonte.nome:fonte.ingrediente;
       const baseQtd=num(item.peso_liquido);
-      return '<tr><td><b>'+esc(nome||"—")+'</b>'+(item.tipo==="preparacao"?'<small>Preparação / sub-receita</small>':"")+
-        '</td><td>'+qtdLegivel(baseQtd,unidade)+'</td><td><b>'+qtdLegivel(baseQtd*fator,unidade)+'</b></td></tr>';
+      const calculada=baseQtd*fator;
+      return '<article class="escala-item">'+
+        '<div class="escala-item-nome"><b>'+esc(nome||"—")+'</b>'+
+          (item.tipo==="preparacao"?'<small>Preparação / sub-receita</small>':'')+
+        '</div>'+
+        '<div class="escala-quantidades">'+
+          '<div class="escala-qtd-base"><span>Receita base</span><strong>'+qtdLegivel(baseQtd,unidade)+'</strong></div>'+
+          '<div class="escala-qtd-calculada"><span>Quantidade calculada</span><strong>'+qtdLegivel(calculada,unidade)+'</strong></div>'+
+        '</div>'+
+      '</article>';
     }).join("");
 
     resultado.innerHTML=linhas
-      ?'<div class="table-wrap"><table><thead><tr><th>Componente</th><th>Receita base</th><th>Produção</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'
+      ?'<div class="escala-lista">'+linhas+'</div>'
       :'<div class="empty">Nenhum componente válido na ficha.</div>';
   }
 
