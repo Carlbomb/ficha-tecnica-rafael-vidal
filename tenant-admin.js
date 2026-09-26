@@ -29,7 +29,8 @@ export function installTenantAdmin(app,pool){
     WHERE e.id=$1 AND u.id=$2 AND u.empresa_id=e.id AND e.ativo=TRUE AND u.ativo=TRUE`,[empresaId,unidadeId])).rows[0];
   if(!alvo)return res.status(404).json({error:"Restaurante ou unidade não encontrado."});
   await db.query("BEGIN");
-  await db.query("UPDATE usuarios SET empresa_id=$1,unidade_id=$2,updated_at=NOW() WHERE id=$3 AND plataforma_admin=TRUE",[empresaId,unidadeId,req.user.id]);
+  const s=await db.query("UPDATE sessoes SET empresa_id=$1,unidade_id=$2 WHERE id=$3 AND usuario_id=$4 RETURNING id",[empresaId,unidadeId,req.user.sessao_id,req.user.id]);
+  if(!s.rows[0]){await db.query("ROLLBACK");return res.status(409).json({error:"Não foi possível atualizar o contexto desta sessão."})}
   await db.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id,ativo) VALUES($1,$2,$3,TRUE)
     ON CONFLICT(usuario_id,unidade_id) DO UPDATE SET empresa_id=EXCLUDED.empresa_id,ativo=TRUE`,[req.user.id,unidadeId,empresaId]);
   await db.query("COMMIT");res.json({ok:true,...alvo})
