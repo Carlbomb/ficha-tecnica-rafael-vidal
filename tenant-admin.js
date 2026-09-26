@@ -49,12 +49,16 @@ export function installTenantAdmin(app,pool){
   await pool.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[req.user.id,rows[0].id,req.user.empresa_id]);
   res.status(201).json(rows[0])
  }catch(e){next(e)}});
- app.post("/api/empresa/trocar-unidade",async(req,res,next)=>{try{
+ app.post("/api/empresa/trocar-unidade",async(req,res,next)=>{const db=await pool.connect();try{
   const id=Number(req.body?.unidade_id);
-  const {rows}=await pool.query(`SELECT u.id,u.nome FROM usuario_unidades a JOIN unidades u ON u.id=a.unidade_id
+  const {rows}=await db.query(`SELECT u.id,u.nome FROM usuario_unidades a JOIN unidades u ON u.id=a.unidade_id
   WHERE a.usuario_id=$1 AND a.empresa_id=$2 AND a.unidade_id=$3 AND a.ativo=TRUE AND u.ativo=TRUE`,[req.user.id,req.user.empresa_id,id]);
   if(!rows[0])return res.status(403).json({error:"Você não possui acesso a esta unidade."});
-  await pool.query(`UPDATE usuarios SET unidade_id=$1,updated_at=NOW() WHERE id=$2 AND empresa_id=$3`,[id,req.user.id,req.user.empresa_id]);
+  await db.query("BEGIN");
+  const s=await db.query("UPDATE sessoes SET unidade_id=$1 WHERE id=$2 AND usuario_id=$3 RETURNING id",[id,req.user.sessao_id,req.user.id]);
+  if(!s.rows[0]){await db.query("ROLLBACK");return res.status(409).json({error:"Não foi possível atualizar a unidade desta sessão."})}
+  await db.query(`UPDATE usuarios SET unidade_id=$1,updated_at=NOW() WHERE id=$2`,[id,req.user.id]);
+  await db.query("COMMIT");
   res.json({ok:true,unidade:rows[0]})
- }catch(e){next(e)}});
+ }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}});
 }
