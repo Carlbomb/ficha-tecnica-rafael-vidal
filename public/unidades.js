@@ -1,7 +1,7 @@
 /* MISEVO V18 — Unidades e Conversões */
 (()=>{
 const C=document.querySelector("#content");
-const fmt=(v,d=4)=>Number(v||0).toLocaleString("pt-BR",{maximumFractionDigits:d});
+const fmt=(v,d=3)=>Number(v||0).toLocaleString("pt-BR",{maximumFractionDigits:d});
 const GRUPOS=[
  {nome:"Massa",base:"KG",unidades:[["KG","Quilograma"],["G","Grama"]]},
  {nome:"Volume",base:"L",unidades:[["L","Litro"],["ML","Mililitro"]]},
