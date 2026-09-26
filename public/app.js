@@ -356,7 +356,7 @@ function listarInsumos() {
               <td>${esc(item.unidade)}</td>
               <td>${numero(item.peso_bruto)}</td>
               <td>${numero(item.peso_liquido)}</td>
-              <td>${numero(item.fc, 4)}</td>
+              <td>${numero(item.fc, 3)}</td>
               <td>${moeda(item.preco_compra)}</td>
               <td><b>${moeda(item.preco_real)}</b></td>
               <td>${esc(item.fornecedor || "—")}</td>
@@ -535,7 +535,7 @@ function formularioInsumo(item = null) {
     const fc = liquido > 0 ? bruto / liquido : 0;
     const real = compra * fc;
 
-    $("#fc").value = numero(fc, 4);
+    $("#fc").value = numero(fc, 3);
     $("#precoReal").value = moeda(real);
   }
 
@@ -683,7 +683,7 @@ function listarFichas() {
             <tr>
               <td><b>${esc(ficha.nome_prato)}</b></td>
               <td>${esc(ficha.categoria || "—")}</td>
-              <td>${numero(ficha.rendimento_kg, 4)}</td>
+              <td>${numero(ficha.rendimento_kg, 3)}</td>
               <td>${numero(ficha.porcoes, 0)}</td>
               <td>${moeda(ficha.custo_total)}</td>
               <td>${moeda(ficha.custo_por_porcao)}</td>
@@ -1115,7 +1115,7 @@ function atualizarLinhaFicha(index) {
   const custo = qBase * precoFicha(item);
   const brutoEl = row.querySelector("[data-ficha-bruto]");
   const custoEl = row.querySelector("[data-ficha-custo]");
-  if (brutoEl) brutoEl.textContent = ehPrep ? "—" : numero(bruto, 4);
+  if (brutoEl) brutoEl.textContent = ehPrep ? "—" : numero(bruto, 3);
   if (custoEl) custoEl.textContent = moeda(custo);
 }
 window.alterarPesoLiquido = alterarPesoLiquido;
@@ -1180,8 +1180,8 @@ function renderizarIngredientes() {
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
           <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(item.peso_liquido_texto !== undefined ? item.peso_liquido_texto : (item.peso_liquido?String(item.peso_liquido).replace(".",","):""))}" oninput="alterarPesoLiquido(${index},this.value)"></td>
           <td data-ficha-unidade><select class="ficha-unidade-select" aria-label="Unidade" onchange="alterarUnidadeFicha(${index},this.value)">${unidadesCompativeis(unidadeFicha(item)).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
-          <td data-ficha-fc>${ehPrep?"—":numero(fc,4)}</td>
-          <td data-ficha-bruto>${ehPrep?"—":numero(bruto,4)}</td>
+          <td data-ficha-fc>${ehPrep?"—":numero(fc,3)}</td>
+          <td data-ficha-bruto>${ehPrep?"—":numero(bruto,3)}</td>
           <td data-ficha-compra>${ehPrep?"—":moeda(precoCompra)}</td>
           <td data-ficha-real>${moeda(precoReal)}</td>
           <td><b data-ficha-custo>${moeda(custo)}</b></td>
