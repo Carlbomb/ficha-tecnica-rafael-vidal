@@ -89,9 +89,10 @@ function ajustarMenu(user){
    if(tab==="cmv"||tab==="relatorios")return "custos";
    if(tab==="empresa-unidades"||tab==="documentos"||tab==="configuracoes")return "configuracoes";
    if(tab==="usuarios")return "usuarios";
+   if(tab==="admin-misevo")return "admin-misevo";
    return null;
  };
- const canEnter=m=>admin||(m==="usuarios"?false:["visualizar","criar","editar","excluir","executar"].some(a=>has(p,m,a)));
+ const canEnter=m=>m==="admin-misevo"?user?.plataforma_admin===true:(admin||(m==="usuarios"?false:["visualizar","criar","editar","excluir","executar"].some(a=>has(p,m,a))));
  document.querySelectorAll(".main-nav [data-tab]").forEach(b=>{const m=moduleForNav(b),ok=!!m&&canEnter(m);b.hidden=!ok;b.style.display=ok?"":"none"});
  document.querySelectorAll(".main-nav .nav-group").forEach(g=>{const items=[...g.querySelectorAll(".nav-submenu [data-tab]")],ok=items.some(b=>!b.hidden);g.hidden=!ok;g.style.display=ok?"":"none"});
  const podeCriarFicha=admin||has(p,"fichas","criar");document.querySelectorAll(".header-new,.mobile-new").forEach(add=>{add.hidden=!podeCriarFicha;add.style.display=podeCriarFicha?"":"none"});
