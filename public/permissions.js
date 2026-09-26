@@ -71,13 +71,30 @@ function formUsuarioPerm(u=null){
  };
 }
 function ajustarMenu(user){
- const p=permsFor(user);
- const map={painel:"painel",insumos:"insumos",fichas:"fichas",preparacoes:"preparacoes",categorias:"fichas",unidades:"fichas",estoque:"estoque",movimentacoes:"estoque",cmv:"custos",usuarios:"usuarios"};
- document.querySelectorAll(".main-nav [data-tab]").forEach(b=>{
-  const m=map[b.dataset.tab]; if(!m)return;
-  const ok=user.perfil==="admin"||m==="usuarios"&&user.perfil==="admin"||has(p,m,"visualizar");
-  if(!ok)b.hidden=true;
- });
+ const p=permsFor(user),admin=user?.perfil==="admin";
+ const groupName=b=>b.closest(".nav-group")?.querySelector(".nav-group-toggle span:nth-child(2)")?.textContent.trim()||"";
+ const moduleForNav=b=>{
+   const tab=b.dataset.tab,g=groupName(b);
+   if(tab==="painel")return "painel";
+   if(tab==="insumos")return "insumos";
+   if(tab==="fichas")return "fichas";
+   if(tab==="preparacoes")return "preparacoes";
+   if(tab==="categorias"||tab==="unidades")return "configuracoes";
+   if(tab==="estoque"||tab==="movimentacoes"||tab==="inventario")return "estoque";
+   if(tab==="perdas")return g==="Custos"?"custos":"perdas";
+   if(tab==="validades")return g==="Etiquetas"?"etiquetas":"estoque";
+   if(tab==="producao")return "producao";
+   if(tab==="fornecedores"||tab==="compras")return "estoque";
+   if(tab==="etiquetas")return "etiquetas";
+   if(tab==="cmv"||tab==="relatorios")return "custos";
+   if(tab==="empresa-unidades"||tab==="documentos"||tab==="configuracoes")return "configuracoes";
+   if(tab==="usuarios")return "usuarios";
+   return null;
+ };
+ const canEnter=m=>admin||(m==="usuarios"?false:["visualizar","criar","editar","excluir","executar"].some(a=>has(p,m,a)));
+ document.querySelectorAll(".main-nav [data-tab]").forEach(b=>{const m=moduleForNav(b);b.hidden=!m||!canEnter(m)});
+ document.querySelectorAll(".main-nav .nav-group").forEach(g=>{const items=[...g.querySelectorAll(".nav-submenu [data-tab]")];g.hidden=!items.some(b=>!b.hidden)});
+ const add=document.querySelector(".header-new");if(add)add.hidden=!(admin||has(p,"fichas","criar"));
 }
 window.addEventListener("usuario:autenticado",e=>ajustarMenu(e.detail));
 if(window.USUARIO_ATUAL)ajustarMenu(window.USUARIO_ATUAL);
