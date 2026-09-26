@@ -45,7 +45,7 @@ window.telaUsuarios=async function(){
 };
 window.editarUsuarioPerm=id=>{const u=(window.__USUARIOS||[]).find(x=>Number(x.id)===Number(id));if(u)formUsuarioPerm(u);};
 function formUsuarioPerm(u=null){
- const edit=!!u,p=permsFor(u),perfil=u?.perfil||"cozinha";
+ const edit=!!u,perfil=u?.perfil||"cozinha",p=edit?permsFor(u):(PRESETS[perfil]||{});
  C.innerHTML=`<div class="section-head"><div><small>EQUIPE</small><h2>${edit?"Editar Usuário":"Novo Usuário"}</h2><p>Função define um acesso inicial; abaixo você pode personalizar cada permissão.</p></div><button class="secondary" id="voltarUsuarios">← Voltar</button></div>
  <form id="formUsuario" class="card"><div class="form-grid">
  <label>Nome<input id="usuarioNome" required value="${esc2(u?.nome||"")}"></label>
@@ -54,10 +54,10 @@ function formUsuarioPerm(u=null){
  <label>${edit?"Nova senha (opcional)":"Senha"}<input id="usuarioSenha" type="password" minlength="8" ${edit?"":"required"} autocomplete="new-password" placeholder="Mínimo de 8 caracteres"></label>
  ${edit?`<label>Status<select id="usuarioAtivo"><option value="true" ${u.ativo?"selected":""}>Ativo</option><option value="false" ${!u.ativo?"selected":""}>Inativo</option></select></label>`:""}
  </div>
- <div class="card" style="margin-top:16px"><div class="section-head"><div><small>ACESSOS</small><h3>Permissões individuais</h3><p>Marque exatamente o que este usuário poderá fazer.</p></div><button type="button" class="secondary" id="aplicarPerfil">Aplicar padrão da função</button></div>
- <div class="table-wrap"><table><thead><tr><th>Módulo</th>${ACOES.map(a=>`<th>${a[1]}</th>`).join("")}</tr></thead><tbody>
- ${MODULOS.map(([m,l])=>`<tr><td><b>${l}</b></td>${ACOES.map(([a])=>`<td><input type="checkbox" data-perm="${m}:${a}" ${has(p,m,a)?"checked":""}></td>`).join("")}</tr>`).join("")}
- </tbody></table></div></div>
+ <div class="card permission-panel" style="margin-top:16px"><div class="section-head"><div><small>ACESSOS</small><h3>Permissões individuais</h3><p>Marque exatamente o que este usuário poderá fazer.</p></div><button type="button" class="secondary perm-preset" id="aplicarPerfil">Aplicar padrão da função</button></div>
+ <div class="perm-modules">
+ ${MODULOS.map(([m,l])=>`<section class="perm-module"><div class="perm-module-title"><small>MÓDULO</small><b>${l}</b></div><div class="perm-actions">${ACOES.map(([a,al])=>`<label class="perm-check"><input type="checkbox" data-perm="${m}:${a}" ${has(p,m,a)?"checked":""}><span>${al}</span></label>`).join("")}</div></section>`).join("")}
+ </div></div>
  <div class="actions"><button type="button" class="secondary" id="cancelarUsuario">Cancelar</button><button type="submit" class="primary">${edit?"Salvar alterações":"Criar usuário"}</button></div></form>`;
  document.querySelector("#voltarUsuarios").onclick=telaUsuarios;
  document.querySelector("#cancelarUsuario").onclick=telaUsuarios;
