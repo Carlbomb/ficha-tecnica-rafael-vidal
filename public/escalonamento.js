@@ -220,13 +220,13 @@
       const nome=item.tipo==="preparacao"?fonte.nome:fonte.ingrediente;
       const baseQtd=num(item.peso_liquido);
       const calculada=baseQtd*fator;
-      return '<article class="escala-item">'+
+      return '<article class="escala-item escala-item-producao">'+
         '<div class="escala-item-nome"><b>'+esc(nome||"—")+'</b>'+
           (item.tipo==="preparacao"?'<small>Preparação / sub-receita</small>':'')+
         '</div>'+
-        '<div class="escala-quantidades">'+
-          '<div class="escala-qtd-base"><span>Receita base</span><strong>'+qtdLegivel(baseQtd,unidade)+'</strong></div>'+
-          '<div class="escala-qtd-calculada"><span>Quantidade calculada</span><strong>'+qtdLegivel(calculada,unidade)+'</strong></div>'+
+        '<div class="escala-qtd-final">'+
+          '<span>Quantidade para produção</span>'+
+          '<strong>'+qtdLegivel(calculada,unidade)+'</strong>'+
         '</div>'+
       '</article>';
     }).join("");
