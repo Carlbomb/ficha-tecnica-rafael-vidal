@@ -32,3 +32,6 @@
 /* Usuários — botão voltar legível */
 #voltarUsuarios{background:#0F4C5C!important;color:#fff!important;border-color:#0F4C5C!important;font-weight:700!important;opacity:1!important;-webkit-text-fill-color:#fff!important}
 #voltarUsuarios:hover,#voltarUsuarios:focus{color:#fff!important;-webkit-text-fill-color:#fff!important}
+
+/* Contexto ativo — empresa/unidade */
+.sidebar-footer .active-context{display:block;margin:4px 0 10px;color:#b9d0d5;font-size:11px;line-height:1.35;font-weight:600}
