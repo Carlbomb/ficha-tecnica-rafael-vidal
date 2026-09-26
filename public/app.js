@@ -23,6 +23,15 @@ const moeda = value =>
     currency: "BRL"
   });
 
+const parseValorMonetario = value => {
+  const texto = String(value ?? "").trim().replace(/\s/g, "").replace("R$", "");
+  if (!texto) return 0;
+  const normalizado = texto.includes(",")
+    ? texto.replace(/\./g, "").replace(",", ".")
+    : texto;
+  return num(normalizado);
+};
+
 const numero = (value, casas = 3) =>
   num(value).toLocaleString("pt-BR", {
     minimumFractionDigits: casas,
@@ -848,10 +857,10 @@ async function formularioFicha(ficha = null) {
           Preço de Venda / Porção
           <input
             id="precoVenda"
-            type="number"
-            step="0.01"
-            min="0"
-            value="${ficha?.preco_venda ?? 0}"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            value="${moeda(ficha?.preco_venda ?? 0)}"
           >
         </label>
 
@@ -962,7 +971,15 @@ async function formularioFicha(ficha = null) {
   $("#cancelarFicha").onclick = telaFichas;
   $("#adicionarItem").onclick = adicionarIngrediente;
   $("#porcoes").oninput = calcularFicha;
+  $("#precoVenda").onfocus = e => {
+    const valor = num(String(e.target.value).replace(/[^0-9,-]/g, "").replace(",", "."));
+    e.target.value = valor ? valor.toFixed(2).replace(".", ",") : "";
+  };
   $("#precoVenda").oninput = calcularFicha;
+  $("#precoVenda").onblur = e => {
+    e.target.value = moeda(parseValorMonetario(e.target.value));
+    calcularFicha();
+  };
   $("#metaCMV").oninput = calcularFicha;
   $("#formFicha").onsubmit = salvarFicha;
 
@@ -1211,15 +1228,15 @@ function calcularFicha() {
   });
 
   const porcoes=num($("#porcoes")?.value);
-  const precoVenda=num($("#precoVenda")?.value);
+  const precoVenda=parseValorMonetario($("#precoVenda")?.value);
   const metaCMV=num($("#metaCMV")?.value)||30;
   const pesoPorcao=porcoes>0?rendimento/porcoes:0;
   const custoPorcao=porcoes>0?custoTotal/porcoes:0;
   const cmv=precoVenda>0?(custoPorcao/precoVenda)*100:0;
   const precoSugerido=custoPorcao>0&&metaCMV>0?custoPorcao/(metaCMV/100):0;
 
-  if($("#rendimento"))$("#rendimento").value=rendimento.toFixed(4);
-  if($("#pesoPorcao"))$("#pesoPorcao").value=pesoPorcao.toFixed(4);
+  if($("#rendimento"))$("#rendimento").value=numero(rendimento, 3);
+  if($("#pesoPorcao"))$("#pesoPorcao").value=numero(pesoPorcao, 3);
   if($("#resumoTotal"))$("#resumoTotal").textContent=moeda(custoTotal);
   if($("#resumoPorcao"))$("#resumoPorcao").textContent=moeda(custoPorcao);
   if($("#resumoVenda"))$("#resumoVenda").textContent=moeda(precoVenda);
