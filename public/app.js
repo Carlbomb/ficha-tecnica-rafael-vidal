@@ -1186,7 +1186,7 @@ function renderizarIngredientes() {
           <td data-ficha-real>${moeda(precoReal)}</td>
           <td><b data-ficha-custo>${moeda(custo)}</b></td>
           <td><input value="${esc(item.observacoes||"")}" oninput="alterarObservacao(${index},this.value)"></td>
-          <td><button type="button" class="danger" onclick="removerIngrediente(${index})">×</button></td>
+          <td><button type="button" class="danger" aria-label="Remover componente" title="Remover componente" onclick="removerIngrediente(${index})">×</button></td>
         </tr>`;
       }).join("")}
       </tbody>
