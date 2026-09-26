@@ -35,6 +35,20 @@ export async function initOperacaoCompleta(pool){
   created_at TIMESTAMPTZ DEFAULT NOW()
  );
  CREATE INDEX IF NOT EXISTS idx_estprep_tenant ON estoque_preparacoes(empresa_id,unidade_id,preparacao_id);
+ CREATE TABLE IF NOT EXISTS etiqueta_registros(
+  id BIGSERIAL PRIMARY KEY,
+  insumo_id BIGINT REFERENCES insumos(id) ON DELETE SET NULL,
+  item_nome TEXT NOT NULL,
+  producao DATE NOT NULL,
+  validade DATE NOT NULL,
+  responsavel TEXT DEFAULT '',
+  quantidade INTEGER NOT NULL DEFAULT 1,
+  usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  empresa_id BIGINT NOT NULL,
+  unidade_id BIGINT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+ );
+ CREATE INDEX IF NOT EXISTS idx_etiqueta_registros_tenant_validade ON etiqueta_registros(empresa_id,unidade_id,validade,created_at DESC);
  ALTER TABLE perdas ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
  ALTER TABLE inventarios ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
  CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
@@ -84,6 +98,31 @@ export function installOperacaoCompleta(app,pool){
   res.json({empresa:e,unidade:u,insumos:ins,fornecedores:forn,counts})
  }catch(e){next(e)}});
 
+ app.get("/api/etiquetas",ar(async(req,res)=>{
+  const {rows}=await pool.query(`SELECT e.*,
+   CASE WHEN e.validade<CURRENT_DATE THEN 'vencido'
+        WHEN e.validade=CURRENT_DATE THEN 'vence_hoje'
+        WHEN e.validade<=CURRENT_DATE+INTERVAL '3 days' THEN 'vencendo'
+        ELSE 'valido' END AS status_calculado
+   FROM etiqueta_registros e
+   WHERE e.empresa_id=$1 AND e.unidade_id=$2
+   ORDER BY e.validade ASC,e.created_at DESC LIMIT 500`,t(req));
+  res.json(rows)
+ }));
+ app.post("/api/etiquetas",ar(async(req,res)=>{
+  const b=req.body||{},insumoId=Number(b.insumo_id),qtd=Math.max(1,Math.min(50,Number(b.quantidade)||1));
+  const item=String(b.item_nome||"").trim(),prod=String(b.producao||""),val=String(b.validade||""),resp=String(b.responsavel||"").trim();
+  if(!item||!/^\d{4}-\d{2}-\d{2}$/.test(prod)||!/^\d{4}-\d{2}-\d{2}$/.test(val))return res.status(400).json({error:"Informe item, produção e validade."});
+  if(val<prod)return res.status(400).json({error:"A validade não pode ser anterior à produção/abertura."});
+  if(Number.isFinite(insumoId)&&insumoId>0){
+   const ok=(await pool.query("SELECT 1 FROM insumos WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3",[insumoId,...t(req)])).rows[0];
+   if(!ok)return res.status(404).json({error:"Item não encontrado nesta unidade."});
+  }
+  const {rows}=await pool.query(`INSERT INTO etiqueta_registros(insumo_id,item_nome,producao,validade,responsavel,quantidade,usuario_id,empresa_id,unidade_id)
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+   [Number.isFinite(insumoId)&&insumoId>0?insumoId:null,item,prod,val,resp,qtd,req.user.id,...t(req)]);
+  res.status(201).json(rows[0])
+ }));
  app.get("/api/estoque/preparacoes",ar(async(req,res)=>{
   const {rows}=await pool.query(`SELECT p.id,p.nome,p.unidade_rendimento,COALESCE(SUM(e.quantidade),0)::numeric saldo,
    COALESCE((SELECT e2.custo_unitario FROM estoque_preparacoes e2 WHERE e2.preparacao_id=p.id AND e2.empresa_id=$1 AND e2.unidade_id=$2 ORDER BY e2.created_at DESC,e2.id DESC LIMIT 1),0)::numeric custo_unitario
