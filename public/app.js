@@ -138,7 +138,7 @@ document.addEventListener("click", event => {
    PAINEL
 ========================================================= */
 
-function telaPainel() {
+async function telaPainel() {
   const fichasAtivas = FICHAS.filter(f => f.ativo !== false);
   const insumosAtivos = INSUMOS.filter(i => i.ativo !== false);
   const preparacoesAtivas = PREPARACOES.filter(p => p.ativo !== false);
@@ -163,6 +163,18 @@ function telaPainel() {
     ? fichasAtivas.reduce((s, f) => s + num(f.custo_por_porcao), 0) / fichasAtivas.length
     : 0;
 
+  const [estoqueReq, validadesReq] = await Promise.allSettled([
+    api("/api/estoque/resumo"),
+    api("/api/etiquetas")
+  ]);
+  const estoqueResumo = estoqueReq.status === "fulfilled" ? estoqueReq.value : null;
+  const etiquetas = validadesReq.status === "fulfilled" && Array.isArray(validadesReq.value) ? validadesReq.value : null;
+  const abaixoMinimo = estoqueResumo ? num(estoqueResumo.abaixo_minimo) : null;
+  const vencimentosProximos = etiquetas
+    ? etiquetas.filter(x => ["vencendo","vence_hoje"].includes(x.status_calculado))
+        .reduce((s,x) => s + Math.max(1,num(x.quantidade)),0)
+    : null;
+
   const recentes = [...fichasAtivas]
     .sort((a,b) => {
       const da = new Date(a.updated_at || a.created_at || 0).getTime();
@@ -176,17 +188,15 @@ function telaPainel() {
       <div>
         <small>PAINEL</small>
         <h2>Visão Geral</h2>
-        <p>Indicadores rápidos para acompanhar fichas, custos e preparações.</p>
+        <p>Indicadores operacionais para acompanhar preparações, custos, estoque e vencimentos.</p>
       </div>
     </div>
 
     <div class="summary-grid painel-kpis">
-      <div><span>Insumos</span><strong>${insumosAtivos.length}</strong></div>
-      <div><span>Fichas Técnicas</span><strong>${fichasAtivas.length}</strong></div>
       <div><span>Preparações</span><strong>${preparacoesAtivas.length}</strong></div>
-      <div><span>CMV Médio</span><strong>${numero(cmvMedio,1)}%</strong></div>
-      <div><span>Acima da Meta</span><strong>${acimaMeta.length}</strong></div>
       <div><span>Custo Médio / Porção</span><strong>${moeda(custoMedioPorcao)}</strong></div>
+      <div><span>Itens abaixo do mínimo</span><strong>${abaixoMinimo===null?"—":abaixoMinimo}</strong></div>
+      <div><span>Vencimentos próximos</span><strong>${vencimentosProximos===null?"—":vencimentosProximos}</strong></div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -251,10 +261,6 @@ function telaPainel() {
         </div>` : `<div class="empty">Nenhuma ficha técnica cadastrada.</div>`}
     </div>
 
-    <div class="card" style="margin-top:16px">
-      <small>PRÓXIMOS INDICADORES</small>
-      <p style="margin-bottom:0">Estoque baixo, validades, produção do dia e perdas aparecerão aqui conforme esses módulos forem ativados.</p>
-    </div>
   `;
 
   const novoInsumo = $("#painelNovoInsumo");
