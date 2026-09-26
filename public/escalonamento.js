@@ -2,6 +2,9 @@
 (()=>{
   const state={ativo:false,modo:"rendimento",valor:"",itemIndex:null,unidade:""};
 
+  // Regra MISEVO: o escalonamento aceita qualquer valor positivo, inclusive decimal.
+  // Exemplos válidos: 0,25 · 0,7 · 1,5 · 12,35. Zero e negativos são inválidos.
+
   const q=s=>document.querySelector(s);
   const flex=(v,max=3)=>num(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:max});
 
@@ -104,12 +107,12 @@
         : "";
       campos=
         '<label>Ingrediente de referência<select id="escalaItem" '+(referencias.length?"":"disabled")+'>'+opcoes+'</select></label>'+
-        '<label>Quantidade disponível<input id="escalaValor" type="text" inputmode="decimal" value="'+esc(state.valor)+'" placeholder="0,000"></label>'+
+        '<label>Quantidade disponível<input id="escalaValor" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="'+esc(state.valor)+'" placeholder="0,000"></label>'+
         '<label>Unidade<select id="escalaUnidade" '+(ref?"":"disabled")+'>'+unidades+'</select></label>';
     }else{
       campos=
         '<label>'+(state.modo==="porcoes"?"Porções desejadas":"Rendimento desejado")+
-        '<input id="escalaValor" type="text" inputmode="decimal" value="'+esc(state.valor)+'" placeholder="0,000"></label>';
+        '<input id="escalaValor" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="'+esc(state.valor)+'" placeholder="0,000"></label>';
     }
 
     area.innerHTML=
@@ -124,6 +127,7 @@
             '<option value="ingrediente" '+(state.modo==="ingrediente"?"selected":"")+'>Ingrediente disponível</option>'+
           '</select></label>'+campos+
         '</div>'+
+        '<p style="margin:10px 0 0;color:#596b72;font-size:12px">Aceita qualquer valor positivo, inteiro ou decimal — por exemplo: 0,7 · 1,5 · 12,25.</p>'+
         '<div class="summary-grid" id="escalaResumo" style="margin-top:16px"></div>'+
         '<div style="margin-top:18px"><div class="section-head"><div><small>QUANTIDADES</small>'+
         '<h3>Ingredientes para esta produção</h3></div></div><div id="escalaResultado"></div></div>'+
@@ -178,12 +182,12 @@
       else mensagem="Informe um rendimento maior que zero.";
     }else if(state.modo==="porcoes"){
       if(base.porcoes>0&&alvo>0)fator=alvo/base.porcoes;
-      else mensagem="Informe uma quantidade de porções maior que zero.";
+      else mensagem="Informe qualquer valor positivo para as porções, inclusive decimal (ex.: 0,7 ou 1,5).";
     }else{
       const item=ITENS_FICHA[Number(state.itemIndex)];
       const fonte=item?fonteFicha(item):null;
       if(!item||!fonte||num(item.peso_liquido)<=0)mensagem="Selecione um ingrediente válido.";
-      else if(alvo<=0)mensagem="Informe a quantidade disponível.";
+      else if(alvo<=0)mensagem="Informe uma quantidade disponível maior que zero. Valores decimais são aceitos.";
       else{
         const unidadeBase=item.unidade||unidadeFicha(item);
         const unidadeEntrada=state.unidade||unidadeBase;
