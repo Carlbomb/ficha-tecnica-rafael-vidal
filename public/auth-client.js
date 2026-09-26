@@ -64,7 +64,7 @@
     document.body.classList.remove("auth-locked"); $("#authOverlay")?.remove();
     const footer = document.querySelector(".sidebar-footer");
     if (footer) {
-      footer.innerHTML = `<span class="logged-user">${user.nome}</span><strong>${String(user.perfil).toUpperCase()}</strong>
+      footer.innerHTML = `<span class="logged-user">${user.nome}</span><strong>${String(user.perfil).toUpperCase()}</strong><small class="active-context">${user.empresa_nome||"Empresa"} · ${user.unidade_nome||"Unidade"}</small>
         <button type="button" class="logout-button" id="changePasswordButton">Alterar senha</button>
         <button type="button" class="logout-button" id="logoutButton">Sair</button>`;
       $("#changePasswordButton").onclick = showChangePassword;
