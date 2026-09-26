@@ -33,9 +33,10 @@ function moduleForPath(path="") {
   if (path.startsWith("/dashboard")) return "painel";
   if (path.startsWith("/insumos")) return "insumos";
   if (path.startsWith("/fichas")) return "fichas";
-  if (path.startsWith("/categorias")) return "fichas";
+  if (path.startsWith("/categorias")) return "configuracoes";
   if (path.startsWith("/preparacoes")) return "preparacoes";
   if (path.startsWith("/cmv")) return "custos";
+  if (path.startsWith("/relatorios")) return "custos";
   if (path.startsWith("/estoque")) return "estoque";
   if (path.startsWith("/producao")) return "producao";
   if (path.startsWith("/etiquetas")) return "etiquetas";
