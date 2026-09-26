@@ -130,6 +130,8 @@ export async function installAuth(app, pool) {
       id BIGSERIAL PRIMARY KEY, usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
       token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE sessoes ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
+    ALTER TABLE sessoes ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
     CREATE INDEX IF NOT EXISTS idx_sessoes_token ON sessoes(token_hash);
     CREATE INDEX IF NOT EXISTS idx_sessoes_expira ON sessoes(expires_at);
     CREATE INDEX IF NOT EXISTS idx_usuarios_empresa_unidade ON usuarios(empresa_id,unidade_id);
@@ -168,9 +170,14 @@ export async function installAuth(app, pool) {
     const token = parseCookies(req.headers.cookie).rv_session;
     if (!token) return null;
     const { rows } = await pool.query(
-      `SELECT u.id,u.nome,u.email,u.perfil,u.ativo,u.empresa_id,u.unidade_id,u.permissoes,u.plataforma_admin,e.nome AS empresa_nome,un.nome AS unidade_nome
+      `SELECT u.id,u.nome,u.email,u.perfil,u.ativo,
+              COALESCE(s.empresa_id,u.empresa_id) AS empresa_id,
+              COALESCE(s.unidade_id,u.unidade_id) AS unidade_id,
+              u.permissoes,u.plataforma_admin,s.id AS sessao_id,
+              e.nome AS empresa_nome,un.nome AS unidade_nome
        FROM sessoes s JOIN usuarios u ON u.id=s.usuario_id
-       LEFT JOIN empresas e ON e.id=u.empresa_id LEFT JOIN unidades un ON un.id=u.unidade_id
+       LEFT JOIN empresas e ON e.id=COALESCE(s.empresa_id,u.empresa_id)
+       LEFT JOIN unidades un ON un.id=COALESCE(s.unidade_id,u.unidade_id)
        WHERE s.token_hash=$1 AND s.expires_at>NOW() AND u.ativo=TRUE`, [sha256(token)]
     );
     return rows[0] || null;
@@ -189,7 +196,7 @@ export async function installAuth(app, pool) {
       if (!user || !verifyPassword(password,user.senha_hash)) return res.status(401).json({error:"E-mail ou senha inválidos."});
       const token = b64url(crypto.randomBytes(32));
       const expires = new Date(Date.now() + SESSION_DAYS * 86400000);
-      await pool.query(`INSERT INTO sessoes (usuario_id,token_hash,expires_at) VALUES ($1,$2,$3)`, [user.id,sha256(token),expires]);
+      await pool.query(`INSERT INTO sessoes (usuario_id,token_hash,expires_at,empresa_id,unidade_id) VALUES ($1,$2,$3,$4,$5)`, [user.id,sha256(token),expires,user.empresa_id,user.unidade_id]);
       const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
       res.setHeader("Set-Cookie",`rv_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS*86400}${secure}`);
       res.json({usuario:publicUser(user)});
