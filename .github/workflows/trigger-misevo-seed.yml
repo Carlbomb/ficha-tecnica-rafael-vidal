@@ -1,0 +1,14 @@
+name: Trigger MISEVO seed
+on:
+  push:
+    branches: [mobile-mvp]
+    paths:
+      - ".github/workflows/trigger-misevo-seed.yml"
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger temporary Railway function
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 30 https://db-inspector-readonly-production-c51f.up.railway.app/
