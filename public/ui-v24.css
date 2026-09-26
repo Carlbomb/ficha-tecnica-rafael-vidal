@@ -11,3 +11,26 @@
 .v22-edit,.v24-delete{width:38px;height:38px;border:0!important;border-radius:8px!important;padding:0!important;display:grid;place-items:center}.v22-edit{background:#f0f4f5!important;color:#173b46!important;font-size:0!important;overflow:hidden}.v22-edit:after{content:"✎"!important;font-size:18px!important;line-height:1}.v24-delete{background:#fff0f1!important;color:#e32636!important;font-size:18px!important}
 .v22-modal{width:min(590px,calc(100% - 24px))!important}.v22-modal-head{padding:20px 22px!important}.v22-modal-head h3{font-size:22px!important}.v22-modal-body{padding:20px 22px!important}.v22-modal-body label{font-size:13px}.v22-modal-body input,.v22-modal-body textarea{border-color:#d7dfe1}.v24-icon-title{margin:16px 0 8px;font-size:13px;font-weight:800}.v24-icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}.v24-icon-choice{height:48px;border:1px solid #e0e5e5;border-radius:8px;background:#f8f9f8;font-size:23px}.v24-icon-choice.selected{outline:3px solid #e0aa18;background:#fff}.v24-color-grid{display:flex;gap:9px;flex-wrap:wrap}.v24-color-choice{width:31px;height:31px;border:0;border-radius:7px}.v24-color-choice.selected{outline:3px solid #e0aa18;outline-offset:2px}.v24-check{display:flex!important;align-items:flex-start;gap:9px;margin-top:14px;font-weight:650!important}.v24-check input{width:19px!important;min-height:19px!important;margin:0!important;accent-color:#2f80ed}.v22-modal-actions{display:flex!important;justify-content:flex-end!important}.v22-modal-actions button{min-width:110px}.v22-modal-actions .primary{background:var(--misevo-acafrao)!important;color:#23343a!important}
 @media(max-width:700px){.v22-page-title h2{font-size:25px!important}.v22-add{font-size:0!important;width:44px!important;padding:0!important}.v22-add:after{content:"+";font-size:26px}.v22-cat-row{grid-template-columns:20px 42px minmax(0,1fr) 38px!important}.v22-cat-row .v24-switch,.v22-cat-row .v24-delete{display:none}.v24-icon-grid{grid-template-columns:repeat(4,1fr)}}
+
+
+/* MISEVO — contraste e identificação global de ações */
+.section-head button.secondary,
+.section-head .secondary{
+  background:#fff!important;
+  color:#0F4C5C!important;
+  -webkit-text-fill-color:#0F4C5C!important;
+  border:1px solid #0F4C5C!important;
+  opacity:1!important;
+}
+.section-head button.secondary:hover,
+.section-head button.secondary:focus,
+.section-head .secondary:hover,
+.section-head .secondary:focus{
+  background:#eef5f5!important;
+  color:#0F4C5C!important;
+  -webkit-text-fill-color:#0F4C5C!important;
+}
+button[aria-label]:focus-visible{
+  outline:3px solid #D4A62A;
+  outline-offset:2px;
+}
