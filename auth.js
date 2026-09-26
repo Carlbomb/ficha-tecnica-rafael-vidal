@@ -104,7 +104,9 @@ function canAccess(user, req) {
   const acao = actionForRequest(req);
   const permissoes = effectivePermissions(user);
   const lista = permissoes[modulo] || [];
-  return Array.isArray(lista) && (lista.includes(acao) || (acao === "criar" && lista.includes("executar")));
+  if (!Array.isArray(lista)) return false;
+  if (modulo==="perdas" && acao==="visualizar" && lista.includes("criar")) return true;
+  return lista.includes(acao) || (acao === "criar" && lista.includes("executar"));
 }
 
 export async function installAuth(app, pool) {
