@@ -1235,8 +1235,8 @@ function calcularFicha() {
   const cmv=precoVenda>0?(custoPorcao/precoVenda)*100:0;
   const precoSugerido=custoPorcao>0&&metaCMV>0?custoPorcao/(metaCMV/100):0;
 
-  if($("#rendimento"))$("#rendimento").value=numero(rendimento, 3);
-  if($("#pesoPorcao"))$("#pesoPorcao").value=numero(pesoPorcao, 3);
+  if($("#rendimento"))$("#rendimento").value=rendimento.toFixed(3);
+  if($("#pesoPorcao"))$("#pesoPorcao").value=pesoPorcao.toFixed(3);
   if($("#resumoTotal"))$("#resumoTotal").textContent=moeda(custoTotal);
   if($("#resumoPorcao"))$("#resumoPorcao").textContent=moeda(custoPorcao);
   if($("#resumoVenda"))$("#resumoVenda").textContent=moeda(precoVenda);
