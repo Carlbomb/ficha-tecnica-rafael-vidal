@@ -56,3 +56,19 @@ button[aria-label]:focus-visible{
 @media(max-width:380px){
   .escala-quantidades{grid-template-columns:1fr}
 }
+
+
+/* MISEVO — escalonamento: lista final de produção */
+.escala-item-producao{grid-template-columns:minmax(0,1fr) auto!important}
+.escala-qtd-final{min-width:180px;padding:11px 14px;border:1px solid #cfe4df;border-radius:10px;background:#e8f3f1;text-align:right}
+.escala-qtd-final span{display:block;margin-bottom:4px;color:#0f4c5c;font-size:10px;font-weight:800;text-transform:uppercase}
+.escala-qtd-final strong{display:block;color:#0f4c5c;font-size:22px;font-weight:850;line-height:1.15;white-space:nowrap}
+@media(max-width:700px){
+  .escala-item-producao{grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important}
+  .escala-qtd-final{min-width:145px;padding:10px 12px}
+  .escala-qtd-final strong{font-size:22px}
+}
+@media(max-width:430px){
+  .escala-item-producao{grid-template-columns:1fr!important}
+  .escala-qtd-final{text-align:left;min-width:0}
+}
