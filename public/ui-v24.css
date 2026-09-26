@@ -34,3 +34,25 @@ button[aria-label]:focus-visible{
   outline:3px solid #D4A62A;
   outline-offset:2px;
 }
+
+
+/* MISEVO — escalonamento: quantidades sempre visíveis */
+.escala-lista{display:grid;gap:10px}
+.escala-item{display:grid;grid-template-columns:minmax(180px,1fr) minmax(300px,1.25fr);gap:16px;align-items:center;padding:14px 16px;border:1px solid #dfe5e4;border-radius:12px;background:#fff}
+.escala-item-nome{min-width:0}.escala-item-nome b{display:block;font-size:15px;color:#24363a;overflow-wrap:anywhere}.escala-item-nome small{display:block;margin-top:4px;color:#7b878a;font-size:11px}
+.escala-quantidades{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.escala-quantidades>div{padding:10px 12px;border-radius:10px;background:#f8f6f2;min-width:0}
+.escala-quantidades span{display:block;margin-bottom:4px;color:#738083;font-size:10px;font-weight:800;text-transform:uppercase}
+.escala-quantidades strong{display:block;color:#2e3a42;font-size:16px;line-height:1.2;white-space:nowrap}
+.escala-qtd-calculada{background:#e8f3f1!important;border:1px solid #cfe4df}
+.escala-qtd-calculada span{color:#0f4c5c!important}
+.escala-qtd-calculada strong{color:#0f4c5c!important;font-size:20px!important;font-weight:850}
+@media(max-width:700px){
+  .escala-item{grid-template-columns:1fr;gap:10px;padding:14px}
+  .escala-quantidades{grid-template-columns:1fr 1fr}
+  .escala-quantidades>div{padding:11px}
+  .escala-qtd-calculada strong{font-size:22px!important}
+}
+@media(max-width:380px){
+  .escala-quantidades{grid-template-columns:1fr}
+}
