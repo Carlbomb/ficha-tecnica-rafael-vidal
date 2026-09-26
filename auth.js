@@ -29,6 +29,7 @@ const ROLE_DEFAULTS = {
 };
 
 function moduleForPath(path="") {
+  path=String(path||"").replace(/^\/api(?=\/)/,"");
   if (path.startsWith("/dashboard")) return "painel";
   if (path.startsWith("/insumos")) return "insumos";
   if (path.startsWith("/fichas")) return "fichas";
