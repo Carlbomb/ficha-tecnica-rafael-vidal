@@ -92,9 +92,9 @@ function ajustarMenu(user){
    return null;
  };
  const canEnter=m=>admin||(m==="usuarios"?false:["visualizar","criar","editar","excluir","executar"].some(a=>has(p,m,a)));
- document.querySelectorAll(".main-nav [data-tab]").forEach(b=>{const m=moduleForNav(b);b.hidden=!m||!canEnter(m)});
- document.querySelectorAll(".main-nav .nav-group").forEach(g=>{const items=[...g.querySelectorAll(".nav-submenu [data-tab]")];g.hidden=!items.some(b=>!b.hidden)});
- const add=document.querySelector(".header-new");if(add)add.hidden=!(admin||has(p,"fichas","criar"));
+ document.querySelectorAll(".main-nav [data-tab]").forEach(b=>{const m=moduleForNav(b),ok=!!m&&canEnter(m);b.hidden=!ok;b.style.display=ok?"":"none"});
+ document.querySelectorAll(".main-nav .nav-group").forEach(g=>{const items=[...g.querySelectorAll(".nav-submenu [data-tab]")],ok=items.some(b=>!b.hidden);g.hidden=!ok;g.style.display=ok?"":"none"});
+ const podeCriarFicha=admin||has(p,"fichas","criar");document.querySelectorAll(".header-new,.mobile-new").forEach(add=>{add.hidden=!podeCriarFicha;add.style.display=podeCriarFicha?"":"none"});
 }
 window.addEventListener("usuario:autenticado",e=>ajustarMenu(e.detail));
 if(window.USUARIO_ATUAL)ajustarMenu(window.USUARIO_ATUAL);
