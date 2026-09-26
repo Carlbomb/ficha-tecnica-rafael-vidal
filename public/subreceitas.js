@@ -19,7 +19,7 @@
   }
   function listar(){
     const q=(document.querySelector("#buscaPrep")?.value||"").toLowerCase(),a=PREPS.filter(p=>(p.nome+" "+(p.categoria||"")).toLowerCase().includes(q));
-    document.querySelector("#listaPrep").innerHTML=!a.length?'<div class="empty">Nenhuma preparação cadastrada.</div>':`<div class="table-wrap"><table><thead><tr><th>Preparação</th><th>Categoria</th><th>Rendimento</th><th>Unid.</th><th>Custo Total</th><th>Custo/Unid.</th><th></th></tr></thead><tbody>${a.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc(p.categoria||"—")}</td><td>${numero(p.rendimento,4)}</td><td>${esc(p.unidade_rendimento)}</td><td>${moeda(p.custo_total)}</td><td><b>${moeda(p.custo_unitario)}</b></td><td><button onclick="editarPreparacao(${p.id})">Abrir</button></td></tr>`).join("")}</tbody></table></div>`;
+    document.querySelector("#listaPrep").innerHTML=!a.length?'<div class="empty">Nenhuma preparação cadastrada.</div>':`<div class="table-wrap"><table><thead><tr><th>Preparação</th><th>Categoria</th><th>Rendimento</th><th>Unid.</th><th>Custo Total</th><th>Custo/Unid.</th><th></th></tr></thead><tbody>${a.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc(p.categoria||"—")}</td><td>${numero(p.rendimento,3)}</td><td>${esc(p.unidade_rendimento)}</td><td>${moeda(p.custo_total)}</td><td><b>${moeda(p.custo_unitario)}</b></td><td><button onclick="editarPreparacao(${p.id})">Abrir</button></td></tr>`).join("")}</tbody></table></div>`;
   }
 
   window.editarPreparacao=async id=>{try{const p=await apiSR(`/api/preparacoes/${id}`);EDITANDO=p;ITENS=[...(p.ingredientes||[]).map(x=>({tipo:"insumo",id:Number(x.insumo_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""})),...(p.componentes||[]).map(x=>({tipo:"preparacao",id:Number(x.componente_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""}))];await carregar();form(p)}catch(e){alert(e.message)}};
@@ -78,7 +78,7 @@
   window.prepObsItem=(k,v)=>ITENS[k].observacoes=v;
   window.prepRemover=k=>{ITENS.splice(k,1);renderItens()};
 
-  function calcular(){const total=ITENS.reduce((s,it)=>s+num(it.quantidade)*preco(it),0),r=num(document.querySelector("#prepRendimento")?.value);if(document.querySelector("#prepCustoTotal"))document.querySelector("#prepCustoTotal").textContent=moeda(total);if(document.querySelector("#prepCustoUnit"))document.querySelector("#prepCustoUnit").textContent=moeda(r>0?total/r:0);if(document.querySelector("#prepRendResumo"))document.querySelector("#prepRendResumo").textContent=`${numero(r,4)} ${document.querySelector("#prepUnidade")?.value||""}`}
+  function calcular(){const total=ITENS.reduce((s,it)=>s+num(it.quantidade)*preco(it),0),r=num(document.querySelector("#prepRendimento")?.value);if(document.querySelector("#prepCustoTotal"))document.querySelector("#prepCustoTotal").textContent=moeda(total);if(document.querySelector("#prepCustoUnit"))document.querySelector("#prepCustoUnit").textContent=moeda(r>0?total/r:0);if(document.querySelector("#prepRendResumo"))document.querySelector("#prepRendResumo").textContent=`${numero(r,3)} ${document.querySelector("#prepUnidade")?.value||""}`}
 
   async function salvar(e){
     e.preventDefault();
