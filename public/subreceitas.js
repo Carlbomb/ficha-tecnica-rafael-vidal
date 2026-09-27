@@ -66,13 +66,18 @@
   function renderItens(){
     const area=document.querySelector("#prepItens");if(!area)return;
     if(!ITENS.length){area.innerHTML='<div class="empty">Adicione insumos ou preparações.</div>';calcular();return}
-    area.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Componente</th><th>Quantidade</th><th>Unid.</th><th>Custo/Unid.</th><th>Custo</th><th>Observação</th><th></th></tr></thead><tbody>
-    ${ITENS.map((it,k)=>`<tr data-prep-row="${k}">
-      <td><select onchange="prepTipo(${k},this.value)"><option value="insumo" ${it.tipo==="insumo"?"selected":""}>Insumo</option><option value="preparacao" ${it.tipo==="preparacao"?"selected":""}>Preparação</option></select></td>
-      <td><select onchange="prepFonte(${k},this.value)"><option value="">Selecione...</option>${(it.tipo==="preparacao"?PREPS.filter(x=>!EDITANDO||Number(x.id)!==Number(EDITANDO.id)):INSUMOS.filter(x=>x.ativo!==false)).map(x=>`<option value="${x.id}" ${Number(x.id)===Number(it.id)?"selected":""}>${esc(it.tipo==="preparacao"?x.nome:x.ingrediente)}</option>`).join("")}</select></td>
-      <td><input class="prep-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${it.quantidade?String(it.quantidade).replace(".",","):""}" oninput="prepQtd(${k},this.value)"></td>
-      <td>${esc(unidade(it))}</td><td>${moeda(preco(it))}</td><td><b data-custo-item>${moeda(num(it.quantidade)*preco(it))}</b></td>
-      <td><input value="${esc(it.observacoes)}" oninput="prepObsItem(${k},this.value)"></td><td><button type="button" class="danger" aria-label="Remover componente" title="Remover componente" onclick="prepRemover(${k})">×</button></td></tr>`).join("")}</tbody></table></div>`;calcular();
+    area.innerHTML=`<div class="prep-componentes">${ITENS.map((it,k)=>{
+      const x=fonte(it), nome=it.tipo==="preparacao"?(x?.nome||"Selecione uma preparação"):(x?.ingrediente||"Selecione um insumo");
+      return `<article class="prep-componente-card" data-prep-row="${k}">
+        <div class="prep-comp-head"><span class="prep-tipo ${it.tipo}">${it.tipo==="preparacao"?"↳ Preparação":"Insumo"}</span><button type="button" class="prep-remove" aria-label="Remover componente" title="Remover componente" onclick="prepRemover(${k})">×</button></div>
+        <div class="prep-comp-selects">
+          <label>Tipo<select onchange="prepTipo(${k},this.value)"><option value="insumo" ${it.tipo==="insumo"?"selected":""}>Insumo</option><option value="preparacao" ${it.tipo==="preparacao"?"selected":""}>Preparação</option></select></label>
+          <label>Componente<select onchange="prepFonte(${k},this.value)"><option value="">Selecione...</option>${(it.tipo==="preparacao"?PREPS.filter(y=>!EDITANDO||Number(y.id)!==Number(EDITANDO.id)):INSUMOS.filter(y=>y.ativo!==false)).map(y=>`<option value="${y.id}" ${Number(y.id)===Number(it.id)?"selected":""}>${esc(it.tipo==="preparacao"?y.nome:y.ingrediente)}</option>`).join("")}</select></label>
+        </div>
+        <div class="prep-comp-info"><div><small>Quantidade</small><div class="prep-qtd-wrap"><input class="prep-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${it.quantidade?String(it.quantidade).replace(".",","):""}" oninput="prepQtd(${k},this.value)"><span>${esc(unidade(it))}</span></div></div><div><small>Custo/unid.</small><b>${moeda(preco(it))}</b></div><div class="prep-comp-total"><small>Custo</small><b data-custo-item>${moeda(num(it.quantidade)*preco(it))}</b></div></div>
+        <label class="prep-comp-obs">Observação<input value="${esc(it.observacoes)}" placeholder="Opcional" oninput="prepObsItem(${k},this.value)"></label>
+      </article>`;
+    }).join("")}</div>`;calcular();
   }
   window.prepTipo=(k,v)=>{ITENS[k].tipo=v;ITENS[k].id="";renderItens()};
   window.prepFonte=(k,v)=>{ITENS[k].id=v?Number(v):"";renderItens()};
