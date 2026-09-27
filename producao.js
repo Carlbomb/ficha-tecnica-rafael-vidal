@@ -106,7 +106,14 @@ export function installProducao(app,pool){
         id=Number(id);if(caminho.has(id))throw new Error("Foi detectado um ciclo entre preparações.");
         const p=await pool.query(`SELECT id,nome,rendimento,unidade_rendimento FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
         if(!p.rows[0])throw new Error(`Preparação ${id} não encontrada.`);
-        const prep=p.rows[0],r=n(prep.rendimento);if(r<=0)throw new Error(`A preparação "${prep.nome}" não possui rendimento válido.`);
+        const prep=p.rows[0];
+        const baseRows=await pool.query(`SELECT pi.quantidade,i.unidade FROM preparacao_ingredientes pi JOIN insumos i ON i.id=pi.insumo_id WHERE pi.preparacao_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[id,req.user.empresa_id,req.user.unidade_id]);
+        const compRows=await pool.query(`SELECT pc.quantidade,p2.unidade_rendimento unidade FROM preparacao_componentes pc JOIN preparacoes p2 ON p2.id=pc.componente_id WHERE pc.preparacao_id=$1 AND p2.empresa_id=$2 AND p2.unidade_id=$3 AND p2.ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
+        const unidadeBase=String(prep.unidade_rendimento||"").toUpperCase();
+        const todos=[...baseRows.rows,...compRows.rows],compativeis=todos.filter(x=>String(x.unidade||"").toUpperCase()===unidadeBase);
+        const somaCompativeis=compativeis.reduce((s,x)=>s+n(x.quantidade),0);
+        const r=todos.length>0&&compativeis.length===todos.length&&somaCompativeis>0?somaCompativeis:n(prep.rendimento);
+        if(r<=0)throw new Error(`A preparação "${prep.nome}" não possui rendimento válido.`);
         const a=preparacoes.get(id)||{preparacao_id:id,nome:prep.nome,unidade:prep.unidade_rendimento,quantidade:0};a.quantidade+=q;preparacoes.set(id,a);
         const fator=q/r,prox=new Set(caminho);prox.add(id);
         const ing=await pool.query(`SELECT pi.insumo_id,pi.quantidade,i.ingrediente,i.unidade FROM preparacao_ingredientes pi JOIN insumos i ON i.id=pi.insumo_id WHERE pi.preparacao_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[id,req.user.empresa_id,req.user.unidade_id]);
