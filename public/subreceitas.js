@@ -137,8 +137,8 @@
     const validos=ITENS.filter(x=>x.id&&x.quantidade>0);
     if(!validos.length)return alert("Adicione pelo menos um componente.");
     const payload={nome:document.querySelector("#prepNome").value.trim(),categoria:document.querySelector("#prepCategoria").value,rendimento:num(document.querySelector("#prepRendimento").value),unidade_rendimento:document.querySelector("#prepUnidade").value,modo_preparo:document.querySelector("#prepModo").value.trim(),observacoes:document.querySelector("#prepObs").value.trim(),
-      ingredientes:validos.filter(x=>x.tipo==="insumo").map(x=>({insumo_id:x.id,quantidade:x.quantidade,observacoes:x.observacoes})),
-      componentes:validos.filter(x=>x.tipo==="preparacao").map(x=>({preparacao_id:x.id,quantidade:x.quantidade,observacoes:x.observacoes}))};
+      ingredientes:validos.filter(x=>x.tipo==="insumo").map(x=>({insumo_id:x.id,quantidade:num(x.quantidade),observacoes:x.observacoes})),
+      componentes:validos.filter(x=>x.tipo==="preparacao").map(x=>({preparacao_id:x.id,quantidade:num(x.quantidade),observacoes:x.observacoes}))};
     try{await apiSR(EDITANDO?`/api/preparacoes/${EDITANDO.id}`:"/api/preparacoes",{method:EDITANDO?"PUT":"POST",body:JSON.stringify(payload)});await window.telaPreparacoes()}catch(e){alert(e.message)}
   }
   async function excluir(){if(!EDITANDO||!confirm(`Excluir "${EDITANDO.nome}"?`))return;try{await apiSR(`/api/preparacoes/${EDITANDO.id}`,{method:"DELETE"});await window.telaPreparacoes()}catch(e){alert(e.message)}}
