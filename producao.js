@@ -129,6 +129,43 @@ export function installProducao(app,pool){
     }catch(e){next(e)}
   });
 
+  app.post("/api/producao/salvar-planejamento",async(req,res,next)=>{
+    const db=await pool.connect();
+    try{
+      const itens=Array.isArray(req.body?.itens)?req.body.itens:[];
+      if(!itens.length)return res.status(400).json({error:"Não há itens para salvar."});
+      await db.query("BEGIN");
+      const ids=[];
+      for(const x of itens){
+        if(x.tipo!=="preparacao")continue;
+        const id=Number(x.preparacao_id),q=n(x.quantidade);
+        if(!id||q<=0)continue;
+        const p=await db.query(`SELECT id,nome,rendimento,unidade_rendimento FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
+        if(!p.rows[0])throw new Error("Preparação não encontrada.");
+        const r=n(p.rows[0].rendimento);if(r<=0)throw new Error(`A preparação "${p.rows[0].nome}" não possui rendimento válido.`);
+        const fator=q/r;
+        const ing=await db.query(`WITH RECURSIVE arvore(preparacao_id,fator,caminho) AS (
+          SELECT $1::bigint,$4::numeric,ARRAY[$1::bigint]
+          UNION ALL
+          SELECT pc.componente_id,a.fator*pc.quantidade/NULLIF(pp.rendimento,0),a.caminho||pc.componente_id
+          FROM arvore a JOIN preparacao_componentes pc ON pc.preparacao_id=a.preparacao_id
+          JOIN preparacoes pp ON pp.id=pc.componente_id AND pp.empresa_id=$2 AND pp.unidade_id=$3 AND pp.ativo=TRUE
+          WHERE NOT pc.componente_id=ANY(a.caminho))
+          SELECT pi.insumo_id,SUM(pi.quantidade*a.fator)::numeric quantidade,i.preco_real
+          FROM arvore a JOIN preparacao_ingredientes pi ON pi.preparacao_id=a.preparacao_id
+          JOIN insumos i ON i.id=pi.insumo_id AND i.empresa_id=$2 AND i.unidade_id=$3
+          GROUP BY pi.insumo_id,i.preco_real`,[id,req.user.empresa_id,req.user.unidade_id,fator]);
+        let custo=0;for(const z of ing.rows)custo+=n(z.quantidade)*n(z.preco_real);
+        const op=await db.query(`INSERT INTO ordens_producao(preparacao_id,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,[id,q,p.rows[0].unidade_rendimento,custo,"Planejamento por fichas/preparações",req.user.id,req.user.empresa_id,req.user.unidade_id]);
+        for(const z of ing.rows)await db.query(`INSERT INTO producao_consumos(ordem_id,insumo_id,quantidade_teorica,custo_unitario) VALUES($1,$2,$3,$4)`,[op.rows[0].id,z.insumo_id,z.quantidade,n(z.preco_real)]);
+        ids.push(Number(op.rows[0].id));
+      }
+      if(!ids.length){await db.query("ROLLBACK");return res.status(400).json({error:"Nenhuma preparação válida para salvar."})}
+      await db.query("COMMIT");res.status(201).json({ok:true,ordens:ids});
+    }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
+  });
+
   app.post("/api/producao/ordens/:id/finalizar",async(req,res,next)=>{
     const c=await pool.connect();
     try{
