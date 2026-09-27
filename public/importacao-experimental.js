@@ -10,21 +10,37 @@ function analisar(wb){
  const fichas=[], nomes=new Set(wb.SheetNames.map(norm)), ocorr=new Map();
  wb.SheetNames.forEach(nomeAba=>{
    const ws=wb.Sheets[nomeAba], rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
-   let header=-1;
-   for(let i=0;i<Math.min(rows.length,25);i++){const r=rows[i].map(norm);const temProduto=r.some(x=>/^PRODUTO$|INGREDIENTE|INSUMO/.test(x));const temQtd=r.some(x=>/QUANTIDADE|QUANT|PESO/.test(x));const temUnidade=r.some(x=>/^UNIDADE$|^UN$|^UND$/.test(x));if(temProduto&&temQtd&&temUnidade){header=i;break}}
+   let header=-1, ci=-1, cq=-1, cu=-1, cp=-1, cf=-1;
+   const maxCols=Math.max(0,...rows.slice(0,25).map(r=>r.length));
+   const textoScore=(col,inicio=0)=>rows.slice(inicio,Math.min(rows.length,inicio+40)).reduce((s,r)=>{const v=String(r[col]??"").trim();return s+(v&&/[A-Za-zÀ-ÿ]/.test(v)&&numero(v)===null?1:0)},0);
+   for(let i=0;i<Math.min(rows.length,25);i++){
+     const combinado=Array.from({length:maxCols},(_,col)=>norm([rows[i]?.[col],rows[i+1]?.[col]].filter(Boolean).join(" ")));
+     const achar=re=>combinado.map((x,col)=>re.test(x)?col:-1).filter(col=>col>=0);
+     const nomes=achar(/(^| )PRODUTO($| )|INGREDIENTE|INSUMO/).sort((a,b)=>textoScore(b,i+1)-textoScore(a,i+1));
+     const qtds=achar(/QUANTIDADE.*LIQ|QUANT|PESO.*LIQ|LIQUID/);
+     const uns=achar(/UNIDADE|(^| )UN(D)?($| )/);
+     if(nomes.length&&qtds.length){
+       header=i;ci=nomes[0];cq=qtds.find(x=>x!==ci)??-1;cu=uns.find(x=>x!==ci)??-1;
+       cp=achar(/CUSTO.*UNIT|PRECO.*UNIT|PRECO/).find(x=>x!==ci)??-1;
+       cf=achar(/FATOR.*CORRE|(^| )FC($| )/).find(x=>x!==ci)??-1;
+       break;
+     }
+   }
+   // Fallback estrutural: nas fichas Rafael Vidal, o nome é a coluna textual mais consistente;
+   // quantidade/unidade são inferidas pelas colunas vizinhas, sem confundir valores monetários com nomes.
+   if(ci<0){
+     const scores=Array.from({length:maxCols},(_,col)=>({col,score:textoScore(col,0)})).filter(x=>x.score>=2).sort((a,b)=>b.score-a.score);
+     ci=scores[0]?.col??-1;
+     if(ci>=0){
+       header=0;
+       const numeric=Array.from({length:maxCols},(_,col)=>({col,n:rows.slice(0,40).filter(r=>numero(r[col])!==null).length})).filter(x=>x.col!==ci&&x.n>0).sort((a,b)=>a.col-b.col);
+       cq=numeric.find(x=>x.col>ci)?.col??numeric[0]?.col??-1;
+       cu=Array.from({length:maxCols},(_,col)=>col).find(col=>col!==ci&&rows.slice(0,40).some(r=>/^(KG|G|L|LT|ML|UN|UND|UNIDADE)$/i.test(String(r[col]??"").trim())))??-1;
+     }
+   }
    const componentes=[];
-   if(header>=0){
-     const h=rows[header].map(norm);
-     const cols=(re)=>h.map((x,i)=>re.test(x)?i:-1).filter(i=>i>=0);
-     const textoScore=col=>rows.slice(header+1,Math.min(rows.length,header+35)).reduce((s,r)=>{const v=String(r[col]??"").trim();return s+(v&&/[A-Za-zÀ-ÿ]/.test(v)&&numero(v)===null?1:0)},0);
-     const ingCols=cols(/^PRODUTO$|INGREDIENTE|INSUMO/);
-     const ci=ingCols.sort((a,b)=>textoScore(b)-textoScore(a))[0]??-1;
-     const qtdCols=cols(/QUANTIDADE LIQUIDA|QUANT|PESO LIQ|LIQUID/);
-     const cq=qtdCols.find(i=>i!==ci)??-1;
-     const cu=cols(/UNIDADE|^UN$|^UND$/).find(i=>i!==ci)??-1;
-     const cp=cols(/PRECO|CUSTO UNITARIO|CUSTO UNIT/).find(i=>i!==ci)??-1;
-     const cf=cols(/^FC$|FATOR/).find(i=>i!==ci)??-1;
-     for(let i=header+1;i<rows.length;i++){
+   if(ci>=0){
+     for(let i=Math.max(0,header+1);i<rows.length;i++){
        const ing=ci>=0?String(rows[i][ci]??"").trim():"";
        if(!ing||/TOTAL|CUSTO TOTAL|MODO DE PREPARO/i.test(ing))continue;
        if(numero(ing)!==null||/^R\$\s*[-\d.,]*$/i.test(ing))continue;
