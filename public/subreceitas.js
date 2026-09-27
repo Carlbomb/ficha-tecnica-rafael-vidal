@@ -46,9 +46,9 @@
     <label>Nome da preparação<input id="prepNome" required value="${esc(p?.nome||"")}"></label>
     <label>Categoria<select id="prepCategoria">${["Bases e Fundos","Molhos","Carnes e Aves","Pescados e Frutos do Mar","Massas","Arroz e Cereais","Guarnições","Vegetais e Saladas","Padaria","Confeitaria e Sobremesas","Marinadas e Condimentos","Pré-preparos"].map(x=>`<option ${p?.categoria===x?"selected":""}>${x}</option>`).join("")}</select></label>
     <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required value="${p?.rendimento??1}"></label>
-    <label>Unidade do rendimento<select id="prepUnidade">${["KG","L","UN"].map(x=>`<option ${p?.unidade_rendimento===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
+    <label>Unidade do rendimento<select id="prepUnidade">${["KG","L","UN","PORÇÃO"].map(x=>`<option ${p?.unidade_rendimento===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
     <div class="card"><div class="section-head"><div><small>COMPOSIÇÃO</small><h3>Ingredientes e preparações</h3></div><button type="button" class="primary" id="addPrepItem">+ Componente</button></div><div id="prepItens"></div></div>
-    <div class="card"><div class="summary-grid"><div><span>Custo Total</span><strong id="prepCustoTotal">R$ 0,00</strong></div><div><span>Custo por unidade</span><strong id="prepCustoUnit">R$ 0,00</strong></div><div><span>Rendimento</span><strong id="prepRendResumo">0</strong></div></div></div>
+    <div class="card"><div class="summary-grid"><div><span>Custo Total</span><strong id="prepCustoTotal">R$ 0,00</strong></div><div><span id="prepCustoUnitLabel">Custo por unidade</span><strong id="prepCustoUnit">R$ 0,00</strong></div><div><span>Rendimento</span><strong id="prepRendResumo">0</strong></div></div></div>
     <div class="card"><label>Modo de preparo<textarea id="prepModo">${esc(p?.modo_preparo||"")}</textarea></label><label style="margin-top:13px">Observações<textarea id="prepObs">${esc(p?.observacoes||"")}</textarea></label></div>
     <div class="actions"><button type="button" class="secondary" id="cancelPrep">Cancelar</button>${p?'<button type="button" class="danger" id="delPrep">Excluir</button>':""}<button class="primary" type="submit">Salvar preparação</button></div></form>`;
     document.querySelector("#voltarPrep").onclick=window.telaPreparacoes;document.querySelector("#cancelPrep").onclick=window.telaPreparacoes;
@@ -98,7 +98,7 @@
   window.prepObsItem=(k,v)=>ITENS[k].observacoes=v;
   window.prepRemover=k=>{ITENS.splice(k,1);renderItens()};
 
-  function calcular(){const total=ITENS.reduce((s,it)=>s+num(it.quantidade)*preco(it),0),r=num(document.querySelector("#prepRendimento")?.value);if(document.querySelector("#prepCustoTotal"))document.querySelector("#prepCustoTotal").textContent=moeda(total);if(document.querySelector("#prepCustoUnit"))document.querySelector("#prepCustoUnit").textContent=moeda(r>0?total/r:0);if(document.querySelector("#prepRendResumo"))document.querySelector("#prepRendResumo").textContent=`${numero(r,3)} ${document.querySelector("#prepUnidade")?.value||""}`}
+  function calcular(){const total=ITENS.reduce((s,it)=>s+num(it.quantidade)*preco(it),0),r=num(document.querySelector("#prepRendimento")?.value),u=document.querySelector("#prepUnidade")?.value||"",rotulo=u==="PORÇÃO"?"Custo por porção":u==="KG"?"Custo por kg":u==="L"?"Custo por litro":u==="UN"?"Custo por unidade":"Custo unitário";if(document.querySelector("#prepCustoTotal"))document.querySelector("#prepCustoTotal").textContent=moeda(total);if(document.querySelector("#prepCustoUnit"))document.querySelector("#prepCustoUnit").textContent=moeda(r>0?total/r:0);if(document.querySelector("#prepCustoUnitLabel"))document.querySelector("#prepCustoUnitLabel").textContent=rotulo;if(document.querySelector("#prepRendResumo"))document.querySelector("#prepRendResumo").textContent=`${numero(r,u==="PORÇÃO"||u==="UN"?0:3)} ${u}` }
 
   async function salvar(e){
     e.preventDefault();
