@@ -63,7 +63,9 @@ function renderResumo(nome){
  <div class="card import-final"><h3>7. Revisão final</h3><div id="importResumoFinal"></div><p>A gravação no banco continua bloqueada neste modo experimental. As decisões abaixo servem apenas para validar o fluxo.</p><button disabled>Importar para o MISEVO — bloqueado no teste</button></div>`;
  document.querySelector("#novaPlanilha").onclick=telaInicial;
  document.querySelectorAll("[data-conflito]").forEach(b=>b.onclick=()=>abrirConflito(Number(b.dataset.conflito)));
- document.querySelectorAll("[data-insumo]").forEach(b=>b.onclick=()=>abrirInsumo(Number(b.dataset.insumo)));\n document.querySelectorAll("[data-ficha]").forEach(b=>b.onclick=()=>abrirFicha(Number(b.dataset.ficha)));\n atualizarResumoFinal();
+ document.querySelectorAll("[data-insumo]").forEach(b=>b.onclick=()=>abrirInsumo(Number(b.dataset.insumo)));
+ document.querySelectorAll("[data-ficha]").forEach(b=>b.onclick=()=>abrirFicha(Number(b.dataset.ficha)));
+ atualizarResumoFinal();
 }
 function modal(html){let d=document.querySelector("#importModal");if(!d){d=document.createElement("div");d.id="importModal";d.className="import-modal-backdrop";document.body.appendChild(d)}d.innerHTML='<div class="import-modal">'+html+'<button type="button" class="secondary import-close">Fechar</button></div>';d.querySelector(".import-close").onclick=()=>d.remove();return d}
 function moeda(v){return v==null?"—":"R$ "+Number(v).toFixed(2).replace(".",",")}
