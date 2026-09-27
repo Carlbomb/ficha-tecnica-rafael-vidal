@@ -9,6 +9,7 @@ import { initProducao, installProducao } from "./producao.js";
 import { initOperacao, installOperacao } from "./operacao.js";
 import { initOperacaoCompleta, installOperacaoCompleta, runHomologacaoReset } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
+import { installImportacao } from "./importacao.js";
 
 const { Pool } = pg;
 
@@ -63,6 +64,7 @@ installProducao(app, pool);
 installOperacao(app, pool);
 installOperacaoCompleta(app, pool);
 installTenantAdmin(app, pool);
+installImportacao(app, pool);
 
 const n = value => {
   const number =
