@@ -234,6 +234,22 @@ export function installProducao(app,pool){
     }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
   });
 
+  app.post("/api/producao/ordens/:id/iniciar",async(req,res,next)=>{try{
+    const {rows}=await pool.query(`UPDATE ordens_producao SET status='em_producao' WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND status='planejada' RETURNING *`,
+      [req.params.id,req.user.empresa_id,req.user.unidade_id]);
+    if(!rows[0])return res.status(409).json({error:"A ordem não está disponível para iniciar."});
+    res.json(rows[0]);
+  }catch(e){next(e)}});
+
+  app.post("/api/producao/ordens/:id/concluir",async(req,res,next)=>{try{
+    const real=n(req.body?.rendimento_real);
+    if(real<=0)return res.status(400).json({error:"Informe a quantidade realmente produzida."});
+    const {rows}=await pool.query(`UPDATE ordens_producao SET status='concluida',rendimento_real=$1,finalizada_at=NOW() WHERE id=$2 AND empresa_id=$3 AND unidade_id=$4 AND status='em_producao' RETURNING *`,
+      [real,req.params.id,req.user.empresa_id,req.user.unidade_id]);
+    if(!rows[0])return res.status(409).json({error:"A ordem precisa estar Em produção antes de ser concluída."});
+    res.json(rows[0]);
+  }catch(e){next(e)}});
+
   app.post("/api/producao/ordens/:id/status",async(req,res,next)=>{try{
     const novo=String(req.body?.status||"");
     if(!["planejada","em_producao","concluida"].includes(novo))return res.status(400).json({error:"Status inválido."});
