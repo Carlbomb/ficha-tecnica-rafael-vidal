@@ -71,8 +71,11 @@ function analisar(wb,bancoAtual=[]){
  const bm=new Map(bancoAtual.map(x=>[norm(x.ingrediente),x]));
  const vistos=new Map(); fichas.forEach(f=>f.componentes.forEach(c=>{const k=norm(c.nome);if(!vistos.has(k))vistos.set(k,{nome:c.nome,unidade:c.unidade,fc:c.fc,preco:c.preco,origens:[]});vistos.get(k).origens.push(f.nome)})); bancoImportado.forEach(x=>{const k=norm(x.nome);if(!vistos.has(k))vistos.set(k,x)}); const insumos=[...vistos.values()];
  const insumosDetalhes=insumos.map(x=>({...x,usos:fichas.reduce((a,f)=>a+f.componentes.filter(c=>norm(c.nome)===norm(x.nome)).length,0),existente:bm.get(norm(x.nome))||null}));
+ const nomesFichas=new Map(fichas.map(f=>[norm(f.nome),f.nome]));
+ const preparacoes=[];
+ fichas.forEach(f=>f.componentes.forEach(c=>{const alvo=nomesFichas.get(norm(c.nome));if(alvo&&norm(alvo)!==norm(f.nome))preparacoes.push({origem:f.nome,componente:c.nome,destino:alvo,qtd:c.qtd,unidade:c.unidade,linha:c.linha})}));
  const conflitos=insumosDetalhes.filter(x=>x.existente&&((x.preco!=null&&Number(x.existente.preco_compra)!==Number(x.preco))||(x.fc!=null&&Math.abs(Number(x.existente.fc)-Number(x.fc))>.0001)||norm(x.existente.unidade)!==norm(x.unidade))).map(x=>({nome:x.nome,precos:[x.existente.preco_compra,x.preco].filter(v=>v!=null).map(Number),fcs:[x.existente.fc,x.fc].filter(v=>v!=null).map(Number),unidades:[x.existente.unidade,x.unidade].filter(Boolean),ocorrencias:[{ficha:"MISEVO atual",preco:Number(x.existente.preco_compra),fc:Number(x.existente.fc),unidade:x.existente.unidade},...((x.origens||["Planilha"]).map(ficha=>({ficha,preco:x.preco,fc:x.fc,unidade:x.unidade})))]}));
- return {fichas,insumos:insumos.map(x=>norm(x.nome)),insumosDetalhes,preparacoes:[],conflitos,meta:{abas:wb.SheetNames,parser:"server-side-v2-fichas"}};
+ return {fichas,insumos:insumos.map(x=>norm(x.nome)),insumosDetalhes,preparacoes,conflitos,meta:{abas:wb.SheetNames,parser:"server-side-v3-vinculos"}};
 }
 export function installImportacao(app,pool){
  app.post("/api/importacoes/analisar-base64",async(req,res,next)=>{try{
