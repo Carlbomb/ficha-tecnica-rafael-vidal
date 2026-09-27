@@ -13,13 +13,28 @@
   window.telaPreparacoes=async function(){C.innerHTML='<div class="card">Carregando preparações...</div>';try{await carregar();renderLista()}catch(e){C.innerHTML=`<div class="card"><h3>Erro</h3><p>${esc(e.message)}</p></div>`}};
 
   function renderLista(){
-    C.innerHTML=`<div class="section-head"><div><small>FICHAS TÉCNICAS</small><h2>Preparações / Sub-receitas</h2><p>Bases, molhos, caldos e pré-preparos reutilizáveis. O custo acompanha automaticamente os insumos e sub-receitas.</p></div><button class="primary" id="novaPrep">+ Nova preparação</button></div>
-    <div class="card"><input id="buscaPrep" placeholder="Buscar preparação ou categoria..."><div id="listaPrep" style="margin-top:12px"></div></div>`;
-    document.querySelector("#novaPrep").onclick=()=>form();document.querySelector("#buscaPrep").oninput=listar;listar();
+    C.innerHTML=`<div class="section-head"><div><small>FICHAS TÉCNICAS · EXPERIMENTAL</small><h2>Preparações / Sub-receitas</h2><p>Bases, molhos, caldos e pré-preparos reutilizáveis. O custo acompanha automaticamente os insumos e sub-receitas.</p></div><button class="primary" id="novaPrep">+ Nova preparação</button></div>
+    <div class="card preparacoes-card"><div class="preparacoes-toolbar"><input id="buscaPrep" placeholder="Buscar preparação ou categoria..."><select id="filtroPrepCategoria"><option value="">Todas as categorias</option></select><select id="ordemPrep"><option value="az">A–Z</option><option value="custo">Maior custo</option><option value="rendimento">Maior rendimento</option></select></div><div id="listaPrep"></div></div>`;
+    const cats=[...new Set(PREPS.map(p=>p.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+    document.querySelector("#filtroPrepCategoria").insertAdjacentHTML("beforeend",cats.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join(""));
+    document.querySelector("#novaPrep").onclick=()=>form();
+    ["#buscaPrep","#filtroPrepCategoria","#ordemPrep"].forEach(sel=>{const el=document.querySelector(sel);if(el)el.oninput=listar});
+    listar();
   }
   function listar(){
-    const q=(document.querySelector("#buscaPrep")?.value||"").toLowerCase(),a=PREPS.filter(p=>(p.nome+" "+(p.categoria||"")).toLowerCase().includes(q));
-    document.querySelector("#listaPrep").innerHTML=!a.length?'<div class="empty">Nenhuma preparação cadastrada.</div>':`<div class="table-wrap"><table><thead><tr><th>Preparação</th><th>Categoria</th><th>Rendimento</th><th>Unid.</th><th>Custo Total</th><th>Custo/Unid.</th><th></th></tr></thead><tbody>${a.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc(p.categoria||"—")}</td><td>${numero(p.rendimento,3)}</td><td>${esc(p.unidade_rendimento)}</td><td>${moeda(p.custo_total)}</td><td><b>${moeda(p.custo_unitario)}</b></td><td><button onclick="editarPreparacao(${p.id})">Abrir</button></td></tr>`).join("")}</tbody></table></div>`;
+    const q=(document.querySelector("#buscaPrep")?.value||"").trim().toLowerCase();
+    const cat=document.querySelector("#filtroPrepCategoria")?.value||"";
+    const ordem=document.querySelector("#ordemPrep")?.value||"az";
+    let a=PREPS.filter(p=>(p.nome+" "+(p.categoria||"")).toLowerCase().includes(q)&&(!cat||p.categoria===cat));
+    a=[...a].sort((x,y)=>ordem==="custo"?num(y.custo_total)-num(x.custo_total):ordem==="rendimento"?num(y.rendimento)-num(x.rendimento):String(x.nome).localeCompare(String(y.nome),"pt-BR"));
+    const area=document.querySelector("#listaPrep");
+    if(!a.length){area.innerHTML='<div class="empty">Nenhuma preparação encontrada.</div>';return}
+    area.innerHTML=`<div class="preparacoes-count">${a.length} preparaç${a.length===1?"ão":"ões"}</div><div class="preparacoes-compactas">${a.map(p=>`
+      <article class="preparacao-row">
+        <div class="preparacao-main"><b>${esc(p.nome)}</b><span>${esc(p.categoria||"Sem categoria")} · ${numero(p.rendimento,3)} ${esc(p.unidade_rendimento||"")}</span></div>
+        <div class="preparacao-cost"><small>Custo total</small><b>${moeda(p.custo_total)}</b><span>${moeda(p.custo_unitario)}/${esc(p.unidade_rendimento||"un")}</span></div>
+        <button type="button" class="secondary preparacao-open" onclick="editarPreparacao(${Number(p.id)})">Abrir</button>
+      </article>`).join("")}</div>`;
   }
 
   window.editarPreparacao=async id=>{try{const p=await apiSR(`/api/preparacoes/${id}`);EDITANDO=p;ITENS=[...(p.ingredientes||[]).map(x=>({tipo:"insumo",id:Number(x.insumo_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""})),...(p.componentes||[]).map(x=>({tipo:"preparacao",id:Number(x.componente_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""}))];await carregar();form(p)}catch(e){alert(e.message)}};
