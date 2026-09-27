@@ -95,7 +95,8 @@ export function installProducao(app,pool){
   app.post("/api/producao/planejar-fichas",async(req,res,next)=>{
     try{
       const solicitados=Array.isArray(req.body?.fichas)?req.body.fichas:[];
-      if(!solicitados.length)return res.status(400).json({error:"Adicione pelo menos uma ficha técnica."});
+      const diretas=Array.isArray(req.body?.preparacoes)?req.body.preparacoes:[];
+      if(!solicitados.length&&!diretas.length)return res.status(400).json({error:"Adicione pelo menos uma ficha técnica ou preparação."});
       const pratos=[],preparacoes=new Map(),insumos=new Map();
       const addInsumo=(x,q)=>{
         const id=Number(x.insumo_id||x.id),atual=insumos.get(id)||{insumo_id:id,ingrediente:x.ingrediente,unidade:x.unidade,quantidade:0};
@@ -123,7 +124,6 @@ export function installProducao(app,pool){
         const ps=await pool.query(`SELECT fp.preparacao_id,fp.quantidade FROM ficha_preparacoes fp JOIN preparacoes p ON p.id=fp.preparacao_id WHERE fp.ficha_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE`,[fichaId,req.user.empresa_id,req.user.unidade_id]);
         for(const x of ps.rows)await addPrep(x.preparacao_id,n(x.quantidade)*fator);
       }
-      const diretas=Array.isArray(req.body?.preparacoes)?req.body.preparacoes:[];
       for(const s of diretas){const id=Number(s.preparacao_id),q=n(s.quantidade);if(id&&q>0)await addPrep(id,q)}
       res.json({pratos,preparacoes:[...preparacoes.values()].sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR")),insumos:[...insumos.values()].sort((a,b)=>a.ingrediente.localeCompare(b.ingrediente,"pt-BR"))});
     }catch(e){next(e)}
