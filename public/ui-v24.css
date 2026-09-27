@@ -197,3 +197,21 @@ button[aria-label]:focus-visible{
  .prep-qtd-wrap span{font-size:.68rem}
  .prep-comp-obs{margin-top:4px;font-size:.61rem}
 }
+
+
+/* Preparações — rendimento real e porcionamento experimental */
+.prep-rendimento-grid,.prep-porcionamento{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end}
+.prep-rendimento-grid>div,.prep-porcionamento>div{display:flex;flex-direction:column;gap:3px}
+.prep-rendimento-grid small,.prep-porcionamento small{font-size:.7rem;color:var(--muted,#667085)}
+.prep-rendimento-grid strong,.prep-porcionamento strong{font-size:1rem}
+.prep-porcionamento{margin-top:12px;padding-top:12px;border-top:1px solid rgba(127,127,127,.16)}
+.prep-porcionamento label{margin:0}
+.prep-porcionamento label span{font-size:.68rem;color:var(--muted,#667085)}
+.prep-rendimento-aviso{font-size:.68rem;color:var(--muted,#667085);margin:8px 0 0}
+@media(max-width:700px){
+ .prep-rendimento-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+ .prep-rendimento-grid small,.prep-porcionamento small{font-size:.6rem}
+ .prep-rendimento-grid strong,.prep-porcionamento strong{font-size:.82rem}
+ .prep-porcionamento{grid-template-columns:1.25fr .8fr .95fr;gap:6px}
+ .prep-porcionamento input{min-height:38px}
+}
