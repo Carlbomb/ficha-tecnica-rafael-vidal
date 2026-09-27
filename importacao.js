@@ -1,9 +1,36 @@
 import multer from "multer";
 import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
 const norm=v=>String(v??"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
 const num=v=>{ if(typeof v==="number") return Number.isFinite(v)?v:null; let s=String(v??"").trim(); if(!s)return null; s=s.replace(/R\$\s?/gi,"").replace(/\s/g,""); if(s.includes(","))s=s.replace(/\./g,"").replace(",","."); const n=Number(s); return Number.isFinite(n)?n:null; };
+async function readWorkbookRobusto(buffer){
+ try{return XLSX.read(buffer,{type:"buffer",cellFormula:true,cellDates:true,WTF:false})}
+ catch(primary){
+  const book=new ExcelJS.Workbook();
+  await book.xlsx.load(buffer,{ignoreNodes:["dataValidations","extLst"]});
+  const wb={SheetNames:[],Sheets:{}};
+  book.eachSheet(ws=>{
+   const aoa=[];
+   ws.eachRow({includeEmpty:true},(row,rowNumber)=>{
+    const arr=[]; row.eachCell({includeEmpty:true},(cell,colNumber)=>{
+      let v=cell.value;
+      if(v&&typeof v==="object"){
+       if("result" in v)v=v.result;
+       else if("text" in v)v=v.text;
+       else if(Array.isArray(v.richText))v=v.richText.map(x=>x.text||"").join("");
+      }
+      arr[colNumber-1]=v??null;
+    }); aoa[rowNumber-1]=arr;
+   });
+   wb.SheetNames.push(ws.name);
+   wb.Sheets[ws.name]=XLSX.utils.aoa_to_sheet(aoa);
+  });
+  return wb;
+ }
+}
+
 const headerIndex=(rows,re)=>{for(let i=0;i<Math.min(rows.length,30);i++)if(rows[i].some(v=>re.test(norm(v))))return i;return -1};
 function parseBanco(ws){
  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
@@ -36,13 +63,13 @@ export function installImportacao(app,pool){
   if(!dados)return res.status(400).json({error:"Arquivo não recebido."});
   const buffer=Buffer.from(dados,"base64");
   if(!buffer.length||buffer.length>12*1024*1024)return res.status(400).json({error:"Arquivo inválido ou acima do limite."});
-  const wb=XLSX.read(buffer,{type:"buffer",cellFormula:true,cellDates:true});
+  const wb=await readWorkbookRobusto(buffer);
   const {rows}=await pool.query("SELECT id, ingrediente, unidade, fc, preco_compra FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE",[req.user.empresa_id,req.user.unidade_id]);
   res.json(analisar(wb,rows));
  }catch(e){next(e)}});
  app.post("/api/importacoes/analisar",upload.single("arquivo"),async(req,res,next)=>{try{
   if(!req.file)return res.status(400).json({error:"Selecione uma planilha Excel."});
-  const wb=XLSX.read(req.file.buffer,{type:"buffer",cellFormula:true,cellDates:true});
+  const wb=await readWorkbookRobusto(req.file.buffer);
   const {rows}=await pool.query("SELECT id, ingrediente, unidade, fc, preco_compra FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE",[req.user.empresa_id,req.user.unidade_id]);
   res.json(analisar(wb,rows));
  }catch(e){next(e)}});
