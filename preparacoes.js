@@ -216,7 +216,23 @@ export function installPreparacoes(app,pool) {
       [req.params.id,req.user.empresa_id,req.user.unidade_id]
     );
     const custo=await calcularCustoPreparacao(pool,req.params.id,req.user.empresa_id,req.user.unidade_id);
-    res.json({...rows[0],...custo,ingredientes:ing.rows,componentes:comp.rows});
+    const fichasUso=await pool.query(
+      `SELECT f.id,f.nome,fp.quantidade,fp.ordem
+         FROM ficha_preparacoes fp
+         JOIN fichas f ON f.id=fp.ficha_id
+        WHERE fp.preparacao_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3
+        ORDER BY f.nome`,
+      [req.params.id,req.user.empresa_id,req.user.unidade_id]
+    );
+    const preparacoesUso=await pool.query(
+      `SELECT p.id,p.nome,pc.quantidade,pc.ordem
+         FROM preparacao_componentes pc
+         JOIN preparacoes p ON p.id=pc.preparacao_id
+        WHERE pc.componente_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE
+        ORDER BY p.nome`,
+      [req.params.id,req.user.empresa_id,req.user.unidade_id]
+    );
+    res.json({...rows[0],...custo,ingredientes:ing.rows,componentes:comp.rows,usado_em_fichas:fichasUso.rows,usado_em_preparacoes:preparacoesUso.rows});
   }));
 
   async function gravar(req,res,editando){
