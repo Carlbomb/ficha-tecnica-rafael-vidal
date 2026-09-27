@@ -1,7 +1,7 @@
 (() => {
 const C=()=>document.querySelector("#content");
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-let workbook=null, analise=null, insumosBanco=[], arquivoAtual=""; const decisoes={conflitos:{},insumos:{}};
+let workbook=null, analise=null, insumosBanco=[], arquivoAtual=""; const decisoes={conflitos:{},insumos:{}}; let planoValidado=false;
 
 function norm(v){return String(v??"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ")}
 function numero(v){if(typeof v==="number")return v;let s=String(v??"").trim();if(!s)return null;s=s.replace(/R\$\s?/g,"").replace(/\s/g,"");if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");const n=Number(s);return Number.isFinite(n)?n:null}
@@ -68,7 +68,7 @@ function telaInicial(){
  document.querySelector("#importArquivo").onchange=ler;
 }
 async function ler(e){
- const file=e.target.files?.[0];if(!file)return; arquivoAtual=file.name; decisoes.conflitos={}; decisoes.insumos={};
+ const file=e.target.files?.[0];if(!file)return; arquivoAtual=file.name; decisoes.conflitos={}; decisoes.insumos={}; planoValidado=false;
  const st=document.querySelector("#importStatus");st.innerHTML="<p>Lendo planilha no aparelho…</p>";
  try{
    const buffer=await file.arrayBuffer();
@@ -91,12 +91,13 @@ function renderResumo(nome){
  <div class="card"><h3>4. Insumos reconhecidos</h3><p>Comparação da planilha com o banco atual do MISEVO. Cada item é exibido pelo nome do insumo encontrado.</p><div class="import-list">${a.insumosDetalhes.map((x,i)=>`<article><div><b class="import-insumo-name">${esc(x.nome||"Insumo sem nome")}</b><small>${esc(x.unidade||"—")} · FC ${x.fc??"—"} · ${x.preco!=null?"R$ "+Number(x.preco).toFixed(2).replace(".",","):"sem preço"} · ${x.usos} ocorrência(s)</small></div><button type="button" class="import-review ${x.existente?"ok":"warn"}" data-insumo="${i}">${x.existente?"Já existe":"Novo insumo"}</button></article>`).join("")||'<div class="empty">Nenhum insumo encontrado.</div>'}</div></div>
  <div class="card"><h3>5. Prévia operacional</h3><div class="import-summary-grid"><span><b>${novos}</b> insumos novos</span><span><b>${existentes}</b> já existentes</span><span><b>${a.preparacoes.length}</b> vínculos de preparação</span><span><b>${finais}</b> fichas finais</span><span><b>${a.conflitos.length}</b> decisões pendentes</span></div><div class="import-note">Prévia calculada sem gravar dados. Revise os itens e conflitos antes de qualquer importação real.</div></div>\n <div class="card"><h3>6. Vínculos de preparações</h3>${a.preparacoes.length?'<div class="import-list">'+a.preparacoes.slice(0,30).map(x=>`<article><div><b>${esc(x.nome)}</b><small>usada em ${esc(x.ficha)}</small></div><span class="ok">Possível vínculo</span></article>`).join("")+'</div>':'<div class="empty">Nenhuma correspondência encontrada.</div>'}</div>
  <div class="card"><h3>7. Conflitos para revisão</h3>${a.conflitos.length?'<div class="import-list">'+a.conflitos.map(x=>`<article><div><b>${esc(x.nome)}</b><small>${x.precos.length>1?"Preços diferentes · ":""}${x.fcs.length>1?"FCs diferentes · ":""}${x.unidades.length>1?"Unidades diferentes":""}</small><small class="import-origin">${[...new Set((x.ocorrencias||[]).map(o=>o.ficha))].slice(0,3).map(esc).join(" · ")}${new Set((x.ocorrencias||[]).map(o=>o.ficha)).size>3?" + mais":""}</small></div><button type="button" class="warn import-review" data-conflito="${a.conflitos.indexOf(x)}">Revisar</button></article>`).join("")+'</div>':'<div class="empty">Nenhum conflito detectado.</div>'}</div>
- <div class="card import-final"><h3>8. Plano de Importação</h3><p>Classifique os insumos e resolva os conflitos. O MISEVO valida o plano antes de qualquer gravação.</p><div id="importResumoFinal"></div><button disabled>Importar para o MISEVO — bloqueado no teste</button></div>`;
+ <div class="card import-final"><h3>8. Plano de Importação</h3><p>Classifique os insumos e resolva os conflitos. O MISEVO valida o plano antes de qualquer gravação.</p><div id="importResumoFinal"></div><button id="validarPlano" type="button" class="primary">Validar plano</button><button disabled>Importar para o MISEVO — bloqueado no teste</button></div>`;
  document.querySelector("#novaPlanilha").onclick=telaInicial;
  document.querySelectorAll("[data-conflito]").forEach(b=>b.onclick=()=>abrirConflito(Number(b.dataset.conflito)));
  document.querySelectorAll("[data-insumo]").forEach(b=>b.onclick=()=>abrirInsumo(Number(b.dataset.insumo)));
  document.querySelectorAll("[data-ficha]").forEach(b=>b.onclick=()=>abrirFicha(Number(b.dataset.ficha)));
  atualizarResumoFinal();
+ const vp=document.querySelector("#validarPlano"); if(vp)vp.onclick=validarPlanoImportacao;
 }
 function modal(html){let d=document.querySelector("#importModal");if(!d){d=document.createElement("div");d.id="importModal";d.className="import-modal-backdrop";document.body.appendChild(d)}d.innerHTML='<div class="import-modal">'+html+'<button type="button" class="secondary import-close">Fechar</button></div>';d.querySelector(".import-close").onclick=()=>d.remove();return d}
 function moeda(v){return v==null?"—":"R$ "+Number(v).toFixed(2).replace(".",",")}
@@ -107,6 +108,21 @@ function atualizarResumoFinal(){const el=document.querySelector("#importResumoFi
  const pendencias=conflitosPend+insumosPend+vazias.length+selfLinks.length;
  const novos=Object.values(decisoes.insumos).filter(x=>x==="novo").length, vinculados=Object.values(decisoes.insumos).filter(x=>x==="existente").length, atualizar=Object.values(decisoes.insumos).filter(x=>x==="atualizar").length;
  el.innerHTML=`<div class="import-summary-grid"><span><b>${analise.fichas.length}</b> fichas no plano</span><span><b>${analise.preparacoes.length}</b> vínculos</span><span><b>${novos}</b> criar insumo</span><span><b>${vinculados}</b> usar existente</span><span><b>${atualizar}</b> atualizar</span><span><b>${pendencias}</b> pendências</span></div><div class="import-note">${pendencias===0?"Plano validado: nenhuma pendência. A gravação real continua bloqueada neste teste.":"Para validar o plano: classifique "+insumosPend+" insumo(s) e resolva "+conflitosPend+" conflito(s)."+(vazias.length?" Há "+vazias.length+" ficha(s) sem componentes.":"")}</div>`}
+function validarPlanoImportacao(){
+ if(!analise)return;
+ const conflitosPend=analise.conflitos.filter((_,i)=>!decisoes.conflitos[i]);
+ const insumosPend=analise.insumosDetalhes.filter((_,i)=>!decisoes.insumos[i]);
+ const vazias=analise.fichas.filter(f=>!f.componentes?.length);
+ const selfLinks=(analise.preparacoes||[]).filter(x=>norm(x.origem||x.ficha)===norm(x.destino||x.nome));
+ const problemas=[];
+ if(insumosPend.length)problemas.push(insumosPend.length+" insumo(s) sem classificação");
+ if(conflitosPend.length)problemas.push(conflitosPend.length+" conflito(s) sem decisão");
+ if(vazias.length)problemas.push(vazias.length+" ficha(s) sem componentes");
+ if(selfLinks.length)problemas.push(selfLinks.length+" vínculo(s) circular(es)");
+ planoValidado=problemas.length===0;
+ const d=modal(`<small>VALIDAÇÃO DO PLANO</small><h3>${planoValidado?"Plano pronto":"Pendências encontradas"}</h3>${planoValidado?'<div class="import-note">Todas as decisões obrigatórias foram preenchidas. O plano está consistente para a futura importação transacional. Nenhum dado foi gravado.</div>':'<div class="import-conflict-sources">'+problemas.map(p=>'<div><b>'+esc(p)+'</b></div>').join("")+'</div><div class="import-note">Resolva as pendências e valide novamente.</div>'}`);
+ atualizarResumoFinal();
+}
 function abrirFicha(i){const f=analise.fichas[i];if(!f)return;modal(`<small>PRÉVIA DA FICHA</small><h3>${esc(f.nome)}</h3><p><b>${f.componentes.length}</b> componentes reconhecidos.</p><div class="import-conflict-sources">${f.componentes.map(x=>`<div><b>${esc(x.nome)}</b><span>${x.qtd!=null?Number(x.qtd).toLocaleString("pt-BR",{maximumFractionDigits:4}):"—"} ${esc(x.unidade||"")} · FC ${x.fc??"—"} · ${moeda(x.preco)}</span></div>`).join("")||'<div>Nenhum componente reconhecido.</div>'}</div><div class="import-note">Prévia somente leitura. É assim que os componentes desta ficha foram interpretados.</div>`)}
 function abrirConflito(i){const x=analise.conflitos[i];if(!x)return;const d=modal(`<small>REVISÃO EXPERIMENTAL</small><h3>${esc(x.nome)}</h3><p>Escolha qual ocorrência deve servir como referência nesta simulação:</p><div class="import-choice-list">${(x.ocorrencias||[]).map((o,j)=>`<label><input type="radio" name="confEscolha" value="${j}" ${decisoes.conflitos[i]?.indice===j?"checked":""}><span><b>${esc(o.ficha)}</b><small>${moeda(o.preco)} · FC ${o.fc??"—"} · ${esc(o.unidade||"—")}</small></span></label>`).join("")}</div><label class="import-check"><input type="checkbox" id="confAplicar" ${decisoes.conflitos[i]?.aplicar?"checked":""}> Aplicar esta referência a todas as ocorrências deste insumo</label><button type="button" class="primary import-save-choice">Confirmar escolha</button><div class="import-note">A escolha fica somente nesta simulação e não altera a planilha nem o banco.</div>`);d.querySelector(".import-save-choice").onclick=()=>{const sel=d.querySelector('input[name="confEscolha"]:checked');if(!sel)return;decisoes.conflitos[i]={indice:Number(sel.value),aplicar:d.querySelector("#confAplicar").checked};d.remove();atualizarResumoFinal()}}
 function abrirInsumo(i){const x=analise.insumosDetalhes[i];if(!x)return;const b=x.existente, atual=decisoes.insumos[i]||"";const d=modal(`<small>INSUMO RECONHECIDO</small><h3>${esc(x.nome)}</h3><p><b>Planilha:</b> ${esc(x.unidade||"—")} · FC ${x.fc??"—"} · ${moeda(x.preco)}</p>${b?'<p><b>MISEVO:</b> '+esc(b.ingrediente||b.nome||x.nome)+' · '+esc(b.unidade||"—")+' · FC '+esc(b.fc??"—")+' · '+moeda(b.preco_compra)+'</p>':""}<div class="import-choice-list"><label><input type="radio" name="insEscolha" value="novo" ${atual==="novo"?"checked":""}><span><b>Cadastrar como novo insumo</b><small>Usar os dados reconhecidos na planilha.</small></span></label>${b?`<label><input type="radio" name="insEscolha" value="existente" ${atual==="existente"?"checked":""}><span><b>Vincular ao insumo existente</b><small>Evita duplicidade no banco.</small></span></label><label><input type="radio" name="insEscolha" value="atualizar" ${atual==="atualizar"?"checked":""}><span><b>Atualizar na importação</b><small>Simulação de atualização do cadastro existente.</small></span></label>`:""}</div><button type="button" class="primary import-save-insumo">Confirmar classificação</button><div class="import-note">Nenhuma dessas opções grava dados enquanto o modo experimental estiver ativo.</div>`);d.querySelector(".import-save-insumo").onclick=()=>{const sel=d.querySelector('input[name="insEscolha"]:checked');if(!sel)return;decisoes.insumos[i]=sel.value;d.remove();atualizarResumoFinal()}}
