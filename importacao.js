@@ -5,6 +5,12 @@ import ExcelJS from "exceljs";
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
 const norm=v=>String(v??"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
 const num=v=>{ if(typeof v==="number") return Number.isFinite(v)?v:null; let s=String(v??"").trim(); if(!s)return null; s=s.replace(/R\$\s?/gi,"").replace(/\s/g,""); if(s.includes(","))s=s.replace(/\./g,"").replace(",","."); const n=Number(s); return Number.isFinite(n)?n:null; };
+function diagnosticoZip(buffer){
+ const sig=(a,b,c,d)=>{for(let i=0;i<=buffer.length-4;i++)if(buffer[i]===a&&buffer[i+1]===b&&buffer[i+2]===c&&buffer[i+3]===d)return i;return -1};
+ const rSig=(a,b,c,d)=>{for(let i=buffer.length-4;i>=0;i--)if(buffer[i]===a&&buffer[i+1]===b&&buffer[i+2]===c&&buffer[i+3]===d)return i;return -1};
+ return {bytes:buffer.length,pkLocal:sig(0x50,0x4b,0x03,0x04),central:sig(0x50,0x4b,0x01,0x02),eocd:rSig(0x50,0x4b,0x05,0x06),inicio:Array.from(buffer.subarray(0,8)).map(x=>x.toString(16).padStart(2,"0")).join(" ")};
+}
+
 async function readWorkbookRobusto(buffer){
  try{return XLSX.read(buffer,{type:"buffer",cellFormula:true,cellDates:true,WTF:false})}
  catch(primary){
@@ -63,6 +69,8 @@ export function installImportacao(app,pool){
   if(!dados)return res.status(400).json({error:"Arquivo não recebido."});
   const buffer=Buffer.from(dados,"base64");
   if(!buffer.length||buffer.length>12*1024*1024)return res.status(400).json({error:"Arquivo inválido ou acima do limite."});
+  const diag=diagnosticoZip(buffer); console.log("[MISEVO][importacao][zip]",JSON.stringify({nome:req.body?.nome||"",...diag}));
+  if(diag.pkLocal<0||diag.eocd<0)return res.status(422).json({error:"O arquivo recebido não contém uma estrutura ZIP/XLSX completa.",codigo:"XLSX_INCOMPLETO",diagnostico:diag});
   const wb=await readWorkbookRobusto(buffer);
   const {rows}=await pool.query("SELECT id, ingrediente, unidade, fc, preco_compra FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE",[req.user.empresa_id,req.user.unidade_id]);
   res.json(analisar(wb,rows));
