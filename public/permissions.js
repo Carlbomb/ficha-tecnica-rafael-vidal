@@ -79,7 +79,7 @@ function ajustarMenu(user){
    if(tab==="insumos")return "insumos";
    if(tab==="fichas")return "fichas";
    if(tab==="preparacoes")return "preparacoes";
-   if(tab==="categorias"||tab==="unidades")return "configuracoes";
+   if(tab==="categorias"||tab==="unidades"||tab==="importacao")return "configuracoes";
    if(tab==="estoque"||tab==="movimentacoes"||tab==="inventario")return "estoque";
    if(tab==="perdas")return g==="Custos"?"custos":"perdas";
    if(tab==="validades")return g==="Etiquetas"?"etiquetas":"estoque";
