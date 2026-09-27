@@ -113,7 +113,7 @@ async function executarImportacaoReal(){
  if(!confirm("Confirmar importação real? Os dados serão gravados no MISEVO em uma única transação."))return;
  const b=document.querySelector("#executarImportacao"); if(b){b.disabled=true;b.textContent="Importando…"}
  try{
-  const resp=await fetch("/api/importacoes/executar",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmado:true,fichas:analise.fichas,preparacoes:analise.preparacoes,insumosDetalhes:analise.insumosDetalhes,decisoes})});
+  const resp=await fetch("/api/importacoes/executar",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmado:true,fichas:analise.fichas,preparacoes:analise.preparacoes,insumosDetalhes:analise.insumosDetalhes,conflitos:analise.conflitos,decisoes})});
   const data=await resp.json().catch(()=>({}));
   if(!resp.ok)throw new Error(data.error||"Falha na importação.");
   modal(`<small>IMPORTAÇÃO CONCLUÍDA</small><h3>Dados gravados com sucesso</h3><div class="import-summary-grid"><span><b>${data.fichasCriadas}</b> fichas criadas</span><span><b>${data.preparacoes}</b> preparações</span></div><div class="import-note">A operação foi concluída em transação única.</div>`);
