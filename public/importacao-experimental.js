@@ -69,18 +69,14 @@ function telaInicial(){
 }
 async function ler(e){
  const file=e.target.files?.[0];if(!file)return; arquivoAtual=file.name; decisoes.conflitos={}; decisoes.insumos={};
- const st=document.querySelector("#importStatus");st.innerHTML="<p>Analisando planilha…</p>";
- try{try{insumosBanco=await api("/api/insumos")}catch{insumosBanco=[]} const data=await file.arrayBuffer();
- let leituraErro=null;
- try{workbook=XLSX.read(data,{type:"array",WTF:false})}catch(err){leituraErro=err}
- if(!workbook){
-   const bytes=new Uint8Array(data);
-   let bin="", passo=0x8000;
-   for(let i=0;i<bytes.length;i+=passo)bin+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+passo,bytes.length)));
-   try{workbook=XLSX.read(bin,{type:"binary",WTF:false})}catch(err2){throw new Error("Falha ao abrir o arquivo Excel neste navegador. "+(leituraErro?.message||err2.message))}
- }
- analise=analisar(workbook);renderResumo(file.name)}
- catch(err){st.innerHTML='<div class="import-error">Não foi possível ler esta planilha: '+esc(err.message)+'</div>'}
+ const st=document.querySelector("#importStatus");st.innerHTML="<p>Enviando e analisando a planilha no servidor…</p>";
+ try{
+   const form=new FormData();form.append("arquivo",file);
+   const resp=await fetch("/api/importacoes/analisar",{method:"POST",body:form,credentials:"same-origin"});
+   const data=await resp.json().catch(()=>({}));
+   if(!resp.ok)throw new Error(data.error||"Falha ao analisar a planilha.");
+   analise=data; renderResumo(file.name);
+ }catch(err){st.innerHTML='<div class="import-error">Não foi possível ler esta planilha: '+esc(err.message)+'</div>'}
 }
 function renderResumo(nome){
  const a=analise, prontas=a.fichas.filter(f=>f.estrutura).length;
