@@ -1,11 +1,11 @@
 (() => {
 const C=()=>document.querySelector("#content");
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-let workbook=null, analise=null;
+let workbook=null, analise=null, insumosBanco=[];
 
 function norm(v){return String(v??"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ")}
 function numero(v){if(typeof v==="number")return v;let s=String(v??"").trim();if(!s)return null;s=s.replace(/R\$\s?/g,"").replace(/\s/g,"");if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");const n=Number(s);return Number.isFinite(n)?n:null}
-function analisar(wb){
+function bancoMap(){const m=new Map();(insumosBanco||[]).forEach(x=>m.set(norm(x.ingrediente||x.nome),x));return m}\nfunction analisar(wb){
  const fichas=[], nomes=new Set(wb.SheetNames.map(norm)), ocorr=new Map();
  wb.SheetNames.forEach(nomeAba=>{
    const ws=wb.Sheets[nomeAba], rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
@@ -37,7 +37,7 @@ function analisar(wb){
    const unidades=[...new Set(arr.map(x=>norm(x.unidade)).filter(Boolean))];
    if(precos.length>1||fcs.length>1||unidades.length>1)conflitos.push({nome:arr[0].nome,precos,fcs,unidades});
  });
- return {fichas,insumos:[...insumos].filter(Boolean),preparacoes,conflitos};
+ const bm=bancoMap(); const insumosDetalhes=[...insumos].filter(Boolean).map(k=>{const arr=ocorr.get(k)||[];const x=arr[0]||{};return {nome:x.nome||k,unidade:x.unidade||"",preco:x.preco,fc:x.fc,usos:arr.length,existente:bm.get(k)||null}});\n return {fichas,insumos:[...insumos].filter(Boolean),insumosDetalhes,preparacoes,conflitos};
 }
 function telaInicial(){
  C().innerHTML=`<div class="section-head"><div><small>EXPERIMENTAL</small><h2>Assistente de Importação</h2><p>Leia uma planilha e revise como os dados seriam interpretados antes de qualquer importação.</p></div></div>
@@ -47,7 +47,7 @@ function telaInicial(){
 async function ler(e){
  const file=e.target.files?.[0];if(!file)return;
  const st=document.querySelector("#importStatus");st.innerHTML="<p>Analisando planilha…</p>";
- try{const data=await file.arrayBuffer();workbook=XLSX.read(data,{type:"array"});analise=analisar(workbook);renderResumo(file.name)}
+ try{try{insumosBanco=await api("/api/insumos")}catch{insumosBanco=[]} const data=await file.arrayBuffer();workbook=XLSX.read(data,{type:"array"});analise=analisar(workbook);renderResumo(file.name)}
  catch(err){st.innerHTML='<div class="import-error">Não foi possível ler esta planilha: '+esc(err.message)+'</div>'}
 }
 function renderResumo(nome){
@@ -55,10 +55,14 @@ function renderResumo(nome){
  C().innerHTML=`<div class="section-head"><div><small>EXPERIMENTAL · SOMENTE LEITURA</small><h2>Assistente de Importação</h2><p>${esc(nome)}</p></div><button class="secondary" id="novaPlanilha">Trocar arquivo</button></div>
  <div class="card"><div class="import-badge">NENHUM DADO SERÁ GRAVADO</div><h3>2. Análise concluída</h3><div class="stats import-stats"><article><span>Abas / fichas</span><b>${a.fichas.length}</b></article><article><span>Estruturas reconhecidas</span><b>${prontas}</b></article><article><span>Possíveis insumos</span><b>${a.insumos.length}</b></article><article><span>Vínculos de preparações</span><b>${a.preparacoes.length}</b></article><article><span>Conflitos</span><b>${a.conflitos.length}</b></article></div></div>
  <div class="card"><h3>3. Fichas reconhecidas</h3><div class="import-list">${a.fichas.map(f=>`<article><div><b>${esc(f.nome)}</b><small>${f.componentes.length} componentes</small></div><span class="${f.estrutura?"ok":"warn"}">${f.estrutura?"Reconhecida":"Revisar"}</span></article>`).join("")}</div></div>
- <div class="card"><h3>4. Correspondências de preparações</h3>${a.preparacoes.length?'<div class="import-list">'+a.preparacoes.slice(0,30).map(x=>`<article><div><b>${esc(x.nome)}</b><small>usada em ${esc(x.ficha)}</small></div><span class="ok">Possível vínculo</span></article>`).join("")+'</div>':'<div class="empty">Nenhuma correspondência encontrada.</div>'}</div>
- <div class="card"><h3>5. Conflitos para revisão</h3>${a.conflitos.length?'<div class="import-list">'+a.conflitos.map(x=>`<article><div><b>${esc(x.nome)}</b><small>${x.precos.length>1?"Preços diferentes · ":""}${x.fcs.length>1?"FCs diferentes · ":""}${x.unidades.length>1?"Unidades diferentes":""}</small></div><span class="warn">Revisar</span></article>`).join("")+'</div>':'<div class="empty">Nenhum conflito detectado.</div>'}</div>
- <div class="card import-final"><h3>6. Simulação concluída</h3><p>O assistente chegou até a revisão final. A gravação no banco está bloqueada neste modo experimental.</p><button disabled>Importar para o MISEVO — bloqueado no teste</button></div>`;
- document.querySelector("#novaPlanilha").onclick=telaInicial;
+ <div class="card"><h3>4. Insumos reconhecidos</h3><p>Comparação da planilha com o banco atual do MISEVO.</p><div class="import-list">${a.insumosDetalhes.map((x,i)=>`<article><div><b>${esc(x.nome)}</b><small>${esc(x.unidade||"—")} · FC ${x.fc??"—"} · ${x.preco!=null?"R$ "+Number(x.preco).toFixed(2).replace(".",","):"sem preço"} · ${x.usos} ocorrência(s)</small></div><button type="button" class="import-review ${x.existente?"ok":"warn"}" data-insumo="${i}">${x.existente?"Já existe":"Novo insumo"}</button></article>`).join("")||'<div class="empty">Nenhum insumo encontrado.</div>'}</div></div>
+ <div class="card"><h3>5. Correspondências de preparações</h3>${a.preparacoes.length?'<div class="import-list">'+a.preparacoes.slice(0,30).map(x=>`<article><div><b>${esc(x.nome)}</b><small>usada em ${esc(x.ficha)}</small></div><span class="ok">Possível vínculo</span></article>`).join("")+'</div>':'<div class="empty">Nenhuma correspondência encontrada.</div>'}</div>
+ <div class="card"><h3>6. Conflitos para revisão</h3>${a.conflitos.length?'<div class="import-list">'+a.conflitos.map(x=>`<article><div><b>${esc(x.nome)}</b><small>${x.precos.length>1?"Preços diferentes · ":""}${x.fcs.length>1?"FCs diferentes · ":""}${x.unidades.length>1?"Unidades diferentes":""}</small></div><button type="button" class="warn import-review" data-conflito="${a.conflitos.indexOf(x)}">Revisar</button></article>`).join("")+'</div>':'<div class="empty">Nenhum conflito detectado.</div>'}</div>
+ <div class="card import-final"><h3>7. Simulação concluída</h3><p>O assistente chegou até a revisão final. A gravação no banco está bloqueada neste modo experimental.</p><button disabled>Importar para o MISEVO — bloqueado no teste</button></div>`;
+ document.querySelector("#novaPlanilha").onclick=telaInicial;\n document.querySelectorAll("[data-conflito]").forEach(b=>b.onclick=()=>abrirConflito(Number(b.dataset.conflito)));\n document.querySelectorAll("[data-insumo]").forEach(b=>b.onclick=()=>abrirInsumo(Number(b.dataset.insumo)));
 }
+function modal(html){let d=document.querySelector("#importModal");if(!d){d=document.createElement("div");d.id="importModal";d.className="import-modal-backdrop";document.body.appendChild(d)}d.innerHTML='<div class="import-modal">'+html+'<button type="button" class="secondary import-close">Fechar</button></div>';d.querySelector(".import-close").onclick=()=>d.remove()}
+function abrirConflito(i){const x=analise.conflitos[i];if(!x)return;modal(`<small>REVISÃO EXPERIMENTAL</small><h3>${esc(x.nome)}</h3><p>Valores encontrados na planilha:</p>${x.precos.length?'<p><b>Preços:</b> R$ '+x.precos.map(v=>Number(v).toFixed(2).replace(".",",")).join(" · R$ ")+'</p>':""}${x.fcs.length?'<p><b>FC:</b> '+x.fcs.map(v=>Number(v).toLocaleString("pt-BR",{maximumFractionDigits:4})).join(" · ")+'</p>':""}${x.unidades.length?'<p><b>Unidades:</b> '+x.unidades.map(esc).join(" · ")+'</p>':""}<div class="import-note">Modo experimental: aqui você poderá escolher qual valor será usado antes da importação. Nenhuma alteração é gravada.</div>`)}
+function abrirInsumo(i){const x=analise.insumosDetalhes[i];if(!x)return;const b=x.existente;modal(`<small>INSUMO RECONHECIDO</small><h3>${esc(x.nome)}</h3><p><b>Planilha:</b> ${esc(x.unidade||"—")} · FC ${x.fc??"—"} · ${x.preco!=null?"R$ "+Number(x.preco).toFixed(2).replace(".",","):"sem preço"}</p>${b?'<p><b>MISEVO:</b> '+esc(b.unidade||"—")+' · FC '+esc(b.fc??"—")+' · R$ '+Number(b.preco_compra||0).toFixed(2).replace(".",",")+'</p><div class="import-note">Correspondência encontrada no banco atual.</div>':'<div class="import-note">Não existe no banco atual. Seria proposto como novo insumo.</div>'}`)}
 window.telaImportacaoExperimental=telaInicial;
 })();
