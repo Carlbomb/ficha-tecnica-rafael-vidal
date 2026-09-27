@@ -40,7 +40,7 @@ const pool =
 
 app.use(
   express.json({
-    limit: "2mb"
+    limit: "16mb"
   })
 );
 
