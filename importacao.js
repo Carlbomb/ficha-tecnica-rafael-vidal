@@ -121,7 +121,7 @@ export function installImportacao(app,pool){
   }
   for(const f of fichas.filter(x=>usados.has(norm(x.nome)))){
    const id=prepIds.get(norm(f.nome)); await c.query("DELETE FROM preparacao_ingredientes WHERE preparacao_id=$1",[id]); await c.query("DELETE FROM preparacao_componentes WHERE preparacao_id=$1",[id]);
-   let ordem=0; for(const x of f.componentes){const pid=prepIds.get(norm(x.nome)), iid=mapa.get(norm(x.nome)), q=Number(x.qtd)||0;if(q<=0)continue;if(pid)await c.query("INSERT INTO preparacao_componentes(preparacao_id,componente_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,pid,q,ordem++]);else if(iid)await c.query("INSERT INTO preparacao_ingredientes(preparacao_id,insumo_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,iid,q,ordem++]);else throw new Error("Componente sem destino: "+x.nome)}
+   let ordem=0; for(const x of f.componentes){const pid=prepIds.get(norm(x.nome)), iid=mapa.get(norm(x.nome)), q=Number(x.qtd)||0;if(q<=0)continue;if(pid&&pid!==id)await c.query("INSERT INTO preparacao_componentes(preparacao_id,componente_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,pid,q,ordem++]);else if(pid===id)continue;else if(iid)await c.query("INSERT INTO preparacao_ingredientes(preparacao_id,insumo_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,iid,q,ordem++]);else throw new Error("Componente sem destino: "+x.nome)}
   }
   let fichasCriadas=0;
   for(const f of fichas.filter(x=>!usados.has(norm(x.nome)))){
