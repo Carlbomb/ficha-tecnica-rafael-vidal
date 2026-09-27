@@ -47,13 +47,14 @@
     <label>Categoria<select id="prepCategoria">${["Bases e Fundos","Molhos","Carnes e Aves","Pescados e Frutos do Mar","Massas","Arroz e Cereais","Guarnições","Vegetais e Saladas","Padaria","Confeitaria e Sobremesas","Marinadas e Condimentos","Pré-preparos"].map(x=>`<option ${p?.categoria===x?"selected":""}>${x}</option>`).join("")}</select></label>
     <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required value="${p?.rendimento??1}"></label>
     <label>Unidade do rendimento<select id="prepUnidade">${["KG","L","UN","PORÇÃO"].map(x=>`<option ${p?.unidade_rendimento===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
+    <div class="card prep-rendimento-card"><div class="section-head"><div><small>RENDIMENTO REAL</small><h3>Produção e porcionamento</h3></div></div><div class="prep-rendimento-grid"><div><small>Peso compatível dos componentes</small><strong id="prepPesoEntrada">—</strong></div><div><small>Rendimento final</small><strong id="prepRendimentoReal">—</strong></div><div><small>Fator de rendimento</small><strong id="prepFatorRendimento">—</strong></div></div><div class="prep-porcionamento"><label>Peso por porção <span id="prepPorcaoUnidade">KG</span><input id="prepPesoPorcao" type="number" min="0" step=".0001" placeholder="Ex.: 0,200"></label><div><small>Rendimento em porções</small><strong id="prepQtdPorcoes">—</strong></div><div><small>Custo por porção</small><strong id="prepCustoPorcao">—</strong></div></div><p class="prep-rendimento-aviso" id="prepRendimentoAviso"></p></div>
     <div class="card"><div class="section-head"><div><small>COMPOSIÇÃO</small><h3>Ingredientes e preparações</h3></div><button type="button" class="primary" id="addPrepItem">+ Componente</button></div><div id="prepItens"></div></div>
     <div class="card"><div class="summary-grid"><div><span>Custo Total</span><strong id="prepCustoTotal">R$ 0,00</strong></div><div><span id="prepCustoUnitLabel">Custo por unidade</span><strong id="prepCustoUnit">R$ 0,00</strong></div><div><span>Rendimento</span><strong id="prepRendResumo">0</strong></div></div></div>
     <div class="card"><label>Modo de preparo<textarea id="prepModo">${esc(p?.modo_preparo||"")}</textarea></label><label style="margin-top:13px">Observações<textarea id="prepObs">${esc(p?.observacoes||"")}</textarea></label></div>
     <div class="actions"><button type="button" class="secondary" id="cancelPrep">Cancelar</button>${p?'<button type="button" class="danger" id="delPrep">Excluir</button>':""}<button class="primary" type="submit">Salvar preparação</button></div></form>`;
     document.querySelector("#voltarPrep").onclick=window.telaPreparacoes;document.querySelector("#cancelPrep").onclick=window.telaPreparacoes;
     document.querySelector("#addPrepItem").onclick=()=>{ITENS.push({tipo:"insumo",id:"",quantidade:0,observacoes:""});renderItens()};
-    document.querySelector("#prepRendimento").oninput=calcular;document.querySelector("#prepUnidade").onchange=calcular;document.querySelector("#formPrep").onsubmit=salvar;if(p)document.querySelector("#delPrep").onclick=excluir;renderItens();
+    document.querySelector("#prepRendimento").oninput=calcular;document.querySelector("#prepUnidade").onchange=calcular;document.querySelector("#prepPesoPorcao").oninput=calcular;document.querySelector("#formPrep").onsubmit=salvar;if(p)document.querySelector("#delPrep").onclick=excluir;renderItens();
   }
 
   function fonte(it){
@@ -98,7 +99,23 @@
   window.prepObsItem=(k,v)=>ITENS[k].observacoes=v;
   window.prepRemover=k=>{ITENS.splice(k,1);renderItens()};
 
-  function calcular(){const total=ITENS.reduce((s,it)=>s+num(it.quantidade)*preco(it),0),r=num(document.querySelector("#prepRendimento")?.value),u=document.querySelector("#prepUnidade")?.value||"",rotulo=u==="PORÇÃO"?"Custo por porção":u==="KG"?"Custo por kg":u==="L"?"Custo por litro":u==="UN"?"Custo por unidade":"Custo unitário";if(document.querySelector("#prepCustoTotal"))document.querySelector("#prepCustoTotal").textContent=moeda(total);if(document.querySelector("#prepCustoUnit"))document.querySelector("#prepCustoUnit").textContent=moeda(r>0?total/r:0);if(document.querySelector("#prepCustoUnitLabel"))document.querySelector("#prepCustoUnitLabel").textContent=rotulo;if(document.querySelector("#prepRendResumo"))document.querySelector("#prepRendResumo").textContent=`${numero(r,u==="PORÇÃO"||u==="UN"?0:3)} ${u}` }
+  function calcular(){
+    const total=ITENS.reduce((s,it)=>s+num(it.quantidade)*preco(it),0),r=num(document.querySelector("#prepRendimento")?.value),u=document.querySelector("#prepUnidade")?.value||"",rotulo=u==="PORÇÃO"?"Custo por porção":u==="KG"?"Custo por kg":u==="L"?"Custo por litro":u==="UN"?"Custo por unidade":"Custo unitário";
+    if(document.querySelector("#prepCustoTotal"))document.querySelector("#prepCustoTotal").textContent=moeda(total);
+    if(document.querySelector("#prepCustoUnit"))document.querySelector("#prepCustoUnit").textContent=moeda(r>0?total/r:0);
+    if(document.querySelector("#prepCustoUnitLabel"))document.querySelector("#prepCustoUnitLabel").textContent=rotulo;
+    if(document.querySelector("#prepRendResumo"))document.querySelector("#prepRendResumo").textContent=`${numero(r,u==="PORÇÃO"||u==="UN"?0:3)} ${u}`;
+    const comp=ITENS.filter(it=>it.id&&it.quantidade>0), compat=comp.filter(it=>String(unidade(it)).toUpperCase()===u), entrada=compat.reduce((s,it)=>s+num(it.quantidade),0), todos=comp.length>0&&compat.length===comp.length&&(u==="KG"||u==="L"||u==="UN");
+    const peso=document.querySelector("#prepPesoEntrada"), real=document.querySelector("#prepRendimentoReal"), fator=document.querySelector("#prepFatorRendimento"), aviso=document.querySelector("#prepRendimentoAviso");
+    if(peso)peso.textContent=todos?`${numero(entrada,u==="UN"?0:3)} ${u}`:"—";
+    if(real)real.textContent=`${numero(r,u==="UN"||u==="PORÇÃO"?0:3)} ${u}`;
+    if(fator)fator.textContent=todos&&entrada>0?`${numero((r/entrada)*100,1)}%`:"—";
+    if(aviso)aviso.textContent=comp.length&&!todos?"Peso/fator não calculados: há componentes com unidades diferentes do rendimento final.":"";
+    const porcao=num(document.querySelector("#prepPesoPorcao")?.value), podePorcionar=(u==="KG"||u==="L"), qtd=porcao>0&&podePorcionar?r/porcao:0;
+    const pu=document.querySelector("#prepPorcaoUnidade");if(pu)pu.textContent=u||"";
+    const qp=document.querySelector("#prepQtdPorcoes");if(qp)qp.textContent=qtd>0?numero(qtd,2):"—";
+    const cp=document.querySelector("#prepCustoPorcao");if(cp)cp.textContent=qtd>0?moeda(total/qtd):"—";
+  }
 
   async function salvar(e){
     e.preventDefault();
