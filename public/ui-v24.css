@@ -72,3 +72,9 @@ button[aria-label]:focus-visible{
   .escala-item-producao{grid-template-columns:1fr!important}
   .escala-qtd-final{text-align:left;min-width:0}
 }
+
+/* Assistente de importação experimental */
+.import-exp{max-width:820px}.import-badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#eef7f5;color:#0f665f;font-size:12px;font-weight:800;letter-spacing:.04em;margin-bottom:14px}
+.import-drop{display:flex;flex-direction:column;gap:6px;border:2px dashed #b8c8ca;border-radius:16px;padding:28px;text-align:center;cursor:pointer;background:#fafcfc}.import-drop b{font-size:17px;color:#0f4c5c}.import-drop span{font-size:13px;color:#667}
+.import-stats{margin-top:16px}.import-list{display:grid;gap:8px;margin-top:12px}.import-list article{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid #e8eeee}.import-list article:last-child{border-bottom:0}.import-list small{display:block;margin-top:4px;color:#667}.import-list .ok,.import-list .warn{white-space:nowrap;font-size:12px;font-weight:800;padding:6px 9px;border-radius:999px}.import-list .ok{background:#eaf7f0;color:#26714a}.import-list .warn{background:#fff4df;color:#8a5a00}.import-error{margin-top:16px;padding:12px;border-radius:12px;background:#fff0f0;color:#9b3030}.import-final button[disabled]{opacity:.55;cursor:not-allowed;width:100%;margin-top:10px}
+@media(max-width:700px){.import-list article{align-items:flex-start}.import-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
