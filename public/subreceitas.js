@@ -1,7 +1,7 @@
 /* MISEVO — Preparações / Sub-receitas — Fase 2 */
 (() => {
   const C=document.querySelector("#content");
-  const num=v=>Number.isFinite(Number(v))?Number(v):0;
+  const num=v=>{const s=String(v??"").trim().replace(/\s/g,"");const n=Number(s.includes(",")?s.replace(/\./g,"").replace(",","."):s);return Number.isFinite(n)?n:0};
   const moeda=v=>num(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
   const numero=(v,c=3)=>num(v).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c});
   const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
@@ -111,8 +111,8 @@
   function sincronizarPorcao(origem){
     const r=num(document.querySelector("#prepRendimento")?.value),u=document.querySelector("#prepUnidade")?.value||"",pesoEl=document.querySelector("#prepPesoPorcao"),qtdEl=document.querySelector("#prepQtdPorcoesInput");
     if(u==="KG"||u==="L"){
-      if(origem==="qtd"&&num(qtdEl?.value)>0&&r>0)pesoEl.value=String(r/num(qtdEl.value)).replace(".",",");
-      else if((origem==="peso"||origem==="rendimento"||origem==="unidade")&&num(pesoEl?.value)>0&&r>0)qtdEl.value=String(r/num(pesoEl.value)).replace(".",",");
+      if(origem==="qtd"&&num(qtdEl?.value)>0&&r>0)pesoEl.value=(r/num(qtdEl.value)).toFixed(4);
+      else if((origem==="peso"||origem==="rendimento"||origem==="unidade")&&num(pesoEl?.value)>0&&r>0)qtdEl.value=(r/num(pesoEl.value)).toFixed(2);
     }else if(u==="UN"||u==="PORÇÃO"){
       if(r>0)qtdEl.value=String(r);
       pesoEl.value="";
