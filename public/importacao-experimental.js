@@ -70,7 +70,16 @@ function telaInicial(){
 async function ler(e){
  const file=e.target.files?.[0];if(!file)return; arquivoAtual=file.name; decisoes.conflitos={}; decisoes.insumos={};
  const st=document.querySelector("#importStatus");st.innerHTML="<p>Analisando planilha…</p>";
- try{try{insumosBanco=await api("/api/insumos")}catch{insumosBanco=[]} const data=await file.arrayBuffer();workbook=XLSX.read(data,{type:"array"});analise=analisar(workbook);renderResumo(file.name)}
+ try{try{insumosBanco=await api("/api/insumos")}catch{insumosBanco=[]} const data=await file.arrayBuffer();
+ let leituraErro=null;
+ try{workbook=XLSX.read(data,{type:"array",WTF:false})}catch(err){leituraErro=err}
+ if(!workbook){
+   const bytes=new Uint8Array(data);
+   let bin="", passo=0x8000;
+   for(let i=0;i<bytes.length;i+=passo)bin+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+passo,bytes.length)));
+   try{workbook=XLSX.read(bin,{type:"binary",WTF:false})}catch(err2){throw new Error("Falha ao abrir o arquivo Excel neste navegador. "+(leituraErro?.message||err2.message))}
+ }
+ analise=analisar(workbook);renderResumo(file.name)}
  catch(err){st.innerHTML='<div class="import-error">Não foi possível ler esta planilha: '+esc(err.message)+'</div>'}
 }
 function renderResumo(nome){
