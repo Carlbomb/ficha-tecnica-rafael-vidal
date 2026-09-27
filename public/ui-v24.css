@@ -254,3 +254,12 @@ button[aria-label]:focus-visible{
  .prep-escala-grid>div{grid-column:1/-1;padding:4px 0}
  .prep-escalonamento .section-head{align-items:flex-start}
 }
+
+
+/* Preparações — dependências / usado em */
+.prep-uso-grupo{margin-top:12px;border-top:1px solid var(--border,#e5e7eb);padding-top:10px}
+.prep-uso-grupo>b{display:block;margin-bottom:7px;font-size:.82rem}
+.prep-uso-item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border,#eef0f2)}
+.prep-uso-item:last-child{border-bottom:0}
+.prep-uso-item span{font-weight:600}
+.prep-uso-item small{white-space:nowrap;color:var(--muted,#667085)}
