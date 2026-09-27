@@ -229,3 +229,16 @@ button[aria-label]:focus-visible{
  .prep-ficha-grid label{font-size:.72rem}
  .prep-ficha-grid input{min-height:42px}
 }
+
+
+/* Preparações — preço e CMV */
+.prep-comercial-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end}
+.prep-comercial-grid>div{display:flex;flex-direction:column;gap:4px;padding-bottom:10px}
+.prep-comercial-grid small{font-size:.7rem;color:var(--muted,#667085)}
+.prep-comercial-grid strong{font-size:1rem}
+@media(max-width:700px){
+ .prep-comercial-grid{grid-template-columns:1fr 1fr;gap:7px}
+ .prep-comercial-grid>div{padding:6px 0}
+ .prep-comercial-grid label{font-size:.72rem}
+ .prep-comercial-grid input{min-height:42px}
+}
