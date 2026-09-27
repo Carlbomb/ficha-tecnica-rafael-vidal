@@ -32,10 +32,26 @@ function renderPlano(){
 window.removerPlano=i=>{PLANO_FICHAS.splice(i,1);renderPlano()};
 window.removerPlanoPrep=i=>{PLANO_PREPS.splice(i,1);renderPlano()};
 async function calcularPlano(){if(!PLANO_FICHAS.length&&!PLANO_PREPS.length)return;try{const d=await apiP("/api/producao/planejar-fichas",{method:"POST",body:JSON.stringify({fichas:PLANO_FICHAS,preparacoes:PLANO_PREPS})});renderResultadoPlano(d)}catch(e){C.insertAdjacentHTML("afterbegin",`<div class="card"><b>Erro:</b> ${esc(e.message)}</div>`)}}
-function renderResultadoPlano(d){C.innerHTML=`<div class="section-head"><div><small>ORDEM DE PRODUÇÃO</small><h2>Necessidades consolidadas</h2><p>Planejamento calculado. Nenhuma movimentação de estoque foi realizada.</p></div><button class="secondary" id="editarPlano">← Editar</button></div>
- <div class="card"><h3>Pratos a produzir</h3>${d.pratos.map(x=>`<div class="prep-uso-item"><span>${esc(x.nome)}</span><b>${fmt(x.porcoes)} porções</b></div>`).join("")}</div>
+function renderResultadoPlano(d){
+ window.__ULTIMO_PLANO=d;
+ const pratos=d.pratos.length?`<div class="card"><h3>Pratos a produzir</h3>${d.pratos.map(x=>`<div class="prep-uso-item"><span>${esc(x.nome)}</span><b>${fmt(x.porcoes)} porções</b></div>`).join("")}</div>`:"";
+ C.innerHTML=`<div class="section-head"><div><small>ORDEM DE PRODUÇÃO</small><h2>Necessidades consolidadas</h2><p>Planejamento calculado. Nenhuma movimentação de estoque foi realizada.</p></div><button class="secondary" id="editarPlano">← Editar</button></div>
+ ${pratos}
  <div class="card"><h3>Preparações necessárias</h3>${d.preparacoes.length?d.preparacoes.map(x=>`<div class="prep-uso-item"><span>${esc(x.nome)}</span><b>${fmt(x.quantidade)} ${esc(x.unidade)}</b></div>`).join(""):'<div class="empty">Nenhuma preparação vinculada.</div>'}</div>
- <div class="card"><h3>Insumos consolidados</h3>${d.insumos.length?d.insumos.map(x=>`<div class="prep-uso-item"><span>${esc(x.ingrediente)}</span><b>${fmt(x.quantidade)} ${esc(x.unidade)}</b></div>`).join(""):'<div class="empty">Nenhum insumo encontrado.</div>'}</div>`;document.querySelector("#editarPlano").onclick=planejarFichas}
+ <div class="card"><h3>Insumos consolidados</h3>${d.insumos.length?d.insumos.map(x=>`<div class="prep-uso-item"><span>${esc(x.ingrediente)}</span><b>${fmt(x.quantidade)} ${esc(x.unidade)}</b></div>`).join(""):'<div class="empty">Nenhum insumo encontrado.</div>'}</div>
+ <div class="actions"><button class="primary" id="salvarPlano">Salvar Ordem de Produção</button></div>`;
+ document.querySelector("#editarPlano").onclick=planejarFichas;
+ document.querySelector("#salvarPlano").onclick=salvarPlano;
+}
+async function salvarPlano(){
+ const b=document.querySelector("#salvarPlano");if(b){b.disabled=true;b.textContent="Salvando..."}
+ try{
+   const itens=PLANO_PREPS.map(x=>({tipo:"preparacao",preparacao_id:x.preparacao_id,quantidade:x.quantidade}));
+   if(!itens.length)throw new Error("Nesta etapa, salve ao menos uma Preparação/Sub-receita.");
+   await apiP("/api/producao/salvar-planejamento",{method:"POST",body:JSON.stringify({itens})});
+   await telaProducao();
+ }catch(e){if(b){b.disabled=false;b.textContent="Salvar Ordem de Produção"}C.insertAdjacentHTML("afterbegin",`<div class="card"><b>Erro:</b> ${esc(e.message)}</div>`)}
+}
 
 function novaOP(){const preps=window.__PREPS_PRODUCAO||[];C.innerHTML=`<div class="section-head"><div><small>PRODUÇÃO DO DIA</small><h2>Adicionar tarefa</h2><p>Registre o que a equipe precisa produzir. Esta tarefa não movimenta o estoque.</p></div><button class="secondary" id="voltarOP">← Voltar</button></div>
 <form class="card" id="formOP"><div class="form-grid"><label>Preparação<select id="opPrep" required><option value="">Selecione...</option>${preps.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join("")}</select></label><label>Quantidade<input id="opQtd" inputmode="decimal" required placeholder="0,000"></label></div><label>Observações<textarea id="opObs" placeholder="Ex.: deixar pronto antes do almoço"></textarea></label><div class="actions"><button type="button" class="secondary" id="cancelOP">Cancelar</button><button class="primary">Adicionar à produção do dia</button></div></form>`;
