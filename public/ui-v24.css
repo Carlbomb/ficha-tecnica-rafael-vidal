@@ -242,3 +242,15 @@ button[aria-label]:focus-visible{
  .prep-comercial-grid label{font-size:.72rem}
  .prep-comercial-grid input{min-height:42px}
 }
+
+
+/* Preparações — escalonamento */
+.prep-escala-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end}
+.prep-escala-grid>div{display:flex;flex-direction:column;gap:4px;padding:0 0 10px}
+.prep-escala-grid small{font-size:.7rem;color:var(--muted,#667085)}
+.prep-escala-grid strong{font-size:1.05rem}
+@media(max-width:700px){
+ .prep-escala-grid{grid-template-columns:1fr 1fr}
+ .prep-escala-grid>div{grid-column:1/-1;padding:4px 0}
+ .prep-escalonamento .section-head{align-items:flex-start}
+}
