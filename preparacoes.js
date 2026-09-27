@@ -217,11 +217,11 @@ export function installPreparacoes(app,pool) {
     );
     const custo=await calcularCustoPreparacao(pool,req.params.id,req.user.empresa_id,req.user.unidade_id);
     const fichasUso=await pool.query(
-      `SELECT f.id,f.nome,fp.quantidade,fp.ordem
+      `SELECT f.id,f.nome_prato AS nome,fp.quantidade,fp.ordem
          FROM ficha_preparacoes fp
          JOIN fichas f ON f.id=fp.ficha_id
         WHERE fp.preparacao_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3
-        ORDER BY f.nome`,
+        ORDER BY f.nome_prato`,
       [req.params.id,req.user.empresa_id,req.user.unidade_id]
     );
     const preparacoesUso=await pool.query(
