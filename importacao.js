@@ -45,23 +45,33 @@ function parseBanco(ws){
  const ci=col(/INGREDIENTE/), cu=col(/UNID/), cb=col(/PESO BRUTO/), cl=col(/PESO LIQUIDO/), cf=col(/^FC$/), cp=col(/PRECO COMPRA/), cr=col(/PRECO REAL/), cfor=col(/FORNECEDOR/);
  return rows.slice(hi+1).map((r,k)=>({linha:hi+k+2,nome:String(r[ci]??"").trim(),unidade:String(r[cu]??"").trim(),peso_bruto:num(r[cb]),peso_liquido:num(r[cl]),fc:num(r[cf])??((num(r[cb])&&num(r[cl]))?num(r[cb])/num(r[cl]):null),preco:num(r[cp]),preco_real:num(r[cr]),fornecedor:String(r[cfor]??"").trim()})).filter(x=>x.nome);
 }
-function parseFicha(ws){
+function parseFicha(ws,nomeAba=""){
  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true});
- const flat=(label)=>{for(let i=0;i<rows.length;i++)for(let j=0;j<rows[i].length;j++)if(norm(rows[i][j])===label){for(let k=j+1;k<rows[i].length;k++)if(rows[i][k]!=null&&String(rows[i][k]).trim())return rows[i][k];}return null};
- const hi=headerIndex(rows,/INGREDIENTE/); const componentes=[];
- if(hi>=0){const h=rows[hi].map(norm), col=re=>h.findIndex(x=>re.test(x));const ci=col(/INGREDIENTE/),cq=col(/QUANTIDADE|QTD/),cu=col(/UNID/),cf=col(/^FC$|FATOR/),cp=col(/CUSTO UNIT|PRECO/);
-  for(let i=hi+1;i<rows.length;i++){const nome=String(rows[i][ci]??"").trim();if(!nome||/TOTAL|MODO DE PREPARO/i.test(nome))continue;componentes.push({nome,qtd:num(rows[i][cq]),unidade:String(rows[i][cu]??"").trim(),fc:num(rows[i][cf]),preco:num(rows[i][cp]),linha:i+1});}}
- return {nome:String(flat("NOME DO PRATO")??"FICHA TÉCNICA").trim(),categoria:String(flat("CATEGORIA")??"").trim(),rendimento:num(flat("RENDIMENTO DA RECEITA")),porcoes:num(flat("QUANTIDADE DE PORCOES")),componentes};
+ const findLabel=(re)=>{for(let i=0;i<Math.min(rows.length,40);i++)for(let j=0;j<rows[i].length;j++)if(re.test(norm(rows[i][j]))){for(let k=j+1;k<rows[i].length;k++){const v=rows[i][k];if(v!=null&&String(v).trim())return v}}return null};
+ const hi=headerIndex(rows,/^PRODUTO$|INGREDIENTE/), componentes=[];
+ if(hi>=0){
+  const h=rows[hi].map(norm), col=re=>h.findIndex(x=>re.test(x));
+  const ci=col(/^PRODUTO$|INGREDIENTE/), cq=col(/QUANTIDADE.*LIQUIDA|QUANTIDADE|QTD/), cu=col(/^UNIDADE$|^UNID/), cf=col(/^FC$|FATOR.*CORRECAO/), cp=col(/CUSTO.*UNITARIO|PRECO/);
+  for(let i=hi+1;i<rows.length;i++){
+   const nome=String(rows[i][ci]??"").trim();
+   const qtd=cq>=0?num(rows[i][cq]):null, unidade=cu>=0?String(rows[i][cu]??"").trim():"";
+   if(!nome){if(i>hi+3&&rows[i].every(v=>v==null||String(v).trim()===""))break;continue}
+   if(/TOTAL|CUSTO TOTAL|MODO DE PREPARO|OBSERV/i.test(nome))break;
+   if(!qtd&&!unidade)continue;
+   componentes.push({nome,qtd,unidade,fc:cf>=0?num(rows[i][cf]):null,preco:cp>=0?num(rows[i][cp]):null,linha:i+1});
+  }
+ }
+ return {nome:String(findLabel(/PRODUTO OU NOME DA PREPARACAO|NOME DO PRATO/)??nomeAba??"").trim(),categoria:String(findLabel(/^REFERENCIA$|^CATEGORIA$/)??"").trim(),rendimento:num(findLabel(/RENDIMENTO EM PORCOES|RENDIMENTO DA RECEITA/)),porcoes:num(findLabel(/QUANTIDADE DE PORCOES|RENDIMENTO EM PORCOES/)),componentes};
 }
 function analisar(wb,bancoAtual=[]){
  const bancoSheet=wb.SheetNames.find(n=>norm(n).includes("BANCO DE DADOS"));
- const fichaSheets=wb.SheetNames.filter(n=>/FICHA/i.test(norm(n)));
- const insumos=bancoSheet?parseBanco(wb.Sheets[bancoSheet]):[];
- const fichas=fichaSheets.map(n=>parseFicha(wb.Sheets[n])).filter(f=>f.componentes.length||f.nome!=="FICHA TÉCNICA");
+ const fichaSheets=wb.SheetNames.filter(n=>n!==bancoSheet&&!/^LISTAS?$/i.test(norm(n)));
+ const bancoImportado=bancoSheet?parseBanco(wb.Sheets[bancoSheet]):[];
+ const fichas=fichaSheets.map(n=>parseFicha(wb.Sheets[n],n)).filter(f=>f.componentes.length);
  const bm=new Map(bancoAtual.map(x=>[norm(x.ingrediente),x]));
- const insumosDetalhes=insumos.map(x=>({...x,usos:fichas.reduce((a,f)=>a+f.componentes.filter(c=>norm(c.nome)===norm(x.nome)).length,0),existente:bm.get(norm(x.nome))||null}));
- const conflitos=insumosDetalhes.filter(x=>x.existente&&((x.preco!=null&&Number(x.existente.preco_compra)!==Number(x.preco))||(x.fc!=null&&Math.abs(Number(x.existente.fc)-Number(x.fc))>.0001)||norm(x.existente.unidade)!==norm(x.unidade))).map(x=>({nome:x.nome,precos:[x.existente.preco_compra,x.preco].filter(v=>v!=null).map(Number),fcs:[x.existente.fc,x.fc].filter(v=>v!=null).map(Number),unidades:[x.existente.unidade,x.unidade].filter(Boolean),ocorrencias:[{ficha:"MISEVO atual",preco:Number(x.existente.preco_compra),fc:Number(x.existente.fc),unidade:x.existente.unidade},{ficha:"BANCO DE DADOS da planilha",preco:x.preco,fc:x.fc,unidade:x.unidade}]}));
- return {fichas,insumos:insumos.map(x=>norm(x.nome)),insumosDetalhes,preparacoes:[],conflitos,meta:{abas:wb.SheetNames,parser:"server-side-v1"}};
+ const vistos=new Map(); fichas.forEach(f=>f.componentes.forEach(c=>{const k=norm(c.nome);if(!vistos.has(k))vistos.set(k,{nome:c.nome,unidade:c.unidade,fc:c.fc,preco:c.preco,origens:[]});vistos.get(k).origens.push(f.nome)})); bancoImportado.forEach(x=>{const k=norm(x.nome);if(!vistos.has(k))vistos.set(k,x)}); const insumos=[...vistos.values()];\n const insumosDetalhes=insumos.map(x=>({...x,usos:fichas.reduce((a,f)=>a+f.componentes.filter(c=>norm(c.nome)===norm(x.nome)).length,0),existente:bm.get(norm(x.nome))||null}));
+ const conflitos=insumosDetalhes.filter(x=>x.existente&&((x.preco!=null&&Number(x.existente.preco_compra)!==Number(x.preco))||(x.fc!=null&&Math.abs(Number(x.existente.fc)-Number(x.fc))>.0001)||norm(x.existente.unidade)!==norm(x.unidade))).map(x=>({nome:x.nome,precos:[x.existente.preco_compra,x.preco].filter(v=>v!=null).map(Number),fcs:[x.existente.fc,x.fc].filter(v=>v!=null).map(Number),unidades:[x.existente.unidade,x.unidade].filter(Boolean),ocorrencias:[{ficha:"MISEVO atual",preco:Number(x.existente.preco_compra),fc:Number(x.existente.fc),unidade:x.existente.unidade},...((x.origens||["Planilha"]).map(ficha=>({ficha,preco:x.preco,fc:x.fc,unidade:x.unidade})))]}));
+ return {fichas,insumos:insumos.map(x=>norm(x.nome)),insumosDetalhes,preparacoes:[],conflitos,meta:{abas:wb.SheetNames,parser:"server-side-v2-fichas"}};
 }
 export function installImportacao(app,pool){
  app.post("/api/importacoes/analisar-base64",async(req,res,next)=>{try{
