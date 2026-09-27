@@ -45,7 +45,7 @@
     <form id="formPrep"><div class="card form-grid">
     <label>Nome da preparação<input id="prepNome" required value="${esc(p?.nome||"")}"></label>
     <label>Categoria<select id="prepCategoria">${["Bases e Fundos","Molhos","Carnes e Aves","Pescados e Frutos do Mar","Massas","Arroz e Cereais","Guarnições","Vegetais e Saladas","Padaria","Confeitaria e Sobremesas","Marinadas e Condimentos","Pré-preparos"].map(x=>`<option ${p?.categoria===x?"selected":""}>${x}</option>`).join("")}</select></label>
-    <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required value="${p?.rendimento??1}"></label>
+    <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required readonly value="${p?.rendimento??1}"><small>Calculado pela soma dos componentes compatíveis</small></label>
     <label>Unidade do rendimento<select id="prepUnidade">${["KG","L","UN","PORÇÃO"].map(x=>`<option ${p?.unidade_rendimento===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
     <div class="card prep-ficha-rendimento"><div class="section-head"><div><small>RENDIMENTO DA RECEITA</small><h3>Porcionamento</h3></div></div><div class="prep-ficha-grid"><label>Quantidade de Porções<input id="prepQtdPorcoesInput" type="number" min=".0001" step=".01" placeholder="Ex.: 40"></label><label>Peso da Porção <span id="prepPorcaoUnidade">KG</span><input id="prepPesoPorcao" type="number" min=".0001" step=".0001" placeholder="Ex.: 0,200"></label><div><small>Custo por porção</small><strong id="prepCustoPorcao">—</strong></div></div><p class="prep-rendimento-aviso" id="prepPorcaoAjuda">Informe a quantidade de porções ou o peso da porção. O outro valor será calculado automaticamente.</p></div>
     <div class="card"><div class="section-head"><div><small>COMPOSIÇÃO</small><h3>Ingredientes e preparações</h3></div><button type="button" class="primary" id="addPrepItem">+ Componente</button></div><div id="prepItens"></div></div>
@@ -54,7 +54,7 @@
     <div class="actions"><button type="button" class="secondary" id="cancelPrep">Cancelar</button>${p?'<button type="button" class="danger" id="delPrep">Excluir</button>':""}<button class="primary" type="submit">Salvar preparação</button></div></form>`;
     document.querySelector("#voltarPrep").onclick=window.telaPreparacoes;document.querySelector("#cancelPrep").onclick=window.telaPreparacoes;
     document.querySelector("#addPrepItem").onclick=()=>{ITENS.push({tipo:"insumo",id:"",quantidade:0,observacoes:""});renderItens()};
-    document.querySelector("#prepRendimento").oninput=()=>sincronizarPorcao("rendimento");document.querySelector("#prepUnidade").onchange=()=>sincronizarPorcao("unidade");document.querySelector("#prepPesoPorcao").oninput=()=>sincronizarPorcao("peso");document.querySelector("#prepQtdPorcoesInput").oninput=()=>sincronizarPorcao("qtd");document.querySelector("#formPrep").onsubmit=salvar;if(p)document.querySelector("#delPrep").onclick=excluir;renderItens();
+    document.querySelector("#prepUnidade").onchange=()=>atualizarRendimentoAutomatico();document.querySelector("#prepPesoPorcao").oninput=()=>sincronizarPorcao("peso");document.querySelector("#prepQtdPorcoesInput").oninput=()=>sincronizarPorcao("qtd");document.querySelector("#formPrep").onsubmit=salvar;if(p)document.querySelector("#delPrep").onclick=excluir;renderItens();atualizarRendimentoAutomatico();
   }
 
   function fonte(it){
@@ -80,14 +80,15 @@
       </article>`;
     }).join("")}</div>`;calcular();
   }
-  window.prepTipo=(k,v)=>{ITENS[k].tipo=v;ITENS[k].id="";renderItens()};
-  window.prepFonte=(k,v)=>{ITENS[k].id=v?Number(v):"";renderItens()};
+  window.prepTipo=(k,v)=>{ITENS[k].tipo=v;ITENS[k].id="";renderItens();atualizarRendimentoAutomatico()};
+  window.prepFonte=(k,v)=>{ITENS[k].id=v?Number(v):"";renderItens();atualizarRendimentoAutomatico()};
   window.prepQtd=(k,v)=>{
     const bruto=String(v??"").trim().replace(/\s/g,"");
     const normalizado=bruto.includes(",") ? bruto.replace(/\./g,"").replace(",",".") : bruto;
     const valor=parseFloat(normalizado);
     ITENS[k].quantidade=Number.isFinite(valor)?valor:0;
     atualizarTotaisLinha(k);
+    atualizarRendimentoAutomatico();
     calcular();
   };
   function atualizarTotaisLinha(k){
@@ -97,7 +98,15 @@
     if(custo)custo.textContent=moeda(num(ITENS[k].quantidade)*preco(ITENS[k]));
   }
   window.prepObsItem=(k,v)=>ITENS[k].observacoes=v;
-  window.prepRemover=k=>{ITENS.splice(k,1);renderItens()};
+  window.prepRemover=k=>{ITENS.splice(k,1);renderItens();atualizarRendimentoAutomatico()};
+
+  function atualizarRendimentoAutomatico(){
+    const el=document.querySelector("#prepRendimento"),u=document.querySelector("#prepUnidade")?.value||"";
+    if(!el)return;
+    const validos=ITENS.filter(it=>it.id&&it.quantidade>0),compativeis=validos.filter(it=>String(unidade(it)).toUpperCase()===u);
+    if(validos.length&&compativeis.length===validos.length)el.value=String(compativeis.reduce((s,it)=>s+num(it.quantidade),0));
+    sincronizarPorcao("rendimento");
+  }
 
   function sincronizarPorcao(origem){
     const r=num(document.querySelector("#prepRendimento")?.value),u=document.querySelector("#prepUnidade")?.value||"",pesoEl=document.querySelector("#prepPesoPorcao"),qtdEl=document.querySelector("#prepQtdPorcoesInput");
