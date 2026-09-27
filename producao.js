@@ -9,10 +9,12 @@ async function saldoInsumo(db,id,empresaId,unidadeId){
 
 export async function initProducao(pool){
   await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida'));`);
+  await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT;`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ordens_producao(
       id BIGSERIAL PRIMARY KEY,
-      preparacao_id BIGINT NOT NULL REFERENCES preparacoes(id) ON DELETE RESTRICT,
+      preparacao_id BIGINT REFERENCES preparacoes(id) ON DELETE RESTRICT,
+      ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT,
       quantidade_planejada NUMERIC(14,4) NOT NULL,
       rendimento_real NUMERIC(14,4),
       unidade TEXT NOT NULL DEFAULT 'KG',
@@ -43,8 +45,8 @@ export async function initProducao(pool){
 
 export function installProducao(app,pool){
   app.get("/api/producao/ordens",async(req,res,next)=>{try{
-    const {rows}=await pool.query(`SELECT o.*,p.nome preparacao_nome
-      FROM ordens_producao o JOIN preparacoes p ON p.id=o.preparacao_id
+    const {rows}=await pool.query(`SELECT o.*,p.nome preparacao_nome,f.nome_prato ficha_nome,COALESCE(p.nome,f.nome_prato) item_nome
+      FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id LEFT JOIN fichas f ON f.id=o.ficha_id
       WHERE o.empresa_id=$1 AND o.unidade_id=$2 ORDER BY o.created_at DESC LIMIT 200`,
       [req.user.empresa_id,req.user.unidade_id]);res.json(rows);
   }catch(e){next(e)}});
@@ -144,6 +146,17 @@ export function installProducao(app,pool){
       await db.query("BEGIN");
       const ids=[];
       for(const x of itens){
+        if(x.tipo==="ficha"){
+          const id=Number(x.ficha_id),q=n(x.porcoes);if(!id||q<=0)continue;
+          const fr=await db.query(`SELECT id,nome_prato,porcoes FROM fichas WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
+          if(!fr.rows[0])throw new Error("Ficha Técnica não encontrada.");
+          const fator=q/(n(fr.rows[0].porcoes)||1);
+          const ing=await db.query(`SELECT g.insumo_id,g.quantidade,i.preco_real FROM ingredientes g JOIN insumos i ON i.id=g.insumo_id WHERE g.ficha_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[id,req.user.empresa_id,req.user.unidade_id]);
+          let custo=0;
+          const op=await db.query(`INSERT INTO ordens_producao(ficha_id,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id) VALUES($1,$2,'PORÇÃO',0,$3,$4,$5,$6) RETURNING id`,[id,q,"Planejamento de produção",req.user.id,req.user.empresa_id,req.user.unidade_id]);
+          for(const z of ing.rows){const qt=n(z.quantidade)*fator,cu=n(z.preco_real);custo+=qt*cu;await db.query(`INSERT INTO producao_consumos(ordem_id,insumo_id,quantidade_teorica,custo_unitario) VALUES($1,$2,$3,$4)`,[op.rows[0].id,z.insumo_id,qt,cu])}
+          await db.query("UPDATE ordens_producao SET custo_teorico=$1 WHERE id=$2",[custo,op.rows[0].id]);ids.push(Number(op.rows[0].id));continue;
+        }
         if(x.tipo!=="preparacao")continue;
         const id=Number(x.preparacao_id),q=n(x.quantidade);
         if(!id||q<=0)continue;
