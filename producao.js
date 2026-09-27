@@ -91,6 +91,42 @@ export function installProducao(app,pool){
     }catch(e){await c.query("ROLLBACK");next(e)}finally{c.release()}
   });
 
+
+  app.post("/api/producao/planejar-fichas",async(req,res,next)=>{
+    try{
+      const solicitados=Array.isArray(req.body?.fichas)?req.body.fichas:[];
+      if(!solicitados.length)return res.status(400).json({error:"Adicione pelo menos uma ficha técnica."});
+      const pratos=[],preparacoes=new Map(),insumos=new Map();
+      const addInsumo=(x,q)=>{
+        const id=Number(x.insumo_id||x.id),atual=insumos.get(id)||{insumo_id:id,ingrediente:x.ingrediente,unidade:x.unidade,quantidade:0};
+        atual.quantidade+=q;insumos.set(id,atual);
+      };
+      const addPrep=async(id,q,caminho=new Set())=>{
+        id=Number(id);if(caminho.has(id))throw new Error("Foi detectado um ciclo entre preparações.");
+        const p=await pool.query(`SELECT id,nome,rendimento,unidade_rendimento FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
+        if(!p.rows[0])throw new Error(`Preparação ${id} não encontrada.`);
+        const prep=p.rows[0],r=n(prep.rendimento);if(r<=0)throw new Error(`A preparação "${prep.nome}" não possui rendimento válido.`);
+        const a=preparacoes.get(id)||{preparacao_id:id,nome:prep.nome,unidade:prep.unidade_rendimento,quantidade:0};a.quantidade+=q;preparacoes.set(id,a);
+        const fator=q/r,prox=new Set(caminho);prox.add(id);
+        const ing=await pool.query(`SELECT pi.insumo_id,pi.quantidade,i.ingrediente,i.unidade FROM preparacao_ingredientes pi JOIN insumos i ON i.id=pi.insumo_id WHERE pi.preparacao_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[id,req.user.empresa_id,req.user.unidade_id]);
+        for(const x of ing.rows)addInsumo(x,n(x.quantidade)*fator);
+        const comps=await pool.query(`SELECT pc.componente_id,pc.quantidade FROM preparacao_componentes pc JOIN preparacoes p ON p.id=pc.componente_id WHERE pc.preparacao_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
+        for(const x of comps.rows)await addPrep(x.componente_id,n(x.quantidade)*fator,prox);
+      };
+      for(const s of solicitados){
+        const fichaId=Number(s.ficha_id),qtd=n(s.porcoes);if(!fichaId||qtd<=0)continue;
+        const fr=await pool.query(`SELECT id,nome_prato,porcoes FROM fichas WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,[fichaId,req.user.empresa_id,req.user.unidade_id]);
+        const ficha=fr.rows[0];if(!ficha)throw new Error(`Ficha ${fichaId} não encontrada.`);
+        const base=n(ficha.porcoes)||1,fator=qtd/base;pratos.push({ficha_id:fichaId,nome:ficha.nome_prato,porcoes:qtd,fator});
+        const ing=await pool.query(`SELECT g.insumo_id,g.quantidade,i.ingrediente,i.unidade FROM ingredientes g JOIN insumos i ON i.id=g.insumo_id WHERE g.ficha_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[fichaId,req.user.empresa_id,req.user.unidade_id]);
+        for(const x of ing.rows)addInsumo(x,n(x.quantidade)*fator);
+        const ps=await pool.query(`SELECT fp.preparacao_id,fp.quantidade FROM ficha_preparacoes fp JOIN preparacoes p ON p.id=fp.preparacao_id WHERE fp.ficha_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE`,[fichaId,req.user.empresa_id,req.user.unidade_id]);
+        for(const x of ps.rows)await addPrep(x.preparacao_id,n(x.quantidade)*fator);
+      }
+      res.json({pratos,preparacoes:[...preparacoes.values()].sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR")),insumos:[...insumos.values()].sort((a,b)=>a.ingrediente.localeCompare(b.ingrediente,"pt-BR"))});
+    }catch(e){next(e)}
+  });
+
   app.post("/api/producao/ordens/:id/finalizar",async(req,res,next)=>{
     const c=await pool.connect();
     try{
