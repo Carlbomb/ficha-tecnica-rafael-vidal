@@ -11,18 +11,18 @@ function analisar(wb){
  wb.SheetNames.forEach(nomeAba=>{
    const ws=wb.Sheets[nomeAba], rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:false});
    let header=-1;
-   for(let i=0;i<Math.min(rows.length,25);i++){const r=rows[i].map(norm);if(r.some(x=>/INGREDIENTE|INSUMO/.test(x))&&r.some(x=>/QUANT|PESO/.test(x))){header=i;break}}
+   for(let i=0;i<Math.min(rows.length,25);i++){const r=rows[i].map(norm);const temProduto=r.some(x=>/^PRODUTO$|INGREDIENTE|INSUMO/.test(x));const temQtd=r.some(x=>/QUANTIDADE|QUANT|PESO/.test(x));const temUnidade=r.some(x=>/^UNIDADE$|^UN$|^UND$/.test(x));if(temProduto&&temQtd&&temUnidade){header=i;break}}
    const componentes=[];
    if(header>=0){
      const h=rows[header].map(norm);
      const cols=(re)=>h.map((x,i)=>re.test(x)?i:-1).filter(i=>i>=0);
      const textoScore=col=>rows.slice(header+1,Math.min(rows.length,header+35)).reduce((s,r)=>{const v=String(r[col]??"").trim();return s+(v&&/[A-Za-zÀ-ÿ]/.test(v)&&numero(v)===null?1:0)},0);
-     const ingCols=cols(/INGREDIENTE|INSUMO/);
+     const ingCols=cols(/^PRODUTO$|INGREDIENTE|INSUMO/);
      const ci=ingCols.sort((a,b)=>textoScore(b)-textoScore(a))[0]??-1;
-     const qtdCols=cols(/QUANT|PESO LIQ|LIQUID/);
+     const qtdCols=cols(/QUANTIDADE LIQUIDA|QUANT|PESO LIQ|LIQUID/);
      const cq=qtdCols.find(i=>i!==ci)??-1;
      const cu=cols(/UNIDADE|^UN$|^UND$/).find(i=>i!==ci)??-1;
-     const cp=cols(/PRECO|CUSTO UNIT/).find(i=>i!==ci)??-1;
+     const cp=cols(/PRECO|CUSTO UNITARIO|CUSTO UNIT/).find(i=>i!==ci)??-1;
      const cf=cols(/^FC$|FATOR/).find(i=>i!==ci)??-1;
      for(let i=header+1;i<rows.length;i++){
        const ing=ci>=0?String(rows[i][ci]??"").trim():"";
