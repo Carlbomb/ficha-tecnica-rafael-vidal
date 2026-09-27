@@ -141,3 +141,32 @@ button[aria-label]:focus-visible{
  .preparacao-main>span,.preparacao-cost small,.preparacao-cost span{font-size:.67rem}
  .preparacao-cost>b{font-size:.84rem}
 }
+
+
+/* Composição de Preparações — experimental mobile */
+.prep-componentes{display:grid;gap:10px}
+.prep-componente-card{border:1px solid rgba(127,127,127,.2);border-radius:13px;padding:11px;background:var(--card,#fff)}
+.prep-comp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.prep-tipo{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:4px 7px;border-radius:999px;background:rgba(127,127,127,.12)}
+.prep-tipo.preparacao{background:rgba(80,110,210,.12)}
+.prep-remove{border:0;background:transparent;font-size:1.35rem;line-height:1;min-width:30px;min-height:30px;cursor:pointer}
+.prep-comp-selects{display:grid;grid-template-columns:150px minmax(220px,1fr);gap:9px}
+.prep-comp-info{display:grid;grid-template-columns:minmax(150px,1fr) 130px 130px;gap:10px;align-items:end;margin-top:9px}
+.prep-comp-info>div{display:flex;flex-direction:column;gap:3px}
+.prep-comp-info small,.prep-comp-obs{font-size:.7rem;color:var(--muted,#667085)}
+.prep-qtd-wrap{display:grid;grid-template-columns:1fr auto;align-items:center;gap:7px}
+.prep-qtd-wrap span{font-size:.76rem;font-weight:700}
+.prep-comp-total{text-align:right}
+.prep-comp-obs{display:block;margin-top:9px}
+.prep-comp-obs input{margin-top:4px}
+@media(max-width:700px){
+ .prep-componente-card{padding:9px}
+ .prep-comp-selects{grid-template-columns:105px minmax(0,1fr);gap:7px}
+ .prep-comp-selects label{font-size:.68rem}
+ .prep-comp-info{grid-template-columns:minmax(0,1.2fr) .9fr .9fr;gap:7px}
+ .prep-comp-info b{font-size:.82rem}
+ .prep-comp-info small{font-size:.63rem}
+ .prep-comp-total{text-align:right}
+ .prep-qtd-wrap{gap:4px}
+ .prep-qtd{min-width:0}
+}
