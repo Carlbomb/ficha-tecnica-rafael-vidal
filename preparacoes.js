@@ -11,6 +11,8 @@ export async function initPreparacoes(pool) {
       categoria TEXT NOT NULL DEFAULT 'Outros',
       rendimento NUMERIC(14,4) NOT NULL DEFAULT 1,
       unidade_rendimento TEXT NOT NULL DEFAULT 'KG',
+      quantidade_porcoes NUMERIC(14,3),
+      peso_porcao NUMERIC(14,3),
       modo_preparo TEXT DEFAULT '',
       observacoes TEXT DEFAULT '',
       ativo BOOLEAN NOT NULL DEFAULT TRUE,
@@ -19,6 +21,9 @@ export async function initPreparacoes(pool) {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS quantidade_porcoes NUMERIC(14,3);
+    ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS peso_porcao NUMERIC(14,3);
 
     CREATE TABLE IF NOT EXISTS preparacao_ingredientes (
       id BIGSERIAL PRIMARY KEY,
@@ -107,7 +112,7 @@ export async function calcularCustoPreparacao(db, id, empresaId, unidadeId, visi
 
 export async function listarPreparacoesComCusto(db, empresaId, unidadeId) {
   const {rows}=await db.query(
-    `SELECT id,nome,categoria,rendimento,unidade_rendimento,modo_preparo,observacoes,ativo
+    `SELECT id,nome,categoria,rendimento,unidade_rendimento,quantidade_porcoes,peso_porcao,modo_preparo,observacoes,ativo
        FROM preparacoes
       WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE
       ORDER BY nome`,
@@ -224,9 +229,9 @@ export function installPreparacoes(app,pool) {
       let id;
       if(editando){
         const r=await c.query(
-          `UPDATE preparacoes SET nome=$1,categoria=$2,rendimento=$3,unidade_rendimento=$4,modo_preparo=$5,observacoes=$6,updated_at=NOW()
-            WHERE id=$7 AND empresa_id=$8 AND unidade_id=$9 RETURNING id`,
-          [nome,b.categoria||"Outros",n(b.rendimento),b.unidade_rendimento||"KG",b.modo_preparo||"",b.observacoes||"",req.params.id,req.user.empresa_id,req.user.unidade_id]
+          `UPDATE preparacoes SET nome=$1,categoria=$2,rendimento=$3,unidade_rendimento=$4,quantidade_porcoes=$5,peso_porcao=$6,modo_preparo=$7,observacoes=$8,updated_at=NOW()
+            WHERE id=$9 AND empresa_id=$10 AND unidade_id=$11 RETURNING id`,
+          [nome,b.categoria||"Outros",n(b.rendimento),b.unidade_rendimento||"KG",n(b.quantidade_porcoes)||null,n(b.peso_porcao)||null,b.modo_preparo||"",b.observacoes||"",req.params.id,req.user.empresa_id,req.user.unidade_id]
         );
         if(!r.rows[0]){await c.query("ROLLBACK");return res.status(404).json({error:"Preparação não encontrada."})}
         id=r.rows[0].id;
@@ -234,9 +239,9 @@ export function installPreparacoes(app,pool) {
         await c.query("DELETE FROM preparacao_componentes WHERE preparacao_id=$1",[id]);
       }else{
         const r=await c.query(
-          `INSERT INTO preparacoes(nome,categoria,rendimento,unidade_rendimento,modo_preparo,observacoes,empresa_id,unidade_id)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-          [nome,b.categoria||"Outros",n(b.rendimento),b.unidade_rendimento||"KG",b.modo_preparo||"",b.observacoes||"",req.user.empresa_id,req.user.unidade_id]
+          `INSERT INTO preparacoes(nome,categoria,rendimento,unidade_rendimento,quantidade_porcoes,peso_porcao,modo_preparo,observacoes,empresa_id,unidade_id)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+          [nome,b.categoria||"Outros",n(b.rendimento),b.unidade_rendimento||"KG",n(b.quantidade_porcoes)||null,n(b.peso_porcao)||null,b.modo_preparo||"",b.observacoes||"",req.user.empresa_id,req.user.unidade_id]
         );
         id=r.rows[0].id;
       }
