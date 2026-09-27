@@ -133,8 +133,11 @@ button[aria-label]:focus-visible{
  .preparacoes-card{padding:10px!important}
  .preparacoes-toolbar{grid-template-columns:1fr 1fr;gap:7px;position:sticky;top:0;z-index:4;background:var(--card,#fff);padding-bottom:8px}
  .preparacoes-toolbar input{grid-column:1/-1}
- .preparacao-row{grid-template-columns:minmax(0,1fr) auto;padding:10px;gap:8px}
+ .preparacao-row{grid-template-columns:minmax(0,1fr) auto auto;padding:9px 10px;gap:8px}
  .preparacao-main{grid-column:1/2}
- .preparacao-cost{grid-column:2/3}
- .preparacao-open{grid-column:1/-1;width:100%;min-height:38px}
+ .preparacao-cost{grid-column:2/3;min-width:92px}
+ .preparacao-open{grid-column:3/4;width:auto;min-width:68px;min-height:34px;padding:7px 10px;font-size:.8rem}
+ .preparacao-main>b{font-size:.9rem}
+ .preparacao-main>span,.preparacao-cost small,.preparacao-cost span{font-size:.67rem}
+ .preparacao-cost>b{font-size:.84rem}
 }
