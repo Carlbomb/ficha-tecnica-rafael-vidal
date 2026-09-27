@@ -215,3 +215,17 @@ button[aria-label]:focus-visible{
  .prep-porcionamento{grid-template-columns:1.25fr .8fr .95fr;gap:6px}
  .prep-porcionamento input{min-height:38px}
 }
+
+
+/* Preparações — porcionamento alinhado às fichas técnicas */
+.prep-ficha-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end}
+.prep-ficha-grid>div{display:flex;flex-direction:column;gap:4px;padding-bottom:10px}
+.prep-ficha-grid small{font-size:.7rem;color:var(--muted,#667085)}
+.prep-ficha-grid strong{font-size:1rem}
+.prep-ficha-grid label span{font-size:.68rem;color:var(--muted,#667085)}
+@media(max-width:700px){
+ .prep-ficha-grid{grid-template-columns:1fr 1fr;gap:7px}
+ .prep-ficha-grid>div{grid-column:1/-1;padding:2px 0 0;display:grid;grid-template-columns:1fr auto;align-items:center}
+ .prep-ficha-grid label{font-size:.72rem}
+ .prep-ficha-grid input{min-height:42px}
+}
