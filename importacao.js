@@ -31,6 +31,15 @@ function analisar(wb,bancoAtual=[]){
  return {fichas,insumos:insumos.map(x=>norm(x.nome)),insumosDetalhes,preparacoes:[],conflitos,meta:{abas:wb.SheetNames,parser:"server-side-v1"}};
 }
 export function installImportacao(app,pool){
+ app.post("/api/importacoes/analisar-base64",async(req,res,next)=>{try{
+  const dados=String(req.body?.dados||"");
+  if(!dados)return res.status(400).json({error:"Arquivo não recebido."});
+  const buffer=Buffer.from(dados,"base64");
+  if(!buffer.length||buffer.length>12*1024*1024)return res.status(400).json({error:"Arquivo inválido ou acima do limite."});
+  const wb=XLSX.read(buffer,{type:"buffer",cellFormula:true,cellDates:true});
+  const {rows}=await pool.query("SELECT id, ingrediente, unidade, fc, preco_compra FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE",[req.user.empresa_id,req.user.unidade_id]);
+  res.json(analisar(wb,rows));
+ }catch(e){next(e)}});
  app.post("/api/importacoes/analisar",upload.single("arquivo"),async(req,res,next)=>{try{
   if(!req.file)return res.status(400).json({error:"Selecione uma planilha Excel."});
   const wb=XLSX.read(req.file.buffer,{type:"buffer",cellFormula:true,cellDates:true});
