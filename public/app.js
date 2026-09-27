@@ -116,7 +116,7 @@ function atualizarPainel() {
     : 0;
 
   if (avg) {
-    avg.textContent = `${numero(media, 1)}%`;
+    avg.textContent = `${numero(media, 3)}%`;
   }
 }
 
@@ -228,8 +228,8 @@ async function telaPainel() {
               ${acimaMeta.slice(0,5).map(f => `
                 <tr>
                   <td><b>${esc(f.nome_prato)}</b></td>
-                  <td>${numero(f.cmv_percentual,1)}%</td>
-                  <td>${numero(f.meta_cmv || 30,1)}%</td>
+                  <td>${numero(f.cmv_percentual,3)}%</td>
+                  <td>${numero(f.meta_cmv || 30,3)}%</td>
                   <td><button type="button" onclick="editarFicha(${Number(f.id)})">Abrir</button></td>
                 </tr>`).join("")}
             </tbody>
@@ -262,7 +262,7 @@ async function telaPainel() {
                   <td><b>${esc(f.nome_prato)}</b></td>
                   <td>${esc(f.categoria || "—")}</td>
                   <td>${moeda(f.custo_por_porcao)}</td>
-                  <td>${numero(f.cmv_percentual,1)}%</td>
+                  <td>${numero(f.cmv_percentual,3)}%</td>
                   <td><button type="button" onclick="editarFicha(${Number(f.id)})">Abrir</button></td>
                 </tr>`).join("")}
             </tbody>
@@ -693,12 +693,12 @@ function listarFichas() {
               <td><b>${esc(ficha.nome_prato)}</b></td>
               <td>${esc(ficha.categoria || "—")}</td>
               <td>${numero(ficha.rendimento_kg, 3)}</td>
-              <td>${numero(ficha.porcoes, 0)}</td>
+              <td>${numero(ficha.porcoes, 3)}</td>
               <td>${moeda(ficha.custo_total)}</td>
               <td>${moeda(ficha.custo_por_porcao)}</td>
               <td>${moeda(ficha.preco_venda)}</td>
-              <td><b>${numero(ficha.cmv_percentual, 1)}%</b></td>
-              <td>${numero(ficha.meta_cmv ?? 30, 1)}%</td>
+              <td><b>${numero(ficha.cmv_percentual, 3)}%</b></td>
+              <td>${numero(ficha.meta_cmv ?? 30, 3)}%</td>
               <td>
                 <button type="button" onclick="editarFicha(${ficha.id})">
                   Abrir
@@ -1240,8 +1240,8 @@ function calcularFicha() {
   if($("#resumoTotal"))$("#resumoTotal").textContent=moeda(custoTotal);
   if($("#resumoPorcao"))$("#resumoPorcao").textContent=moeda(custoPorcao);
   if($("#resumoVenda"))$("#resumoVenda").textContent=moeda(precoVenda);
-  if($("#resumoCMV"))$("#resumoCMV").textContent=`${numero(cmv,1)}%`;
-  if($("#resumoMetaPercentual"))$("#resumoMetaPercentual").textContent=`${numero(metaCMV,1)}%`;
+  if($("#resumoCMV"))$("#resumoCMV").textContent=`${numero(cmv,3)}%`;
+  if($("#resumoMetaPercentual"))$("#resumoMetaPercentual").textContent=`${numero(metaCMV,3)}%`;
   if($("#resumoMeta"))$("#resumoMeta").textContent=moeda(precoSugerido);
 
   return {rendimento,porcoes,pesoPorcao,custoTotal,custoPorcao,precoVenda,metaCMV,precoSugerido,cmv};
@@ -1355,7 +1355,7 @@ async function excluirFicha() {
 
 function telaCMV() {
   C.innerHTML=`<div class="section-head"><div><small>CONTROLE DE CMV</small><h2>Análise das Fichas</h2><p>Compare custo, preço de venda, CMV e margem bruta de cada ficha.</p></div></div>
-  <div class="card cmv-list">${!FICHAS.length?'<div class="empty">Nenhuma ficha técnica cadastrada.</div>':FICHAS.map(f=>{const meta=num(f.meta_cmv)||30,custo=num(f.custo_por_porcao),pv=num(f.preco_venda),cmv=pv>0?custo/pv*100:0,margem=pv>0?pv-custo:0,mp=pv>0?margem/pv*100:0,sug=meta>0?custo/(meta/100):0;return `<article class="cmv-card"><div class="section-head"><div><small>FICHA TÉCNICA</small><h3>${esc(f.nome_prato)}</h3></div><button class="secondary cmv-open" data-id="${f.id}">Abrir ficha</button></div><div class="stats"><article><span>Custo/Porção</span><b>${moeda(custo)}</b></article><article><span>Preço de Venda</span><b>${moeda(pv)}</b></article><article><span>CMV</span><b>${pv>0?numero(cmv,1)+"%":"—"}</b></article><article><span>Margem Bruta</span><b>${pv>0?moeda(margem):"—"}</b><small>${pv>0?numero(mp,1)+"%":""}</small></article></div><div class="cmv-meta"><span>Meta de CMV: <b>${numero(meta,1)}%</b></span><span>Preço sugerido: <b>${moeda(sug)}</b></span></div></article>`}).join("")}</div>`;
+  <div class="card cmv-list">${!FICHAS.length?'<div class="empty">Nenhuma ficha técnica cadastrada.</div>':FICHAS.map(f=>{const meta=num(f.meta_cmv)||30,custo=num(f.custo_por_porcao),pv=num(f.preco_venda),cmv=pv>0?custo/pv*100:0,margem=pv>0?pv-custo:0,mp=pv>0?margem/pv*100:0,sug=meta>0?custo/(meta/100):0;return `<article class="cmv-card"><div class="section-head"><div><small>FICHA TÉCNICA</small><h3>${esc(f.nome_prato)}</h3></div><button class="secondary cmv-open" data-id="${f.id}">Abrir ficha</button></div><div class="stats"><article><span>Custo/Porção</span><b>${moeda(custo)}</b></article><article><span>Preço de Venda</span><b>${moeda(pv)}</b></article><article><span>CMV</span><b>${pv>0?numero(cmv,3)+"%":"—"}</b></article><article><span>Margem Bruta</span><b>${pv>0?moeda(margem):"—"}</b><small>${pv>0?numero(mp,3)+"%":""}</small></article></div><div class="cmv-meta"><span>Meta de CMV: <b>${numero(meta,3)}%</b></span><span>Preço sugerido: <b>${moeda(sug)}</b></span></div></article>`}).join("")}</div>`;
   document.querySelectorAll(".cmv-open").forEach(bt=>bt.onclick=()=>editarFicha(Number(bt.dataset.id)));
 }
 
