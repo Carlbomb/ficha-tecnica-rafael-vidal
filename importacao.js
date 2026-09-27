@@ -90,15 +90,17 @@ export function installImportacao(app,pool){
   res.json(analisar(wb,rows));
  }catch(e){next(e)}});
  app.post("/api/importacoes/executar",async(req,res,next)=>{const c=await pool.connect();try{
-  const plano=req.body||{}, fichas=Array.isArray(plano.fichas)?plano.fichas:[], decisoes=plano.decisoes||{}, detalhes=Array.isArray(plano.insumosDetalhes)?plano.insumosDetalhes:[];
+  const plano=req.body||{}, fichas=Array.isArray(plano.fichas)?plano.fichas:[], decisoes=plano.decisoes||{}, detalhes=Array.isArray(plano.insumosDetalhes)?plano.insumosDetalhes:[], conflitos=Array.isArray(plano.conflitos)?plano.conflitos:[];
+  const detalhesEfetivos=detalhes.map(x=>({...x}));
+  conflitos.forEach((conf,i)=>{const escolha=decisoes.conflitos?.[i];if(escolha==null)return;const oc=conf.ocorrencias?.[Number(escolha)];if(!oc)return;const d=detalhesEfetivos.find(x=>norm(x.nome)===norm(conf.nome));if(d){d.unidade=oc.unidade||d.unidade;d.fc=oc.fc??d.fc;d.preco=oc.preco??d.preco}});
   if(!plano.confirmado)return res.status(400).json({error:"Confirme o plano antes de importar."});
   if(!fichas.length)return res.status(400).json({error:"Plano sem fichas."});
   const mapa=new Map();
   await c.query("BEGIN");
   const atuais=await c.query("SELECT id,ingrediente FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE",[req.user.empresa_id,req.user.unidade_id]);
   atuais.rows.forEach(x=>mapa.set(norm(x.ingrediente),x.id));
-  for(let i=0;i<detalhes.length;i++){
-   const x=detalhes[i], acao=decisoes.insumos?.[i]; if(!acao)throw new Error("Há insumo sem classificação.");
+  for(let i=0;i<detalhesEfetivos.length;i++){
+   const x=detalhesEfetivos[i], acao=decisoes.insumos?.[i]; if(!acao)throw new Error("Há insumo sem classificação.");
    const k=norm(x.nome), existente=mapa.get(k);
    if(acao==="existente"){if(!existente)throw new Error("Insumo existente não localizado: "+x.nome);continue}
    if(acao==="atualizar"){if(!existente)throw new Error("Insumo para atualização não localizado: "+x.nome);await c.query("UPDATE insumos SET unidade=COALESCE(NULLIF($1,''),unidade),fc=COALESCE($2,fc),preco_compra=COALESCE($3,preco_compra),preco_real=COALESCE($3,preco_compra)*COALESCE($2,fc) WHERE id=$4",[x.unidade||"",x.fc,x.preco,existente]);continue}
@@ -129,7 +131,7 @@ export function installImportacao(app,pool){
    fichasCriadas++;
   }
   await c.query("COMMIT"); res.status(201).json({ok:true,fichasCriadas,preparacoes:prepIds.size,insumos:mapa.size,message:"Importação concluída com sucesso."});
- }catch(e){try{await c.query("ROLLBACK")}catch{};next(e)}finally{c.release()}});
+ }catch(e){try{await c.query("ROLLBACK")}catch{};console.error("[MISEVO][importacao][executar]",{message:e.message,code:e.code,detail:e.detail,constraint:e.constraint,table:e.table,column:e.column});res.status(422).json({error:e.message||"Falha na importação.",codigo:e.code||"IMPORTACAO_FALHOU"})}finally{c.release()}});
 
  app.post("/api/importacoes/analisar",upload.single("arquivo"),async(req,res,next)=>{try{
   if(!req.file)return res.status(400).json({error:"Selecione uma planilha Excel."});
