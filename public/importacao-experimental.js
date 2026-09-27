@@ -63,8 +63,8 @@ function analisar(wb){
  return {fichas,insumos:[...insumos].filter(Boolean),insumosDetalhes,preparacoes,conflitos};
 }
 function telaInicial(){
- C().innerHTML=`<div class="section-head"><div><small>EXPERIMENTAL</small><h2>Assistente de Importação</h2><p>Leia uma planilha e revise como os dados seriam interpretados antes de qualquer importação.</p></div></div>
- <div class="card import-exp"><div class="import-badge">MODO SEGURO · NÃO GRAVA DADOS</div><h3>1. Selecionar planilha</h3><p>Compatível neste teste com arquivos Excel .xlsx e .xls.</p><label class="import-drop"><input id="importArquivo" type="file" accept=".xlsx,.xls" hidden><b>Selecionar planilha</b><span>Nenhuma informação será enviada ao banco nesta etapa.</span></label><div id="importStatus"></div></div>`;
+ C().innerHTML=`<div class="section-head"><div><small>IMPORTAÇÃO DE PLANILHA</small><h2>Assistente de Importação</h2><p>Analise, revise e valide os dados antes de confirmar a gravação no MISEVO.</p></div></div>
+ <div class="card import-exp"><div class="import-badge">IMPORTAÇÃO ASSISTIDA</div><h3>1. Selecionar planilha</h3><p>Compatível com arquivos Excel .xlsx e .xls.</p><label class="import-drop"><input id="importArquivo" type="file" accept=".xlsx,.xls" hidden><b>Selecionar planilha</b><span>O arquivo será analisado primeiro. Nada será gravado até você revisar, validar e confirmar a importação.</span></label><div id="importStatus"></div></div>`;
  document.querySelector("#importArquivo").onchange=ler;
 }
 async function ler(e){
