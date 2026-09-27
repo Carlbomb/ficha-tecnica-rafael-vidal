@@ -71,10 +71,22 @@ async function ler(e){
  const file=e.target.files?.[0];if(!file)return; arquivoAtual=file.name; decisoes.conflitos={}; decisoes.insumos={};
  const st=document.querySelector("#importStatus");st.innerHTML="<p>Enviando e analisando a planilha no servidor…</p>";
  try{
-   const form=new FormData();form.append("arquivo",file);
-   const resp=await fetch("/api/importacoes/analisar",{method:"POST",body:form,credentials:"same-origin"});
-   const data=await resp.json().catch(()=>({}));
-   if(!resp.ok)throw new Error(data.error||"Falha ao analisar a planilha.");
+   const form=new FormData();form.append("arquivo",file,file.name);
+   const data=await new Promise((resolve,reject)=>{
+     const xhr=new XMLHttpRequest();
+     xhr.open("POST","/api/importacoes/analisar",true);
+     xhr.withCredentials=true;
+     xhr.timeout=120000;
+     xhr.onload=()=>{
+       let body={};try{body=JSON.parse(xhr.responseText||"{}")}catch{}
+       if(xhr.status>=200&&xhr.status<300)return resolve(body);
+       reject(new Error(body.error||("Servidor respondeu "+xhr.status+".")));
+     };
+     xhr.onerror=()=>reject(new Error("Falha de conexão durante o envio da planilha."));
+     xhr.ontimeout=()=>reject(new Error("O servidor demorou demais para analisar a planilha."));
+     xhr.upload.onprogress=ev=>{if(ev.lengthComputable)st.innerHTML="<p>Enviando planilha… "+Math.round(ev.loaded/ev.total*100)+"%</p>"};
+     xhr.send(form);
+   });
    analise=data; renderResumo(file.name);
  }catch(err){st.innerHTML='<div class="import-error">Não foi possível ler esta planilha: '+esc(err.message)+'</div>'}
 }
