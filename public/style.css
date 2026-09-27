@@ -26,3 +26,6 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 .stock-status.sem_estoque{background:#fde9e9;color:#a62f2f}
 .stock-status.excesso{background:#e9f1ff;color:#245ca6}
 @media(max-width:700px){.estoque-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.estoque-tools{grid-template-columns:1fr}}
+
+/* Mobile: keep the full navigation reachable when groups expand */
+@media(max-width:700px){.sidebar{overflow-y:auto!important;overscroll-behavior:contain}.main-nav{flex:0 0 auto}.sidebar-footer{margin-top:14px}}
