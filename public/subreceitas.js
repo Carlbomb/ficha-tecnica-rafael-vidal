@@ -111,8 +111,8 @@
   function sincronizarPorcao(origem){
     const r=num(document.querySelector("#prepRendimento")?.value),u=document.querySelector("#prepUnidade")?.value||"",pesoEl=document.querySelector("#prepPesoPorcao"),qtdEl=document.querySelector("#prepQtdPorcoesInput");
     if(u==="KG"||u==="L"){
-      if(origem==="qtd"&&num(qtdEl?.value)>0&&r>0)pesoEl.value=(r/num(qtdEl.value)).toFixed(4);
-      else if((origem==="peso"||origem==="rendimento"||origem==="unidade")&&num(pesoEl?.value)>0&&r>0)qtdEl.value=(r/num(pesoEl.value)).toFixed(2);
+      if(origem==="qtd"&&num(qtdEl?.value)>0&&r>0)pesoEl.value=(r/num(qtdEl.value)).toFixed(3);
+      else if((origem==="peso"||origem==="rendimento"||origem==="unidade")&&num(pesoEl?.value)>0&&r>0)qtdEl.value=(r/num(pesoEl.value)).toFixed(3);
     }else if(u==="UN"||u==="PORÇÃO"){
       if(r>0)qtdEl.value=String(r);
       pesoEl.value="";
