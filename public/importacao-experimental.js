@@ -75,11 +75,11 @@ async function ler(e){
    const bytes=new Uint8Array(buffer);
    let bin="",passo=0x4000;
    for(let i=0;i<bytes.length;i+=passo)bin+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+passo,bytes.length)));
-   const payload={nome:file.name,dados:btoa(bin)};
+   const payload={nome:file.name,tamanhoOriginal:file.size,tamanhoLido:bytes.length,dados:btoa(bin)};
    st.innerHTML="<p>Enviando planilha para análise no servidor…</p>";
    const resp=await fetch("/api/importacoes/analisar-base64",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
    const data=await resp.json().catch(()=>({}));
-   if(!resp.ok)throw new Error(data.error||("Servidor respondeu "+resp.status+"."));
+   if(!resp.ok){const d=data.diagnostico;const extra=d?(" [bytes: "+d.bytes+", PK: "+d.pkLocal+", EOCD: "+d.eocd+"]"):"";throw new Error((data.error||("Servidor respondeu "+resp.status+"."))+extra)}
    analise=data;renderResumo(file.name);
  }catch(err){st.innerHTML='<div class="import-error">Não foi possível ler esta planilha: '+esc(err.message)+'</div>'}
 }
