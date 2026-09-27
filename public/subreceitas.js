@@ -37,9 +37,9 @@
       </article>`).join("")}</div>`;
   }
 
-  window.editarPreparacao=async id=>{try{const p=await apiSR(`/api/preparacoes/${id}`);EDITANDO=p;ITENS=[...(p.ingredientes||[]).map(x=>({tipo:"insumo",id:Number(x.insumo_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""})),...(p.componentes||[]).map(x=>({tipo:"preparacao",id:Number(x.componente_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""}))];await carregar();form(p)}catch(e){alert(e.message)}};
+  window.editarPreparacao=async id=>{try{const p=await apiSR(`/api/preparacoes/${id}`);EDITANDO=p;ITENS=[...(p.ingredientes||[]).map(x=>({tipo:"insumo",id:Number(x.insumo_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""})),...(p.componentes||[]).map(x=>({tipo:"preparacao",id:Number(x.componente_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""}))];await carregar();form(p)}catch(e){mostrarErroPrep(e.message)}};
 
-  function renderUsadoEm(p){
+  function mostrarErroPrep(msg){C.innerHTML=`<div class="card"><h3>Não foi possível abrir a preparação</h3><p>${esc(msg||"Erro inesperado.")}</p><div class="actions"><button type="button" class="secondary" onclick="telaPreparacoes()">← Voltar às preparações</button></div></div>`}\n\n  function renderUsadoEm(p){
     const fichas=Array.isArray(p?.usado_em_fichas)?p.usado_em_fichas:[],preps=Array.isArray(p?.usado_em_preparacoes)?p.usado_em_preparacoes:[];
     const total=fichas.length+preps.length;
     return `<div class="card prep-usado-em"><div class="section-head"><div><small>DEPENDÊNCIAS</small><h3>Usado em</h3><p>${total?esc(total+" vínculo"+(total===1?"":"s")+" encontrado"+(total===1?"":"s")):"Esta preparação ainda não é utilizada em outra ficha ou preparação."}</p></div></div>${fichas.length?`<div class="prep-uso-grupo"><b>Fichas Técnicas</b>${fichas.map(x=>`<div class="prep-uso-item"><span>${esc(x.nome)}</span><small>${numero(x.quantidade,3)} ${esc(p.unidade_rendimento||"")}</small></div>`).join("")}</div>`:""}${preps.length?`<div class="prep-uso-grupo"><b>Preparações</b>${preps.map(x=>`<div class="prep-uso-item"><span>${esc(x.nome)}</span><small>${numero(x.quantidade,3)} ${esc(p.unidade_rendimento||"")}</small></div>`).join("")}</div>`:""}</div>`;
