@@ -69,13 +69,13 @@
     area.innerHTML=`<div class="prep-componentes">${ITENS.map((it,k)=>{
       const x=fonte(it), nome=it.tipo==="preparacao"?(x?.nome||"Selecione uma preparação"):(x?.ingrediente||"Selecione um insumo");
       return `<article class="prep-componente-card" data-prep-row="${k}">
-        <div class="prep-comp-head"><span class="prep-tipo ${it.tipo}">${it.tipo==="preparacao"?"↳ Preparação":"Insumo"}</span><button type="button" class="prep-remove" aria-label="Remover componente" title="Remover componente" onclick="prepRemover(${k})">×</button></div>
+        <div class="prep-comp-head"><span class="prep-tipo ${it.tipo}">${it.tipo==="preparacao"?"↳ Preparação":"Insumo"}</span><strong class="prep-comp-nome">${esc(nome)}</strong><button type="button" class="prep-remove" aria-label="Remover componente" title="Remover componente" onclick="prepRemover(${k})">×</button></div>
         <div class="prep-comp-selects">
           <label>Tipo<select onchange="prepTipo(${k},this.value)"><option value="insumo" ${it.tipo==="insumo"?"selected":""}>Insumo</option><option value="preparacao" ${it.tipo==="preparacao"?"selected":""}>Preparação</option></select></label>
           <label>Componente<select onchange="prepFonte(${k},this.value)"><option value="">Selecione...</option>${(it.tipo==="preparacao"?PREPS.filter(y=>!EDITANDO||Number(y.id)!==Number(EDITANDO.id)):INSUMOS.filter(y=>y.ativo!==false)).map(y=>`<option value="${y.id}" ${Number(y.id)===Number(it.id)?"selected":""}>${esc(it.tipo==="preparacao"?y.nome:y.ingrediente)}</option>`).join("")}</select></label>
         </div>
         <div class="prep-comp-info"><div><small>Quantidade</small><div class="prep-qtd-wrap"><input class="prep-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${it.quantidade?String(it.quantidade).replace(".",","):""}" oninput="prepQtd(${k},this.value)"><span>${esc(unidade(it))}</span></div></div><div><small>Custo/unid.</small><b>${moeda(preco(it))}</b></div><div class="prep-comp-total"><small>Custo</small><b data-custo-item>${moeda(num(it.quantidade)*preco(it))}</b></div></div>
-        <label class="prep-comp-obs">Observação<input value="${esc(it.observacoes)}" placeholder="Opcional" oninput="prepObsItem(${k},this.value)"></label>
+        <details class="prep-comp-obs"><summary>Observação${it.observacoes?" •":""}</summary><input value="${esc(it.observacoes)}" placeholder="Opcional" oninput="prepObsItem(${k},this.value)"></details>
       </article>`;
     }).join("")}</div>`;calcular();
   }
