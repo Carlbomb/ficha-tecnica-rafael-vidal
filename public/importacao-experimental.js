@@ -91,13 +91,13 @@ function renderResumo(nome){
  <div class="card"><h3>4. Insumos reconhecidos</h3><p>Comparação da planilha com o banco atual do MISEVO. Cada item é exibido pelo nome do insumo encontrado.</p><div class="import-list">${a.insumosDetalhes.map((x,i)=>`<article><div><b class="import-insumo-name">${esc(x.nome||"Insumo sem nome")}</b><small>${esc(x.unidade||"—")} · FC ${x.fc??"—"} · ${x.preco!=null?"R$ "+Number(x.preco).toFixed(2).replace(".",","):"sem preço"} · ${x.usos} ocorrência(s)</small></div><button type="button" class="import-review ${x.existente?"ok":"warn"}" data-insumo="${i}">${x.existente?"Já existe":"Novo insumo"}</button></article>`).join("")||'<div class="empty">Nenhum insumo encontrado.</div>'}</div></div>
  <div class="card"><h3>5. Prévia operacional</h3><div class="import-summary-grid"><span><b>${novos}</b> insumos novos</span><span><b>${existentes}</b> já existentes</span><span><b>${a.preparacoes.length}</b> vínculos de preparação</span><span><b>${finais}</b> fichas finais</span><span><b>${a.conflitos.length}</b> decisões pendentes</span></div><div class="import-note">Prévia calculada sem gravar dados. Revise os itens e conflitos antes de qualquer importação real.</div></div>\n <div class="card"><h3>6. Vínculos de preparações</h3>${a.preparacoes.length?'<div class="import-list">'+a.preparacoes.slice(0,30).map(x=>`<article><div><b>${esc(x.nome)}</b><small>usada em ${esc(x.ficha)}</small></div><span class="ok">Possível vínculo</span></article>`).join("")+'</div>':'<div class="empty">Nenhuma correspondência encontrada.</div>'}</div>
  <div class="card"><h3>7. Conflitos para revisão</h3>${a.conflitos.length?'<div class="import-list">'+a.conflitos.map(x=>`<article><div><b>${esc(x.nome)}</b><small>${x.precos.length>1?"Preços diferentes · ":""}${x.fcs.length>1?"FCs diferentes · ":""}${x.unidades.length>1?"Unidades diferentes":""}</small><small class="import-origin">${[...new Set((x.ocorrencias||[]).map(o=>o.ficha))].slice(0,3).map(esc).join(" · ")}${new Set((x.ocorrencias||[]).map(o=>o.ficha)).size>3?" + mais":""}</small></div><button type="button" class="warn import-review" data-conflito="${a.conflitos.indexOf(x)}">Revisar</button></article>`).join("")+'</div>':'<div class="empty">Nenhum conflito detectado.</div>'}</div>
- <div class="card import-final"><h3>8. Plano de Importação</h3><p>Classifique os insumos e resolva os conflitos. O MISEVO valida o plano antes de qualquer gravação.</p><div id="importResumoFinal"></div><button id="validarPlano" type="button" class="primary">Validar plano</button><button disabled>Importar para o MISEVO — bloqueado no teste</button></div>`;
+ <div class="card import-final"><h3>8. Plano de Importação</h3><p>Classifique os insumos e resolva os conflitos. O MISEVO valida o plano antes de qualquer gravação.</p><div id="importResumoFinal"></div><button id="validarPlano" type="button" class="primary">Validar plano</button><button id="executarImportacao" type="button" class="primary" disabled>Importar para o MISEVO</button></div>`;
  document.querySelector("#novaPlanilha").onclick=telaInicial;
  document.querySelectorAll("[data-conflito]").forEach(b=>b.onclick=()=>abrirConflito(Number(b.dataset.conflito)));
  document.querySelectorAll("[data-insumo]").forEach(b=>b.onclick=()=>abrirInsumo(Number(b.dataset.insumo)));
  document.querySelectorAll("[data-ficha]").forEach(b=>b.onclick=()=>abrirFicha(Number(b.dataset.ficha)));
  atualizarResumoFinal();
- const vp=document.querySelector("#validarPlano"); if(vp)vp.onclick=validarPlanoImportacao;
+ const vp=document.querySelector("#validarPlano"); if(vp)vp.onclick=validarPlanoImportacao; const ei=document.querySelector("#executarImportacao"); if(ei)ei.onclick=executarImportacaoReal;
 }
 function modal(html){let d=document.querySelector("#importModal");if(!d){d=document.createElement("div");d.id="importModal";d.className="import-modal-backdrop";document.body.appendChild(d)}d.innerHTML='<div class="import-modal">'+html+'<button type="button" class="secondary import-close">Fechar</button></div>';d.querySelector(".import-close").onclick=()=>d.remove();return d}
 function moeda(v){return v==null?"—":"R$ "+Number(v).toFixed(2).replace(".",",")}
@@ -108,6 +108,18 @@ function atualizarResumoFinal(){const el=document.querySelector("#importResumoFi
  const pendencias=conflitosPend+insumosPend+vazias.length+selfLinks.length;
  const novos=Object.values(decisoes.insumos).filter(x=>x==="novo").length, vinculados=Object.values(decisoes.insumos).filter(x=>x==="existente").length, atualizar=Object.values(decisoes.insumos).filter(x=>x==="atualizar").length;
  el.innerHTML=`<div class="import-summary-grid"><span><b>${analise.fichas.length}</b> fichas no plano</span><span><b>${analise.preparacoes.length}</b> vínculos</span><span><b>${novos}</b> criar insumo</span><span><b>${vinculados}</b> usar existente</span><span><b>${atualizar}</b> atualizar</span><span><b>${pendencias}</b> pendências</span></div><div class="import-note">${pendencias===0?"Plano validado: nenhuma pendência. A gravação real continua bloqueada neste teste.":"Para validar o plano: classifique "+insumosPend+" insumo(s) e resolva "+conflitosPend+" conflito(s)."+(vazias.length?" Há "+vazias.length+" ficha(s) sem componentes.":"")}</div>`}
+async function executarImportacaoReal(){
+ if(!planoValidado)return;
+ if(!confirm("Confirmar importação real? Os dados serão gravados no MISEVO em uma única transação."))return;
+ const b=document.querySelector("#executarImportacao"); if(b){b.disabled=true;b.textContent="Importando…"}
+ try{
+  const resp=await fetch("/api/importacoes/executar",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmado:true,fichas:analise.fichas,preparacoes:analise.preparacoes,insumosDetalhes:analise.insumosDetalhes,decisoes})});
+  const data=await resp.json().catch(()=>({}));
+  if(!resp.ok)throw new Error(data.error||"Falha na importação.");
+  modal(`<small>IMPORTAÇÃO CONCLUÍDA</small><h3>Dados gravados com sucesso</h3><div class="import-summary-grid"><span><b>${data.fichasCriadas}</b> fichas criadas</span><span><b>${data.preparacoes}</b> preparações</span></div><div class="import-note">A operação foi concluída em transação única.</div>`);
+ }catch(e){modal(`<small>IMPORTAÇÃO CANCELADA</small><h3>Nenhum dado parcial deve permanecer</h3><div class="import-error">${esc(e.message)}</div><div class="import-note">O servidor executou rollback da transação.</div>`); if(b)b.disabled=false}
+ finally{if(b)b.textContent="Importar para o MISEVO"}
+}
 function validarPlanoImportacao(){
  if(!analise)return;
  const conflitosPend=analise.conflitos.filter((_,i)=>!decisoes.conflitos[i]);
@@ -119,7 +131,7 @@ function validarPlanoImportacao(){
  if(conflitosPend.length)problemas.push(conflitosPend.length+" conflito(s) sem decisão");
  if(vazias.length)problemas.push(vazias.length+" ficha(s) sem componentes");
  if(selfLinks.length)problemas.push(selfLinks.length+" vínculo(s) circular(es)");
- planoValidado=problemas.length===0;
+ planoValidado=problemas.length===0; const executar=document.querySelector("#executarImportacao"); if(executar)executar.disabled=!planoValidado;
  const d=modal(`<small>VALIDAÇÃO DO PLANO</small><h3>${planoValidado?"Plano pronto":"Pendências encontradas"}</h3>${planoValidado?'<div class="import-note">Todas as decisões obrigatórias foram preenchidas. O plano está consistente para a futura importação transacional. Nenhum dado foi gravado.</div>':'<div class="import-conflict-sources">'+problemas.map(p=>'<div><b>'+esc(p)+'</b></div>').join("")+'</div><div class="import-note">Resolva as pendências e valide novamente.</div>'}`);
  atualizarResumoFinal();
 }
