@@ -15,14 +15,19 @@ function analisar(wb){
    const componentes=[];
    if(header>=0){
      const h=rows[header].map(norm);
-     const ci=h.findIndex(x=>/INGREDIENTE|INSUMO/.test(x));
-     const cq=h.findIndex(x=>/QUANT|PESO LIQ|LIQUID/.test(x));
-     const cu=h.findIndex(x=>/UNIDADE|^UN$|^UND$/.test(x));
-     const cp=h.findIndex(x=>/PRECO|CUSTO UNIT/.test(x));
-     const cf=h.findIndex(x=>/^FC$|FATOR/.test(x));
+     const cols=(re)=>h.map((x,i)=>re.test(x)?i:-1).filter(i=>i>=0);
+     const textoScore=col=>rows.slice(header+1,Math.min(rows.length,header+35)).reduce((s,r)=>{const v=String(r[col]??"").trim();return s+(v&&/[A-Za-zÀ-ÿ]/.test(v)&&numero(v)===null?1:0)},0);
+     const ingCols=cols(/INGREDIENTE|INSUMO/);
+     const ci=ingCols.sort((a,b)=>textoScore(b)-textoScore(a))[0]??-1;
+     const qtdCols=cols(/QUANT|PESO LIQ|LIQUID/);
+     const cq=qtdCols.find(i=>i!==ci)??-1;
+     const cu=cols(/UNIDADE|^UN$|^UND$/).find(i=>i!==ci)??-1;
+     const cp=cols(/PRECO|CUSTO UNIT/).find(i=>i!==ci)??-1;
+     const cf=cols(/^FC$|FATOR/).find(i=>i!==ci)??-1;
      for(let i=header+1;i<rows.length;i++){
        const ing=ci>=0?String(rows[i][ci]??"").trim():"";
        if(!ing||/TOTAL|CUSTO TOTAL|MODO DE PREPARO/i.test(ing))continue;
+       if(numero(ing)!==null||/^R\$\s*[-\d.,]*$/i.test(ing))continue;
        const item={nome:ing,qtd:cq>=0?numero(rows[i][cq]):null,unidade:cu>=0?String(rows[i][cu]??"").trim():"",preco:cp>=0?numero(rows[i][cp]):null,fc:cf>=0?numero(rows[i][cf]):null};
        componentes.push(item);
        const k=norm(ing); if(k){if(!ocorr.has(k))ocorr.set(k,[]);ocorr.get(k).push({...item,ficha:nomeAba})}
