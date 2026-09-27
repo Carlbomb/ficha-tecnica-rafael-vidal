@@ -5,7 +5,7 @@
   const moeda=v=>num(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
   const numero=(v,c=3)=>num(v).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c});
   const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
-  let PREPS=[],INSUMOS=[],ITENS=[],EDITANDO=null;
+  let PREPS=[],INSUMOS=[],ITENS=[],EDITANDO=null,BASE_ESCALA=null;
 
   async function apiSR(url,opt={}){const r=await fetch(url,{cache:"no-store",...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}});const d=r.status===204?null:await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||"Não foi possível concluir a operação.");return d}
   async function carregar(){[PREPS,INSUMOS]=await Promise.all([apiSR("/api/preparacoes"),apiSR("/api/insumos")]);window.PREPARACOES_PUBLIC=PREPS}
@@ -40,7 +40,7 @@
   window.editarPreparacao=async id=>{try{const p=await apiSR(`/api/preparacoes/${id}`);EDITANDO=p;ITENS=[...(p.ingredientes||[]).map(x=>({tipo:"insumo",id:Number(x.insumo_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""})),...(p.componentes||[]).map(x=>({tipo:"preparacao",id:Number(x.componente_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""}))];await carregar();form(p)}catch(e){alert(e.message)}};
 
   function form(p=null){
-    EDITANDO=p;if(!p)ITENS=[];
+    EDITANDO=p;if(!p)ITENS=[];BASE_ESCALA=null;
     C.innerHTML=`<div class="section-head"><div><small>SUB-RECEITA</small><h2>${p?esc(p.nome):"Nova Preparação"}</h2><p>Use insumos e também outras preparações como componentes.</p></div><button class="secondary" id="voltarPrep">← Voltar</button></div>
     <form id="formPrep"><div class="card form-grid">
     <label>Nome da preparação<input id="prepNome" required value="${esc(p?.nome||"")}"></label>
@@ -48,14 +48,19 @@
     <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required readonly value="${p?.rendimento??1}"><small>Calculado pela soma dos componentes compatíveis</small></label>
     <label>Unidade do rendimento<select id="prepUnidade">${["KG","L","UN","PORÇÃO"].map(x=>`<option ${p?.unidade_rendimento===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
     <div class="card prep-ficha-rendimento"><div class="section-head"><div><small>RENDIMENTO DA RECEITA</small><h3>Porcionamento</h3></div></div><div class="prep-ficha-grid"><label>Quantidade de Porções<input id="prepQtdPorcoesInput" type="number" min=".0001" step="any" placeholder="Ex.: 40" value="${p?.quantidade_porcoes??""}"></label><label>Peso da Porção <span id="prepPorcaoUnidade">KG</span><input id="prepPesoPorcao" type="number" min=".0001" step="any" placeholder="Ex.: 0,200" value="${p?.peso_porcao??""}"></label><div><small>Custo por porção</small><strong id="prepCustoPorcao">—</strong></div></div><p class="prep-rendimento-aviso" id="prepPorcaoAjuda">Informe a quantidade de porções ou o peso da porção. O outro valor será calculado automaticamente.</p></div>
-    <div class="card"><div class="section-head"><div><small>COMPOSIÇÃO</small><h3>Ingredientes e preparações</h3></div><button type="button" class="primary" id="addPrepItem">+ Componente</button></div><div id="prepItens"></div></div>
+    <div class="card prep-escalonamento"><div class="section-head"><div><small>ESCALONAMENTO</small><h3>Planejar produção</h3><p>Simule outra produção sem alterar a receita-base salva.</p></div><button type="button" class="secondary" id="prepResetEscala">Restaurar base</button></div><div class="prep-escala-grid"><label>Escalonar por<select id="prepEscalaModo"><option value="rendimento">Rendimento desejado</option><option value="porcoes">Quantidade de porções</option></select></label><label><span id="prepEscalaRotulo">Rendimento desejado</span><input id="prepEscalaValor" type="number" min=".001" step=".001" placeholder="0,000"></label><div><small>Fator de escala</small><strong id="prepEscalaFator">1,000×</strong></div></div><p class="prep-rendimento-aviso">As quantidades abaixo são recalculadas apenas para a simulação. Salvar continua preservando a receita-base.</p></div><div class="card"><div class="section-head"><div><small>COMPOSIÇÃO</small><h3>Ingredientes e preparações</h3></div><button type="button" class="primary" id="addPrepItem">+ Componente</button></div><div id="prepItens"></div></div>
     <div class="card"><div class="summary-grid"><div><span>Custo Total</span><strong id="prepCustoTotal">R$ 0,00</strong></div><div><span id="prepCustoUnitLabel">Custo por unidade</span><strong id="prepCustoUnit">R$ 0,00</strong></div><div><span>Rendimento</span><strong id="prepRendResumo">0</strong></div></div></div><div class="card prep-comercial"><div class="section-head"><div><small>PREÇO E CMV</small><h3>Comercialização da preparação</h3></div></div><div class="prep-comercial-grid"><label>Preço de Venda / Porção<input id="prepPrecoVenda" type="number" min="0" step=".01" value="${p?.preco_venda_porcao??""}" placeholder="R$ 0,00"></label><label>Meta de CMV (%)<input id="prepMetaCmv" type="number" min=".001" step=".001" value="${p?.meta_cmv??30}"></label><div><small>CMV real</small><strong id="prepCmvReal">—</strong></div><div><small>Preço sugerido</small><strong id="prepPrecoSugerido">—</strong></div></div></div>
     <div class="card"><label>Modo de preparo<textarea id="prepModo">${esc(p?.modo_preparo||"")}</textarea></label><label style="margin-top:13px">Observações<textarea id="prepObs">${esc(p?.observacoes||"")}</textarea></label></div>
     <div class="actions"><button type="button" class="secondary" id="cancelPrep">Cancelar</button>${p?'<button type="button" class="danger" id="delPrep">Excluir</button>':""}<button class="primary" type="submit">Salvar preparação</button></div></form>`;
     document.querySelector("#voltarPrep").onclick=window.telaPreparacoes;document.querySelector("#cancelPrep").onclick=window.telaPreparacoes;
-    document.querySelector("#addPrepItem").onclick=()=>{ITENS.push({tipo:"insumo",id:"",quantidade:0,observacoes:""});renderItens()};
+    document.querySelector("#addPrepItem").onclick=()=>{ITENS.push({tipo:"insumo",id:"",quantidade:0,observacoes:""});BASE_ESCALA=null;renderItens()};document.querySelector("#prepEscalaModo").onchange=atualizarEscalaUI;document.querySelector("#prepEscalaValor").oninput=aplicarEscala;document.querySelector("#prepResetEscala").onclick=restaurarEscala;
     document.querySelector("#prepUnidade").onchange=()=>atualizarRendimentoAutomatico();document.querySelector("#prepPesoPorcao").oninput=()=>sincronizarPorcao("peso");document.querySelector("#prepQtdPorcoesInput").oninput=()=>sincronizarPorcao("qtd");document.querySelector("#prepPrecoVenda").oninput=calcular;document.querySelector("#prepMetaCmv").oninput=calcular;document.querySelector("#formPrep").onsubmit=salvar;if(p)document.querySelector("#delPrep").onclick=excluir;renderItens();atualizarRendimentoAutomatico();
   }
+
+  function garantirBaseEscala(){if(BASE_ESCALA)return;BASE_ESCALA={rendimento:num(document.querySelector("#prepRendimento")?.value),porcoes:num(document.querySelector("#prepQtdPorcoesInput")?.value),peso:num(document.querySelector("#prepPesoPorcao")?.value),itens:ITENS.map(x=>({...x,quantidade:num(x.quantidade)}))}}
+  function atualizarEscalaUI(){const m=document.querySelector("#prepEscalaModo")?.value||"rendimento",r=document.querySelector("#prepEscalaRotulo");if(r)r.textContent=m==="porcoes"?"Quantidade de porções":"Rendimento desejado";const v=document.querySelector("#prepEscalaValor");if(v)v.placeholder=m==="porcoes"?"Ex.: 50,000":"Ex.: 10,000"}
+  function aplicarEscala(){garantirBaseEscala();const alvo=num(document.querySelector("#prepEscalaValor")?.value),modo=document.querySelector("#prepEscalaModo")?.value||"rendimento",base=modo==="porcoes"?num(BASE_ESCALA.porcoes):num(BASE_ESCALA.rendimento);if(!(alvo>0&&base>0))return;const fator=alvo/base;ITENS=BASE_ESCALA.itens.map(x=>({...x,quantidade:num(x.quantidade)*fator}));const rend=BASE_ESCALA.rendimento*fator,por=BASE_ESCALA.porcoes*fator;document.querySelector("#prepRendimento").value=rend.toFixed(3);if(document.querySelector("#prepQtdPorcoesInput"))document.querySelector("#prepQtdPorcoesInput").value=por>0?por.toFixed(3):"";if(document.querySelector("#prepPesoPorcao"))document.querySelector("#prepPesoPorcao").value=BASE_ESCALA.peso>0?BASE_ESCALA.peso.toFixed(3):"";const fe=document.querySelector("#prepEscalaFator");if(fe)fe.textContent=numero(fator,3)+"×";renderItens();calcular()}
+  function restaurarEscala(){if(!BASE_ESCALA)return;ITENS=BASE_ESCALA.itens.map(x=>({...x}));document.querySelector("#prepRendimento").value=BASE_ESCALA.rendimento;document.querySelector("#prepQtdPorcoesInput").value=BASE_ESCALA.porcoes||"";document.querySelector("#prepPesoPorcao").value=BASE_ESCALA.peso||"";document.querySelector("#prepEscalaValor").value="";document.querySelector("#prepEscalaFator").textContent="1,000×";BASE_ESCALA=null;renderItens();calcular()}
 
   function fonte(it){
     if(it.tipo==="preparacao")return PREPS.find(x=>Number(x.id)===Number(it.id));
@@ -80,9 +85,10 @@
       </article>`;
     }).join("")}</div>`;calcular();
   }
-  window.prepTipo=(k,v)=>{ITENS[k].tipo=v;ITENS[k].id="";renderItens();atualizarRendimentoAutomatico()};
-  window.prepFonte=(k,v)=>{ITENS[k].id=v?Number(v):"";renderItens();atualizarRendimentoAutomatico()};
+  window.prepTipo=(k,v)=>{BASE_ESCALA=null;ITENS[k].tipo=v;ITENS[k].id="";renderItens();atualizarRendimentoAutomatico()};
+  window.prepFonte=(k,v)=>{BASE_ESCALA=null;ITENS[k].id=v?Number(v):"";renderItens();atualizarRendimentoAutomatico()};
   window.prepQtd=(k,v)=>{
+    BASE_ESCALA=null;
     const bruto=String(v??"").trim().replace(/\s/g,"");
     const normalizado=bruto.includes(",") ? bruto.replace(/\./g,"").replace(",",".") : bruto;
     const valor=parseFloat(normalizado);
@@ -98,7 +104,7 @@
     if(custo)custo.textContent=moeda(num(ITENS[k].quantidade)*preco(ITENS[k]));
   }
   window.prepObsItem=(k,v)=>ITENS[k].observacoes=v;
-  window.prepRemover=k=>{ITENS.splice(k,1);renderItens();atualizarRendimentoAutomatico()};
+  window.prepRemover=k=>{BASE_ESCALA=null;ITENS.splice(k,1);renderItens();atualizarRendimentoAutomatico()};
 
   function atualizarRendimentoAutomatico(){
     const el=document.querySelector("#prepRendimento"),u=document.querySelector("#prepUnidade")?.value||"";
@@ -136,6 +142,7 @@
     e.preventDefault();
     const validos=ITENS.filter(x=>x.id&&x.quantidade>0);
     if(!validos.length)return alert("Adicione pelo menos um componente.");
+    if(BASE_ESCALA)restaurarEscala();
     const payload={nome:document.querySelector("#prepNome").value.trim(),categoria:document.querySelector("#prepCategoria").value,rendimento:num(document.querySelector("#prepRendimento").value),unidade_rendimento:document.querySelector("#prepUnidade").value,quantidade_porcoes:num(document.querySelector("#prepQtdPorcoesInput").value)||null,peso_porcao:num(document.querySelector("#prepPesoPorcao").value)||null,preco_venda_porcao:num(document.querySelector("#prepPrecoVenda").value)||null,meta_cmv:num(document.querySelector("#prepMetaCmv").value)||30,modo_preparo:document.querySelector("#prepModo").value.trim(),observacoes:document.querySelector("#prepObs").value.trim(),
       ingredientes:validos.filter(x=>x.tipo==="insumo").map(x=>({insumo_id:x.id,quantidade:num(x.quantidade),observacoes:x.observacoes})),
       componentes:validos.filter(x=>x.tipo==="preparacao").map(x=>({preparacao_id:x.id,quantidade:num(x.quantidade),observacoes:x.observacoes}))};
