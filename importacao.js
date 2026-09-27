@@ -89,6 +89,48 @@ export function installImportacao(app,pool){
   const {rows}=await pool.query("SELECT id, ingrediente, unidade, fc, preco_compra FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE",[req.user.empresa_id,req.user.unidade_id]);
   res.json(analisar(wb,rows));
  }catch(e){next(e)}});
+ app.post("/api/importacoes/executar",async(req,res,next)=>{const c=await pool.connect();try{
+  const plano=req.body||{}, fichas=Array.isArray(plano.fichas)?plano.fichas:[], decisoes=plano.decisoes||{}, detalhes=Array.isArray(plano.insumosDetalhes)?plano.insumosDetalhes:[];
+  if(!plano.confirmado)return res.status(400).json({error:"Confirme o plano antes de importar."});
+  if(!fichas.length)return res.status(400).json({error:"Plano sem fichas."});
+  const mapa=new Map();
+  await c.query("BEGIN");
+  const atuais=await c.query("SELECT id,ingrediente FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND ativo=TRUE",[req.user.empresa_id,req.user.unidade_id]);
+  atuais.rows.forEach(x=>mapa.set(norm(x.ingrediente),x.id));
+  for(let i=0;i<detalhes.length;i++){
+   const x=detalhes[i], acao=decisoes.insumos?.[i]; if(!acao)throw new Error("Há insumo sem classificação.");
+   const k=norm(x.nome), existente=mapa.get(k);
+   if(acao==="existente"){if(!existente)throw new Error("Insumo existente não localizado: "+x.nome);continue}
+   if(acao==="atualizar"){if(!existente)throw new Error("Insumo para atualização não localizado: "+x.nome);await c.query("UPDATE insumos SET unidade=COALESCE(NULLIF($1,''),unidade),fc=COALESCE($2,fc),preco_compra=COALESCE($3,preco_compra),preco_real=COALESCE($3,preco_compra)*COALESCE($2,fc) WHERE id=$4",[x.unidade||"",x.fc,x.preco,existente]);continue}
+   if(acao==="novo"){
+    if(existente){mapa.set(k,existente);continue}
+    const fc=Number(x.fc)>0?Number(x.fc):1, preco=Number(x.preco)||0;
+    const r=await c.query(`INSERT INTO insumos(ingrediente,unidade,peso_bruto,peso_liquido,fc,preco_compra,preco_real,fornecedor,ativo,observacoes,empresa_id,unidade_id) VALUES($1,$2,1,1,$3,$4,$5,'',TRUE,'Importado por planilha',$6,$7) RETURNING id`,[x.nome,(x.unidade||"KG").toUpperCase(),fc,preco,preco*fc,req.user.empresa_id,req.user.unidade_id]);
+    mapa.set(k,r.rows[0].id);
+   }
+  }
+  const usados=new Set((plano.preparacoes||[]).map(x=>norm(x.destino||x.nome)));
+  const prepIds=new Map();
+  for(const f of fichas.filter(x=>usados.has(norm(x.nome)))){
+   let r=await c.query("SELECT id FROM preparacoes WHERE empresa_id=$1 AND unidade_id=$2 AND LOWER(nome)=LOWER($3) LIMIT 1",[req.user.empresa_id,req.user.unidade_id,f.nome]);
+   let id=r.rows[0]?.id;
+   if(!id){r=await c.query("INSERT INTO preparacoes(nome,categoria,rendimento,unidade_rendimento,observacoes,empresa_id,unidade_id) VALUES($1,$2,$3,'KG','Importado por planilha',$4,$5) RETURNING id",[f.nome,f.categoria||"Outros",Number(f.rendimento)||1,req.user.empresa_id,req.user.unidade_id]);id=r.rows[0].id}
+   prepIds.set(norm(f.nome),id);
+  }
+  for(const f of fichas.filter(x=>usados.has(norm(x.nome)))){
+   const id=prepIds.get(norm(f.nome)); await c.query("DELETE FROM preparacao_ingredientes WHERE preparacao_id=$1",[id]); await c.query("DELETE FROM preparacao_componentes WHERE preparacao_id=$1",[id]);
+   let ordem=0; for(const x of f.componentes){const pid=prepIds.get(norm(x.nome)), iid=mapa.get(norm(x.nome)), q=Number(x.qtd)||0;if(q<=0)continue;if(pid)await c.query("INSERT INTO preparacao_componentes(preparacao_id,componente_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,pid,q,ordem++]);else if(iid)await c.query("INSERT INTO preparacao_ingredientes(preparacao_id,insumo_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,iid,q,ordem++]);else throw new Error("Componente sem destino: "+x.nome)}
+  }
+  let fichasCriadas=0;
+  for(const f of fichas.filter(x=>!usados.has(norm(x.nome)))){
+   const dup=await c.query("SELECT id FROM fichas WHERE empresa_id=$1 AND unidade_id=$2 AND LOWER(nome_prato)=LOWER($3) AND ativo=TRUE LIMIT 1",[req.user.empresa_id,req.user.unidade_id,f.nome]); if(dup.rows[0])throw new Error("Ficha já existe: "+f.nome);
+   const rf=await c.query("INSERT INTO fichas(nome_prato,categoria,rendimento_kg,porcoes,preco_venda,meta_cmv,modo_preparo,observacoes,status,ativo,empresa_id,unidade_id) VALUES($1,$2,$3,$4,0,30,'','Importado por planilha','Ativa',TRUE,$5,$6) RETURNING id",[f.nome,f.categoria||"Outros",Number(f.rendimento)||null,Number(f.porcoes)||1,req.user.empresa_id,req.user.unidade_id]); const fid=rf.rows[0].id; let ordem=0;
+   for(const x of f.componentes){const pid=prepIds.get(norm(x.nome)),iid=mapa.get(norm(x.nome)),q=Number(x.qtd)||0;if(q<=0)continue;if(pid)await c.query("INSERT INTO ficha_preparacoes(ficha_id,preparacao_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[fid,pid,q,ordem++]);else if(iid)await c.query("INSERT INTO ingredientes(ficha_id,insumo_id,quantidade,unidade,ordem,observacoes) VALUES($1,$2,$3,$4,$5,'')",[fid,iid,q,x.unidade||"KG",ordem++]);else throw new Error("Componente sem destino: "+x.nome)}
+   fichasCriadas++;
+  }
+  await c.query("COMMIT"); res.status(201).json({ok:true,fichasCriadas,preparacoes:prepIds.size,insumos:mapa.size,message:"Importação concluída com sucesso."});
+ }catch(e){try{await c.query("ROLLBACK")}catch{};next(e)}finally{c.release()}});
+
  app.post("/api/importacoes/analisar",upload.single("arquivo"),async(req,res,next)=>{try{
   if(!req.file)return res.status(400).json({error:"Selecione uma planilha Excel."});
   const wb=await readWorkbookRobusto(req.file.buffer);
