@@ -133,6 +133,17 @@ export function installImportacao(app,pool){
   await c.query("COMMIT"); res.status(201).json({ok:true,fichasCriadas,preparacoes:prepIds.size,insumos:mapa.size,message:"Importação concluída com sucesso."});
  }catch(e){try{await c.query("ROLLBACK")}catch{};console.error("[MISEVO][importacao][executar]",{message:e.message,code:e.code,detail:e.detail,constraint:e.constraint,table:e.table,column:e.column});res.status(422).json({error:e.message||"Falha na importação.",codigo:e.code||"IMPORTACAO_FALHOU"})}finally{c.release()}});
 
+ app.post("/api/importacoes/limpar-ultima",async(req,res)=>{const c=await pool.connect();try{
+  await c.query("BEGIN");
+  const fi=await c.query("SELECT id,nome_prato FROM fichas WHERE empresa_id=$1 AND unidade_id=$2 AND observacoes='Importado por planilha'",[req.user.empresa_id,req.user.unidade_id]);
+  const pr=await c.query("SELECT id,nome FROM preparacoes WHERE empresa_id=$1 AND unidade_id=$2 AND observacoes='Importado por planilha'",[req.user.empresa_id,req.user.unidade_id]);
+  const ins=await c.query("SELECT id,ingrediente FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 AND observacoes='Importado por planilha'",[req.user.empresa_id,req.user.unidade_id]);
+  if(fi.rows.length)await c.query("DELETE FROM fichas WHERE id=ANY($1::bigint[])",[fi.rows.map(x=>x.id)]);
+  if(pr.rows.length)await c.query("DELETE FROM preparacoes WHERE id=ANY($1::bigint[])",[pr.rows.map(x=>x.id)]);
+  if(ins.rows.length)await c.query("DELETE FROM insumos i WHERE i.id=ANY($1::bigint[]) AND NOT EXISTS(SELECT 1 FROM ingredientes g WHERE g.insumo_id=i.id) AND NOT EXISTS(SELECT 1 FROM preparacao_ingredientes p WHERE p.insumo_id=i.id)",[ins.rows.map(x=>x.id)]);
+  await c.query("COMMIT");
+  res.json({ok:true,fichasRemovidas:fi.rows.length,preparacoesRemovidas:pr.rows.length,insumosMarcados:ins.rows.length,protegidos:"Registros preexistentes/atualizados não foram apagados."});
+ }catch(e){try{await c.query("ROLLBACK")}catch{};console.error("[MISEVO][importacao][limpeza]",e);res.status(422).json({error:e.message})}finally{c.release()}});
  app.post("/api/importacoes/analisar",upload.single("arquivo"),async(req,res,next)=>{try{
   if(!req.file)return res.status(400).json({error:"Selecione uma planilha Excel."});
   const wb=await readWorkbookRobusto(req.file.buffer);
