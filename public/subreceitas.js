@@ -10,7 +10,7 @@
   async function apiSR(url,opt={}){const r=await fetch(url,{cache:"no-store",...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}});const d=r.status===204?null:await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||"Não foi possível concluir a operação.");return d}
   async function carregar(){[PREPS,INSUMOS]=await Promise.all([apiSR("/api/preparacoes"),apiSR("/api/insumos")]);window.PREPARACOES_PUBLIC=PREPS}
 
-  window.telaPreparacoes=async function(){C.innerHTML='<div class="card">Carregando preparações...</div>';try{await carregar();renderLista()}catch(e){C.innerHTML=`<div class="card"><h3>Erro</h3><p>${esc(e.message)}</p></div>`}};
+  window.telaPreparacoes=async function(){C.innerHTML='<div class="card">Carregando fichas técnicas...</div>';try{await apiSR("/api/preparacoes/migrar-fichas-legadas",{method:"POST",body:"{}"});await carregar();renderLista()}catch(e){C.innerHTML=`<div class="card"><h3>Erro</h3><p>${esc(e.message)}</p></div>`}};
 
   function renderLista(){
     C.innerHTML=`<div class="section-head"><div><small>FICHAS TÉCNICAS</small><h2>Fichas Técnicas</h2><p>Todos os preparos em um só lugar: pré-preparos, produções e pratos finais.</p></div><button class="primary" id="novaPrep">+ Nova ficha técnica</button></div>
