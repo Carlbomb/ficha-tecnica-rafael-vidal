@@ -1207,33 +1207,7 @@ function renderizarIngredientes() {
         </tr>`;
       }).join("")}
       </tbody>
-    </table></div><div class="ficha-scrollbar" aria-label="Barra de rolagem horizontal da ficha"><div class="ficha-scrollbar-inner"></div></div><div class="ficha-scroll-hint">← ARRASTE A BARRA PARA VER TODAS AS COLUNAS →</div>`;
-  const tabelaScroll = area.querySelector(".ficha-planilha");
-  const barraScroll = area.querySelector(".ficha-scrollbar");
-  const barraInner = area.querySelector(".ficha-scrollbar-inner");
-  if (tabelaScroll && barraScroll && barraInner) {
-    let sincronizando = false;
-    const ajustarBarra = () => {
-      /* A barra inferior funciona como um segundo viewport da MESMA largura rolável da tabela. */
-      const larguraRolavel = Math.max(tabelaScroll.scrollWidth, tabelaScroll.querySelector("table")?.scrollWidth || 0);
-      barraInner.style.width = larguraRolavel + "px";
-      barraScroll.scrollLeft = tabelaScroll.scrollLeft;
-    };
-    barraScroll.onscroll = () => {
-      if (sincronizando) return;
-      sincronizando = true;
-      tabelaScroll.scrollLeft = barraScroll.scrollLeft;
-      requestAnimationFrame(() => { sincronizando = false; });
-    };
-    tabelaScroll.onscroll = () => {
-      if (sincronizando) return;
-      sincronizando = true;
-      barraScroll.scrollLeft = tabelaScroll.scrollLeft;
-      requestAnimationFrame(() => { sincronizando = false; });
-    };
-    requestAnimationFrame(ajustarBarra);
-    setTimeout(ajustarBarra, 250);
-  }
+    </table></div><div class="ficha-scroll-hint">← DESLIZE A TABELA PARA VER TODAS AS COLUNAS →</div>`;
   calcularFicha();
 }
 function calcularFicha() {
