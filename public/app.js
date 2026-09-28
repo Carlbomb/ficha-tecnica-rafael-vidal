@@ -1060,12 +1060,29 @@ function fonteFicha(item) {
 function precoFicha(item) {
   const fonte = fonteFicha(item);
   if (item.tipo !== "preparacao") return num(fonte?.preco_real);
+  const porcoes = num(fonte?.quantidade_porcoes);
+  const pesoPorcao = num(fonte?.peso_porcao) || (porcoes > 0 ? num(fonte?.rendimento) / porcoes : 0);
   const usada = String(item.unidade || fonte?.unidade_rendimento || "UN").toUpperCase();
-  if (usada === "PORÇÃO") {
-    const porcoes = num(fonte?.quantidade_porcoes);
-    return porcoes > 0 ? num(fonte?.custo_total) / porcoes : 0;
+  /* Preparações porcionadas: a ficha usa custo por porção quando a quantidade
+     lançada corresponde ao peso de uma ou mais porções, mesmo em fichas antigas
+     que foram salvas em KG antes de existir a unidade PORÇÃO. */
+  if (porcoes > 0 && pesoPorcao > 0) {
+    if (usada === "PORÇÃO") return num(fonte?.custo_total) / porcoes;
+    const qtdBase = quantidadeNaUnidadeBaseSemPorcao(item);
+    const qtdPorcoes = qtdBase / pesoPorcao;
+    if (Math.abs(qtdPorcoes - Math.round(qtdPorcoes)) < 0.002)
+      return qtdBase > 0 ? (num(fonte?.custo_total) / porcoes * qtdPorcoes) / qtdBase : 0;
   }
   return num(fonte?.custo_unitario);
+}
+
+function quantidadeNaUnidadeBaseSemPorcao(item){
+  const fonte=fonteFicha(item);
+  if(!fonte) return num(item.peso_liquido);
+  const base=item.tipo==="preparacao"?(fonte.unidade_rendimento||"UN"):(fonte.unidade||"KG");
+  const usada=String(item.unidade||base).toUpperCase();
+  const c=converterQuantidade(item.peso_liquido,usada,base);
+  return Number.isFinite(c)?c:num(item.peso_liquido);
 }
 
 function unidadeFicha(item) {
