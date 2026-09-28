@@ -1212,67 +1212,27 @@ function renderizarIngredientes() {
   const barraScroll = area.querySelector(".ficha-scrollbar");
   const barraInner = area.querySelector(".ficha-scrollbar-inner");
   if (tabelaScroll && barraScroll && barraInner) {
+    let sincronizando = false;
     const ajustarBarra = () => {
-      barraInner.style.width = tabelaScroll.scrollWidth + "px";
+      /* A barra inferior funciona como um segundo viewport da MESMA largura rolável da tabela. */
+      const larguraRolavel = Math.max(tabelaScroll.scrollWidth, tabelaScroll.querySelector("table")?.scrollWidth || 0);
+      barraInner.style.width = larguraRolavel + "px";
       barraScroll.scrollLeft = tabelaScroll.scrollLeft;
     };
-    let origem = "";
-    tabelaScroll.addEventListener("scroll", () => {
-      if (origem === "barra") return;
-      origem = "tabela";
-      barraScroll.scrollLeft = tabelaScroll.scrollLeft;
-      requestAnimationFrame(() => { origem = ""; });
-    }, {passive:true});
-    barraScroll.addEventListener("scroll", () => {
-      if (origem === "tabela") return;
-      origem = "barra";
+    barraScroll.onscroll = () => {
+      if (sincronizando) return;
+      sincronizando = true;
       tabelaScroll.scrollLeft = barraScroll.scrollLeft;
-      requestAnimationFrame(() => { origem = ""; });
-    }, {passive:true});
-
-    /* Android/WebView: arrastar qualquer ponto da barra move a tabela */
-    let dragAtivo = false, dragX = 0, dragLeft = 0;
-    const iniciarDrag = (x) => {
-      dragAtivo = true;
-      dragX = x;
-      dragLeft = barraScroll.scrollLeft;
-      barraScroll.classList.add("arrastando");
+      requestAnimationFrame(() => { sincronizando = false; });
     };
-    const moverDrag = (x) => {
-      if (!dragAtivo) return;
-      const destino = dragLeft - (x - dragX);
-      barraScroll.scrollLeft = destino;
-      tabelaScroll.scrollLeft = destino;
+    tabelaScroll.onscroll = () => {
+      if (sincronizando) return;
+      sincronizando = true;
+      barraScroll.scrollLeft = tabelaScroll.scrollLeft;
+      requestAnimationFrame(() => { sincronizando = false; });
     };
-    const finalizarDrag = () => {
-      dragAtivo = false;
-      barraScroll.classList.remove("arrastando");
-    };
-    barraScroll.addEventListener("pointerdown", e => {
-      iniciarDrag(e.clientX);
-      try { barraScroll.setPointerCapture(e.pointerId); } catch (_) {}
-      e.preventDefault();
-    });
-    barraScroll.addEventListener("pointermove", e => {
-      if (!dragAtivo) return;
-      moverDrag(e.clientX);
-      e.preventDefault();
-    });
-    barraScroll.addEventListener("pointerup", finalizarDrag);
-    barraScroll.addEventListener("pointercancel", finalizarDrag);
-    barraScroll.addEventListener("touchstart", e => {
-      if (!e.touches || !e.touches[0]) return;
-      iniciarDrag(e.touches[0].clientX);
-    }, {passive:true});
-    barraScroll.addEventListener("touchmove", e => {
-      if (!dragAtivo || !e.touches || !e.touches[0]) return;
-      moverDrag(e.touches[0].clientX);
-      e.preventDefault();
-    }, {passive:false});
-    barraScroll.addEventListener("touchend", finalizarDrag, {passive:true});
-
     requestAnimationFrame(ajustarBarra);
-    setTimeout(ajustarBarra, 120);
+    setTimeout(ajustarBarra, 250);
   }
   calcularFicha();
 }
