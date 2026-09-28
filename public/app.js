@@ -107,7 +107,7 @@ function atualizarPainel() {
   }
 
   if (nf) {
-    nf.textContent = FICHAS.filter(f => f.ativo !== false).length;
+    nf.textContent = PREPARACOES.filter(p => p.ativo !== false).length;
   }
 
   const validas = FICHAS.filter(f => num(f.cmv_percentual) > 0);
