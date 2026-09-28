@@ -120,3 +120,8 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 /* MISEVO — área inteira da barra é arrastável por toque */
 .ficha-scrollbar{cursor:grab!important;user-select:none!important;-webkit-user-select:none!important;touch-action:none!important}
 .ficha-scrollbar.arrastando{cursor:grabbing!important}
+
+/* MISEVO — a tabela é o viewport; barra inferior é o controle horizontal */
+.ficha-aberta-planilha .ficha-planilha{display:block!important;width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-x pan-y!important}
+.ficha-aberta-planilha .ficha-planilha>table{min-width:1180px!important;width:max-content!important}
+.ficha-scrollbar{touch-action:pan-x!important;cursor:auto!important}
