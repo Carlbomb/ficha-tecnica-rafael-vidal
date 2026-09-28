@@ -66,6 +66,7 @@ export async function initPreparacoes(pool) {
     CREATE INDEX IF NOT EXISTS idx_prep_comp_comp ON preparacao_componentes(componente_id);
     CREATE INDEX IF NOT EXISTS idx_ficha_prep_ficha ON ficha_preparacoes(ficha_id);
     CREATE INDEX IF NOT EXISTS idx_ficha_prep_prep ON ficha_preparacoes(preparacao_id);
+    ALTER TABLE ficha_preparacoes ADD COLUMN IF NOT EXISTS unidade TEXT;
   `);
 }
 
