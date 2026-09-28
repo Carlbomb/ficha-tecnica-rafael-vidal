@@ -303,10 +303,12 @@ export function installPreparacoes(app,pool) {
     const prod=p.rows[0];
     const porcoes=n(prod.quantidade_porcoes);
     const temPorcoes=porcoes>0;
-    // Quando a produção é porcionada, o resultado que vira insumo é a porção.
-    // Ex.: 16,972 porções com custo total de R$119,62 => R$7,05/PORÇÃO.
+    // O insumo produzido deve refletir exatamente a mesma base exibida em
+    // "Custo por porção": custo total da receita dividido pela quantidade de porções.
+    // Sem porcionamento, mantém o custo por unidade de rendimento (KG/L/UN).
     const unidade=temPorcoes?"PORÇÃO":String(prod.unidade_rendimento||"UN").toUpperCase();
-    const preco=temPorcoes?n(custo.custo_total)/porcoes:n(custo.custo_unitario);
+    const preco=temPorcoes?(n(custo.custo_total)/porcoes):n(custo.custo_unitario);
+    if(!(preco>0)) return res.status(400).json({error:"Não foi possível calcular um custo válido para o insumo produzido."});
     const existente=await pool.query(
       `SELECT id FROM insumos WHERE producao_id=$1 AND empresa_id=$2 AND unidade_id=$3 LIMIT 1`,
       [id,empresaId,unidadeId]
