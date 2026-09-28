@@ -263,3 +263,18 @@ button[aria-label]:focus-visible{
 .prep-uso-item:last-child{border-bottom:0}
 .prep-uso-item span{font-weight:600}
 .prep-uso-item small{white-space:nowrap;color:var(--muted,#667085)}
+
+/* Produção — separação de insumos mobile */
+.stock-separation-card{display:block;padding:16px;margin:0 0 12px;border:1px solid #e3e7e8;border-radius:14px;background:#fff;cursor:pointer}
+.stock-separation-card--warning{border-color:#e7bd62;background:#fffaf0}
+.stock-separation-head{display:flex;align-items:flex-start;gap:12px}
+.stock-separation-head input{width:22px;height:22px;flex:0 0 auto;margin-top:2px}
+.stock-separation-name{display:block;font-size:1.02rem;line-height:1.25}
+.stock-separation-needed{display:block;margin-top:5px;font-size:.92rem;color:#526166}
+.stock-separation-needed strong{color:#1e3035}
+.stock-separation-balance{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid #e8ecec;font-size:.8rem;color:#657277}
+.stock-separation-balance span:last-child{text-align:right}
+.stock-separation-balance strong{display:block;margin-top:3px;font-size:.95rem;color:#203238}
+.stock-separation-arrow{font-size:1.15rem;color:#78878b}
+.stock-separation-alert{margin-top:12px;padding:8px 10px;border-radius:8px;background:#fff0cf;font-size:.84rem;font-weight:700;color:#805b08}
+@media(max-width:520px){.stock-separation-card{padding:14px}.stock-separation-balance{gap:6px}.stock-separation-balance strong{font-size:.9rem}}
