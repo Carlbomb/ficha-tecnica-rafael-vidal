@@ -935,7 +935,7 @@ LEFT JOIN insumos ins
 async function adicionarCustosPreparacoesFicha(db, fichas, empresaId, unidadeId) {
   for (const ficha of fichas) {
     const { rows } = await db.query(
-      `SELECT preparacao_id, quantidade
+      `SELECT preparacao_id, quantidade, unidade
          FROM ficha_preparacoes
         WHERE ficha_id = $1`,
       [ficha.id]
@@ -949,7 +949,11 @@ async function adicionarCustosPreparacoesFicha(db, fichas, empresaId, unidadeId)
         empresaId,
         unidadeId
       );
-      extra += n(item.quantidade) * n(custo.custo_unitario);
+      const unidadeUsada = String(item.unidade || custo.unidade_rendimento || "UN").toUpperCase();
+      const custoPorUnidade = unidadeUsada === "PORÇÃO"
+        ? (n(custo.quantidade_porcoes) > 0 ? n(custo.custo_total) / n(custo.quantidade_porcoes) : 0)
+        : n(custo.custo_unitario);
+      extra += n(item.quantidade) * custoPorUnidade;
     }
 
     const custoBase = n(ficha.custo_total);
@@ -1147,7 +1151,9 @@ app.get(
             fp.ordem,
             fp.observacoes,
             p.nome,
-            p.unidade_rendimento
+            p.unidade_rendimento,
+            fp.unidade,
+            p.quantidade_porcoes
           FROM ficha_preparacoes fp
           JOIN preparacoes p ON p.id = fp.preparacao_id
           WHERE fp.ficha_id = $1
@@ -1416,7 +1422,7 @@ app.post(
           if (!item.preparacao_id || quantidade <= 0) continue;
 
           const prep = await client.query(
-            `SELECT id FROM preparacoes
+            `SELECT id,unidade_rendimento,quantidade_porcoes FROM preparacoes
               WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,
             [item.preparacao_id, req.user.empresa_id, req.user.unidade_id]
           );
@@ -1424,9 +1430,9 @@ app.post(
 
           await client.query(
             `INSERT INTO ficha_preparacoes
-              (ficha_id, preparacao_id, quantidade, ordem, observacoes)
-             VALUES ($1,$2,$3,$4,$5)`,
-            [novaFicha.id, item.preparacao_id, quantidade, ordem, item.observacoes || ""]
+              (ficha_id, preparacao_id, quantidade, unidade, ordem, observacoes)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [novaFicha.id, item.preparacao_id, quantidade, String(item.unidade || prep.rows[0].unidade_rendimento || "UN").toUpperCase(), ordem, item.observacoes || ""]
           );
         }
 
@@ -1742,7 +1748,7 @@ app.put(
           if (!item.preparacao_id || quantidade <= 0) continue;
 
           const prep = await client.query(
-            `SELECT id FROM preparacoes
+            `SELECT id,unidade_rendimento,quantidade_porcoes FROM preparacoes
               WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,
             [item.preparacao_id, req.user.empresa_id, req.user.unidade_id]
           );
@@ -1750,9 +1756,9 @@ app.put(
 
           await client.query(
             `INSERT INTO ficha_preparacoes
-              (ficha_id, preparacao_id, quantidade, ordem, observacoes)
-             VALUES ($1,$2,$3,$4,$5)`,
-            [req.params.id, item.preparacao_id, quantidade, ordem, item.observacoes || ""]
+              (ficha_id, preparacao_id, quantidade, unidade, ordem, observacoes)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [req.params.id, item.preparacao_id, quantidade, String(item.unidade || prep.rows[0].unidade_rendimento || "UN").toUpperCase(), ordem, item.observacoes || ""]
           );
         }
 
