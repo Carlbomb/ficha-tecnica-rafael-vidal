@@ -39,7 +39,7 @@ export async function initProducao(pool){
       custo_unitario NUMERIC(14,4) NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE INDEX IF NOT EXISTS idx_producao_consumos_ordem ON producao_consumos(ordem_id);\n    ALTER TABLE producao_consumos ADD COLUMN IF NOT EXISTS separado BOOLEAN NOT NULL DEFAULT FALSE;
+    CREATE INDEX IF NOT EXISTS idx_producao_consumos_ordem ON producao_consumos(ordem_id);\n    ALTER TABLE producao_consumos ADD COLUMN IF NOT EXISTS separado BOOLEAN NOT NULL DEFAULT FALSE;\n    ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS estoque_baixado BOOLEAN NOT NULL DEFAULT FALSE;\n    ALTER TABLE estoque_movimentacoes ADD COLUMN IF NOT EXISTS ordem_producao_id BIGINT REFERENCES ordens_producao(id) ON DELETE SET NULL;\n    CREATE UNIQUE INDEX IF NOT EXISTS idx_estoque_mov_op_insumo_saida ON estoque_movimentacoes(ordem_producao_id,insumo_id) WHERE ordem_producao_id IS NOT NULL AND tipo='saida';
   `);
 }
 
@@ -56,7 +56,8 @@ export function installProducao(app,pool){
       FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id LEFT JOIN fichas f ON f.id=o.ficha_id
       WHERE o.id=$1 AND o.empresa_id=$2 AND o.unidade_id=$3`,[req.params.id,req.user.empresa_id,req.user.unidade_id]);
     if(!ordem.rows[0])return res.status(404).json({error:"Ordem não encontrada."});
-    const {rows}=await pool.query(`SELECT pc.id,pc.insumo_id,pc.quantidade_teorica,pc.separado,i.ingrediente,i.unidade
+    const {rows}=await pool.query(`SELECT pc.id,pc.insumo_id,pc.quantidade_teorica,pc.separado,i.ingrediente,i.unidade,
+      COALESCE((SELECT SUM(m.quantidade) FROM estoque_movimentacoes m WHERE m.insumo_id=i.id AND m.empresa_id=$2 AND m.unidade_id=$3),0)::numeric saldo_disponivel
       FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id
       WHERE pc.ordem_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3 ORDER BY i.ingrediente`,[req.params.id,req.user.empresa_id,req.user.unidade_id]);
     res.json({ordem:ordem.rows[0],insumos:rows});
@@ -243,6 +244,16 @@ export function installProducao(app,pool){
       const ordem=q.rows[0];
       if(!ordem){await db.query("ROLLBACK");return res.status(404).json({error:"Ordem de produção não encontrada."})}
       if(ordem.status==="anulada"){await db.query("ROLLBACK");return res.status(409).json({error:"Esta produção já foi excluída."})}
+      if(ordem.status==="concluida" && ordem.estoque_baixado){
+        const consumos=await db.query(`SELECT pc.*,i.ingrediente FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1`,[ordem.id]);
+        for(const x of consumos.rows){
+          const qtd=n(x.quantidade_real)||n(x.quantidade_teorica); if(qtd<=0)continue;
+          const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
+          await db.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id,ordem_producao_id)
+            VALUES($1,'entrada',$2,$3,$4,$5,$6,$7,$8,$9,NULL)`,
+            [x.insumo_id,qtd,anterior,anterior+qtd,`Estorno OP #${ordem.id}`,"Estorno automático por exclusão da produção",req.user.id,req.user.empresa_id,req.user.unidade_id]);
+        }
+      }
       if(ordem.status==="finalizada"){
         const consumos=await db.query(`SELECT pc.*,i.ingrediente FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1`,[ordem.id]);
         const produzido=n(ordem.rendimento_real)||n(ordem.quantidade_planejada);
@@ -273,14 +284,37 @@ export function installProducao(app,pool){
     res.json(rows[0]);
   }catch(e){next(e)}});
 
-  app.post("/api/producao/ordens/:id/concluir",async(req,res,next)=>{try{
-    const real=n(req.body?.rendimento_real);
-    if(real<=0)return res.status(400).json({error:"Informe a quantidade realmente produzida."});
-    const {rows}=await pool.query(`UPDATE ordens_producao SET status='concluida',rendimento_real=$1,finalizada_at=NOW() WHERE id=$2 AND empresa_id=$3 AND unidade_id=$4 AND status='em_producao' RETURNING *`,
-      [real,req.params.id,req.user.empresa_id,req.user.unidade_id]);
-    if(!rows[0])return res.status(409).json({error:"A ordem precisa estar Em produção antes de ser concluída."});
-    res.json(rows[0]);
-  }catch(e){next(e)}});
+  app.post("/api/producao/ordens/:id/concluir",async(req,res,next)=>{
+    const db=await pool.connect();
+    try{
+      const real=n(req.body?.rendimento_real);
+      if(real<=0)return res.status(400).json({error:"Informe a quantidade realmente produzida."});
+      await db.query("BEGIN");
+      const q=await db.query(`SELECT * FROM ordens_producao WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 FOR UPDATE`,
+        [req.params.id,req.user.empresa_id,req.user.unidade_id]);
+      const ordem=q.rows[0];
+      if(!ordem){await db.query("ROLLBACK");return res.status(404).json({error:"Ordem de produção não encontrada."})}
+      if(ordem.estoque_baixado){await db.query("ROLLBACK");return res.status(409).json({error:"O estoque desta produção já foi baixado. A operação não foi repetida."})}
+      if(ordem.status!=="em_producao"){await db.query("ROLLBACK");return res.status(409).json({error:"A ordem precisa estar Em produção antes de ser concluída."})}
+      const consumos=await db.query(`SELECT pc.*,i.ingrediente,i.unidade FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1 ORDER BY pc.id`,[ordem.id]);
+      let custoReal=0; const alertas=[];
+      for(const x of consumos.rows){
+        const qtd=n(x.quantidade_real)||n(x.quantidade_teorica); if(qtd<=0)continue;
+        const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
+        const novo=anterior-qtd;
+        if(novo<0)alertas.push({insumo_id:Number(x.insumo_id),ingrediente:x.ingrediente,necessario:qtd,disponivel:anterior,saldo_novo:novo,unidade:x.unidade});
+        await db.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id,ordem_producao_id)
+          VALUES($1,'saida',$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [x.insumo_id,-qtd,anterior,novo,`Produção OP #${ordem.id}`,"Baixa automática pela conclusão da produção",req.user.id,req.user.empresa_id,req.user.unidade_id,ordem.id]);
+        await db.query("UPDATE producao_consumos SET quantidade_real=$1 WHERE id=$2",[qtd,x.id]);
+        custoReal+=qtd*n(x.custo_unitario);
+      }
+      const {rows}=await db.query(`UPDATE ordens_producao SET status='concluida',rendimento_real=$1,custo_real=$2,finalizada_at=NOW(),estoque_baixado=TRUE WHERE id=$3 RETURNING *`,
+        [real,custoReal,ordem.id]);
+      await db.query("COMMIT");
+      res.json({...rows[0],estoque_baixado:true,alertas_estoque:alertas});
+    }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
+  });
 
   app.post("/api/producao/ordens/:id/status",async(req,res,next)=>{try{
     const novo=String(req.body?.status||"");
