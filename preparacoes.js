@@ -335,13 +335,28 @@ export function installPreparacoes(app,pool) {
   app.put("/api/preparacoes/:id",asyncRoute((req,res)=>gravar(req,res,true)));
 
   app.delete("/api/preparacoes/:id",asyncRoute(async(req,res)=>{
+    const id=Number(req.params.id),empresaId=req.user.empresa_id,unidadeId=req.user.unidade_id;
+    const c=await pool.connect();
     try{
-      const r=await pool.query("DELETE FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 RETURNING id",[req.params.id,req.user.empresa_id,req.user.unidade_id]);
-      if(!r.rows[0]) return res.status(404).json({error:"Preparação não encontrada."});
-      res.status(204).end();
-    }catch(e){
-      if(e.code==="23503") return res.status(409).json({error:"Esta preparação está sendo utilizada em outra preparação ou ficha técnica."});
-      throw e;
-    }
+      await c.query("BEGIN");
+      const p=await c.query("SELECT id,nome FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE FOR UPDATE",[id,empresaId,unidadeId]);
+      if(!p.rows[0]){await c.query("ROLLBACK");return res.status(404).json({error:"Preparação não encontrada."});}
+
+      const usosPrep=await c.query(`SELECT p.nome FROM preparacao_componentes pc JOIN preparacoes p ON p.id=pc.preparacao_id WHERE pc.componente_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE ORDER BY p.nome`,[id,empresaId,unidadeId]);
+      const usosFicha=await c.query(`SELECT f.nome_prato AS nome FROM ficha_preparacoes fp JOIN fichas f ON f.id=fp.ficha_id WHERE fp.preparacao_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3 ORDER BY f.nome_prato`,[id,empresaId,unidadeId]);
+      const ins=await c.query("SELECT id,ingrediente FROM insumos WHERE producao_id=$1 AND empresa_id=$2 AND unidade_id=$3 LIMIT 1",[id,empresaId,unidadeId]);
+      let usosInsumo=[];
+      if(ins.rows[0]){
+        const u=await c.query(`SELECT DISTINCT f.nome_prato AS nome FROM ingredientes i JOIN fichas f ON f.id=i.ficha_id WHERE i.insumo_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3 ORDER BY f.nome_prato`,[ins.rows[0].id,empresaId,unidadeId]);
+        usosInsumo=u.rows;
+      }
+      const dependencias=[...usosPrep.map(x=>`Preparação: ${x.nome}`),...usosFicha.map(x=>`Ficha técnica: ${x.nome}`),...usosInsumo.map(x=>`Ficha técnica (insumo produzido): ${x.nome}`)];
+      if(dependencias.length){await c.query("ROLLBACK");return res.status(409).json({error:"Não é possível excluir: esta produção está em uso.",dependencias});}
+
+      if(ins.rows[0]) await c.query("DELETE FROM insumos WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3",[ins.rows[0].id,empresaId,unidadeId]);
+      await c.query("DELETE FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3",[id,empresaId,unidadeId]);
+      await c.query("COMMIT");
+      res.json({message:"Produção e insumo produzido excluídos com segurança.",insumo_excluido:Boolean(ins.rows[0])});
+    }catch(e){await c.query("ROLLBACK");if(e.code==="23503")return res.status(409).json({error:"Não é possível excluir porque existem vínculos ativos com esta produção."});throw e}finally{c.release()}
   }));
 }
