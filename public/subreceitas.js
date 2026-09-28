@@ -50,7 +50,7 @@
   function form(p=null){
     EDITANDO=p;if(!p)ITENS=[];BASE_ESCALA=null;
     C.innerHTML=`<div class="section-head"><div><small>SUB-RECEITA</small><h2>${p?esc(p.nome):"Nova Preparação"}</h2><p>Use insumos e também outras preparações como componentes.</p></div><button class="secondary" id="voltarPrep">← Voltar</button></div>
-    <form id="formPrep"><div class="card form-grid">
+    <form id="formPrep" class="ficha-aberta-planilha"><div class="card form-grid">
     <label>Nome da preparação<input id="prepNome" required value="${esc(p?.nome||"")}"></label>
     <label>Categoria<select id="prepCategoria">${["Bases e Fundos","Molhos","Carnes e Aves","Pescados e Frutos do Mar","Massas","Arroz e Cereais","Guarnições","Vegetais e Saladas","Padaria","Confeitaria e Sobremesas","Marinadas e Condimentos","Pré-preparos"].map(x=>`<option ${p?.categoria===x?"selected":""}>${x}</option>`).join("")}</select></label>
     <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required readonly value="${p?.rendimento??1}"><small>Calculado pela soma dos componentes compatíveis</small></label>
@@ -80,19 +80,33 @@
 
   function renderItens(){
     const area=document.querySelector("#prepItens");if(!area)return;
-    if(!ITENS.length){area.innerHTML='<div class="empty">Adicione insumos ou preparações.</div>';calcular();return}
-    area.innerHTML=`<div class="prep-componentes">${ITENS.map((it,k)=>{
-      const x=fonte(it), nome=it.tipo==="preparacao"?(x?.nome||"Selecione uma preparação"):(x?.ingrediente||"Selecione um insumo");
-      return `<article class="prep-componente-card" data-prep-row="${k}">
-        <div class="prep-comp-head"><span class="prep-tipo ${it.tipo}">${it.tipo==="preparacao"?"↳ Preparação":"Insumo"}</span><strong class="prep-comp-nome">${esc(nome)}</strong><button type="button" class="prep-remove" aria-label="Remover componente" title="Remover componente" onclick="prepRemover(${k})">×</button></div>
-        <div class="prep-comp-selects">
-          <label>Tipo<select onchange="prepTipo(${k},this.value)"><option value="insumo" ${it.tipo==="insumo"?"selected":""}>Insumo</option><option value="preparacao" ${it.tipo==="preparacao"?"selected":""}>Preparação</option></select></label>
-          <label>Componente<select onchange="prepFonte(${k},this.value)"><option value="">Selecione...</option>${(it.tipo==="preparacao"?PREPS.filter(y=>!EDITANDO||Number(y.id)!==Number(EDITANDO.id)):INSUMOS.filter(y=>y.ativo!==false)).map(y=>`<option value="${y.id}" ${Number(y.id)===Number(it.id)?"selected":""}>${esc(it.tipo==="preparacao"?y.nome:y.ingrediente)}</option>`).join("")}</select></label>
-        </div>
-        <div class="prep-comp-info"><div><small>Quantidade</small><div class="prep-qtd-wrap"><input class="prep-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${it.quantidade?numero(it.quantidade,3):""}" oninput="prepQtd(${k},this.value)"><span>${esc(unidade(it))}</span></div></div><div><small>Custo/unid.</small><b>${moeda(preco(it))}</b></div><div class="prep-comp-total"><small>Custo</small><b data-custo-item>${moeda(num(it.quantidade)*preco(it))}</b></div></div>
-        <details class="prep-comp-obs"><summary>Observação${it.observacoes?" •":""}</summary><input value="${esc(it.observacoes)}" placeholder="Opcional" oninput="prepObsItem(${k},this.value)"></details>
-      </article>`;
-    }).join("")}</div>`;calcular();
+    if(!ITENS.length){area.innerHTML='<div class="empty">Nenhum componente adicionado. Clique em "+ Componente".</div>';calcular();return}
+    area.innerHTML=`<div class="table-wrap ficha-planilha"><table>
+      <thead><tr>
+        <th>Tipo</th><th>Código</th><th>Ingrediente / Preparação</th><th>Peso Líquido</th><th>Unidade</th>
+        <th>FC</th><th>Peso Bruto</th><th>Preço de Compra</th><th>Preço Real</th><th>Custo do Insumo</th><th>Observação</th><th></th>
+      </tr></thead><tbody>${ITENS.map((it,k)=>{
+        const x=fonte(it),ehPrep=it.tipo==="preparacao";
+        const q=num(it.quantidade),fc=ehPrep?1:num(x?.fc),bruto=q*fc,precoCompra=ehPrep?null:num(x?.preco_compra),precoReal=preco(it),custo=q*precoReal;
+        const codigo=ehPrep?"—":(x?.codigo||x?.id||"—");
+        const opcoes=(ehPrep?PREPS.filter(y=>!EDITANDO||Number(y.id)!==Number(EDITANDO.id)):INSUMOS.filter(y=>y.ativo!==false))
+          .map(y=>`<option value="${y.id}" ${Number(y.id)===Number(it.id)?"selected":""}>${esc(ehPrep?y.nome:y.ingrediente)}</option>`).join("");
+        return `<tr data-prep-row="${k}">
+          <td><select onchange="prepTipo(${k},this.value)"><option value="insumo" ${!ehPrep?"selected":""}>Insumo</option><option value="preparacao" ${ehPrep?"selected":""}>Preparação</option></select></td>
+          <td><b>${esc(codigo)}</b></td>
+          <td><select onchange="prepFonte(${k},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
+          <td><input class="prep-qtd ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${it.quantidade?String(it.quantidade).replace(".",","):""}" oninput="prepQtd(${k},this.value)"></td>
+          <td><b>${esc(unidade(it))}</b></td>
+          <td>${ehPrep?"—":numero(fc,3)}</td>
+          <td>${ehPrep?"—":numero(bruto,3)}</td>
+          <td>${ehPrep?"—":moeda(precoCompra)}</td>
+          <td>${moeda(precoReal)}</td>
+          <td><b data-custo-item>${moeda(custo)}</b></td>
+          <td><input value="${esc(it.observacoes||"")}" placeholder="Opcional" oninput="prepObsItem(${k},this.value)"></td>
+          <td><button type="button" class="danger" aria-label="Remover componente" title="Remover componente" onclick="prepRemover(${k})">×</button></td>
+        </tr>`;
+      }).join("")}</tbody></table></div><div class="ficha-scroll-hint">← DESLIZE A TABELA PARA VER TODAS AS COLUNAS →</div>`;
+    calcular();
   }
   window.prepTipo=(k,v)=>{BASE_ESCALA=null;ITENS[k].tipo=v;ITENS[k].id="";renderItens();atualizarRendimentoAutomatico()};
   window.prepFonte=(k,v)=>{BASE_ESCALA=null;ITENS[k].id=v?Number(v):"";renderItens();atualizarRendimentoAutomatico()};
