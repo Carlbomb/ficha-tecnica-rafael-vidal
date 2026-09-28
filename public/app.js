@@ -774,7 +774,7 @@ async function formularioFicha(ficha = null) {
       </button>
     </div>
 
-    <form id="formFicha">
+    <form id="formFicha" class="ficha-aberta-planilha">
 
       <div class="card form-grid">
 
