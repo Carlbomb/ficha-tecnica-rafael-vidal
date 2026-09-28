@@ -109,3 +109,10 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 .ficha-scrollbar::-webkit-scrollbar{display:block!important;height:20px!important}
 .ficha-scrollbar::-webkit-scrollbar-track{background:#d9e2e4!important;border-radius:9px!important}
 .ficha-scrollbar::-webkit-scrollbar-thumb{background:#315f6b!important;border:3px solid #d9e2e4!important;border-radius:9px!important}
+
+/* MISEVO — somente a barra dedicada controla a rolagem no mobile */
+@media(max-width:700px){
+  .ficha-aberta-planilha .ficha-planilha{scrollbar-width:none!important}
+  .ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+  .ficha-scrollbar{display:block!important}
+}
