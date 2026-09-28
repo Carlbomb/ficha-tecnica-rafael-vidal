@@ -173,5 +173,5 @@
       componentes:validos.filter(x=>x.tipo==="preparacao").map(x=>({preparacao_id:x.id,quantidade:num(x.quantidade),observacoes:x.observacoes}))};
     try{await apiSR(EDITANDO?`/api/preparacoes/${EDITANDO.id}`:"/api/preparacoes",{method:EDITANDO?"PUT":"POST",body:JSON.stringify(payload)});await window.telaPreparacoes()}catch(e){alert(e.message)}
   }
-  async function excluir(){if(!EDITANDO||!confirm(`Excluir "${EDITANDO.nome}"?`))return;try{await apiSR(`/api/preparacoes/${EDITANDO.id}`,{method:"DELETE"});await window.telaPreparacoes()}catch(e){alert(e.message)}}
+  async function excluir(){if(!EDITANDO||!confirm(`Excluir "${EDITANDO.nome}"?\n\nSe houver um insumo produzido vinculado e ele não estiver sendo usado, ele também será excluído.`))return;try{const x=await apiSR(`/api/preparacoes/${EDITANDO.id}`,{method:"DELETE"});alert(x?.message||"Produção excluída com sucesso.");await window.telaPreparacoes()}catch(e){alert(e.message)}}
 })();
