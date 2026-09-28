@@ -1207,7 +1207,24 @@ function renderizarIngredientes() {
         </tr>`;
       }).join("")}
       </tbody>
-    </table></div>`;
+    </table></div><div class="ficha-scrollbar" aria-label="Barra de rolagem horizontal da ficha"><div class="ficha-scrollbar-inner"></div></div><div class="ficha-scroll-hint">← ARRASTE A BARRA PARA VER TODAS AS COLUNAS →</div>`;
+  const tabelaScroll = area.querySelector(".ficha-planilha");
+  const barraScroll = area.querySelector(".ficha-scrollbar");
+  if (tabelaScroll && barraScroll) {
+    let sincronizando = false;
+    tabelaScroll.addEventListener("scroll", () => {
+      if (sincronizando) return;
+      sincronizando = true;
+      barraScroll.scrollLeft = tabelaScroll.scrollLeft;
+      sincronizando = false;
+    }, {passive:true});
+    barraScroll.addEventListener("scroll", () => {
+      if (sincronizando) return;
+      sincronizando = true;
+      tabelaScroll.scrollLeft = barraScroll.scrollLeft;
+      sincronizando = false;
+    }, {passive:true});
+  }
   calcularFicha();
 }
 function calcularFicha() {
