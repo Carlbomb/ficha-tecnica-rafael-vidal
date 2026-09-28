@@ -72,3 +72,12 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
   .ficha-aberta-planilha .ficha-planilha .ficha-unidade-select{min-width:72px!important;width:72px!important;height:34px!important}
   .ficha-aberta-planilha .ficha-planilha .danger{min-width:34px!important;width:34px!important;height:34px!important;padding:3px!important}
 }
+
+/* MISEVO — barra horizontal sempre visível na planilha da ficha */
+.ficha-aberta-planilha .ficha-planilha{overflow-x:scroll!important;overflow-y:hidden!important;scrollbar-gutter:stable}
+.ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar{height:14px}
+.ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar-track{background:#e7edef;border-top:1px solid #cbd7d9}
+.ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar-thumb{background:#718b92;border:3px solid #e7edef;border-radius:10px}
+.ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar-thumb:hover{background:#4f6d75}
+.ficha-aberta-planilha .ficha-planilha{scrollbar-width:auto;scrollbar-color:#718b92 #e7edef}
+@media(max-width:700px){.ficha-aberta-planilha .ficha-planilha{padding-bottom:2px!important}.ficha-aberta-planilha .ficha-planilha::after{content:"← USE A BARRA PARA VER TODAS AS COLUNAS →";position:sticky;left:0;margin:4px 8px 6px}}
