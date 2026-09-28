@@ -13,7 +13,7 @@
   window.telaPreparacoes=async function(){C.innerHTML='<div class="card">Carregando preparações...</div>';try{await carregar();renderLista()}catch(e){C.innerHTML=`<div class="card"><h3>Erro</h3><p>${esc(e.message)}</p></div>`}};
 
   function renderLista(){
-    C.innerHTML=`<div class="section-head"><div><small>FICHAS TÉCNICAS · EXPERIMENTAL</small><h2>Preparações / Sub-receitas</h2><p>Bases, molhos, caldos e pré-preparos reutilizáveis. O custo acompanha automaticamente os insumos e sub-receitas.</p></div><button class="primary" id="novaPrep">+ Nova preparação</button></div>
+    C.innerHTML=`<div class="section-head"><div><small>PRODUÇÃO INTERNA</small><h2>Pré-preparos / Produções</h2><p>Bases, molhos, caldos e outros pré-preparos reutilizáveis. O resultado pode ser vinculado ao Banco de Insumos.</p></div><button class="primary" id="novaPrep">+ Novo pré-preparo</button></div>
     <div class="card preparacoes-card"><div class="preparacoes-toolbar"><input id="buscaPrep" placeholder="Buscar preparação ou categoria..."><select id="filtroPrepCategoria"><option value="">Todas as categorias</option></select><select id="ordemPrep"><option value="az">A–Z</option><option value="custo">Maior custo</option><option value="rendimento">Maior rendimento</option></select></div><div id="listaPrep"></div></div>`;
     const cats=[...new Set(PREPS.map(p=>p.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
     document.querySelector("#filtroPrepCategoria").insertAdjacentHTML("beforeend",cats.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join(""));
@@ -49,9 +49,9 @@
 
   function form(p=null){
     EDITANDO=p;if(!p)ITENS=[];BASE_ESCALA=null;
-    C.innerHTML=`<div class="section-head"><div><small>SUB-RECEITA</small><h2>${p?esc(p.nome):"Nova Preparação"}</h2><p>Use insumos e também outras preparações como componentes.</p></div><button class="secondary" id="voltarPrep">← Voltar</button></div>
+    C.innerHTML=`<div class="section-head"><div><small>PRÉ-PREPARO / PRODUÇÃO</small><h2>${p?esc(p.nome):"Novo Pré-preparo"}</h2><p>Use insumos e também outras preparações como componentes.</p></div><button class="secondary" id="voltarPrep">← Voltar</button></div>
     <form id="formPrep" class="ficha-aberta-planilha"><div class="card form-grid">
-    <label>Nome da preparação<input id="prepNome" required value="${esc(p?.nome||"")}"></label>
+    <label>Nome do pré-preparo<input id="prepNome" required value="${esc(p?.nome||"")}"></label>
     <label>Categoria<select id="prepCategoria">${["Bases e Fundos","Molhos","Carnes e Aves","Pescados e Frutos do Mar","Massas","Arroz e Cereais","Guarnições","Vegetais e Saladas","Padaria","Confeitaria e Sobremesas","Marinadas e Condimentos","Pré-preparos"].map(x=>`<option ${p?.categoria===x?"selected":""}>${x}</option>`).join("")}</select></label>
     <label>Rendimento final<input id="prepRendimento" type="number" min=".0001" step=".0001" required readonly value="${p?.rendimento??1}"><small>Calculado pela soma dos componentes compatíveis</small></label>
     <label>Unidade do rendimento<select id="prepUnidade">${["KG","L","UN","PORÇÃO"].map(x=>`<option ${p?.unidade_rendimento===x?"selected":""}>${x}</option>`).join("")}</select></label></div>
@@ -61,7 +61,7 @@
     ${p?`<div class="card"><div class="section-head"><div><small>RESULTADO DA PRODUÇÃO</small><h3>Banco de Insumos</h3><p>Crie ou atualize o insumo produzido usando o custo unitário calculado desta produção.</p></div><button type="button" class="primary" id="vincularInsumoProd">Vincular ao Banco de Insumos</button></div><div id="statusInsumoProd"></div></div>`:""}
     ${p?renderUsadoEm(p):""}
     <div class="card"><label>Modo de preparo<textarea id="prepModo">${esc(p?.modo_preparo||"")}</textarea></label><label style="margin-top:13px">Observações<textarea id="prepObs">${esc(p?.observacoes||"")}</textarea></label></div>
-    <div class="actions"><button type="button" class="secondary" id="cancelPrep">Cancelar</button>${p?'<button type="button" class="danger" id="delPrep">Excluir</button>':""}<button class="primary" type="submit">Salvar preparação</button></div></form>`;
+    <div class="actions"><button type="button" class="secondary" id="cancelPrep">Cancelar</button>${p?'<button type="button" class="danger" id="delPrep">Excluir</button>':""}<button class="primary" type="submit">Salvar pré-preparo</button></div></form>`;
     if(p){const vb=document.querySelector("#vincularInsumoProd");if(vb){vb.addEventListener("click",async ev=>{ev.preventDefault();ev.stopPropagation();const st=document.querySelector("#statusInsumoProd");try{vb.disabled=true;if(st)st.innerHTML='<p>Sincronizando custo...</p>';const qtdAtual=num(document.querySelector("#prepQtdPorcoesInput")?.value);const qtdSalva=num(p.quantidade_porcoes);if(Math.abs(qtdAtual-qtdSalva)>0.0005)throw new Error("Salve a produção antes de vincular o insumo. A quantidade de porções foi alterada.");const x=await apiSR(`/api/preparacoes/${Number(p.id)}/vincular-insumo?t=${Date.now()}`,{method:"POST",headers:{"Accept":"application/json"},body:JSON.stringify({forcar:true})});if(st)st.innerHTML=`<p><b>${esc(x.ingrediente)}</b> atualizado no grupo <b>PRODUÇÕES</b> · <b>${moeda(x.preco_real)}/${esc(x.unidade)}</b></p>`;await carregar()}catch(e){console.error("[MISEVO][vincular-insumo]",e);if(st)st.innerHTML=`<p class="error">${esc(e.message)}</p>`}finally{vb.disabled=false}}, {capture:true})}}
     document.querySelector("#voltarPrep").onclick=window.telaPreparacoes;document.querySelector("#cancelPrep").onclick=window.telaPreparacoes;
     document.querySelector("#addPrepItem").onclick=()=>{ITENS.push({tipo:"insumo",id:"",quantidade:0,observacoes:""});BASE_ESCALA=null;renderItens()};document.querySelector("#prepEscalaModo").onchange=atualizarEscalaUI;document.querySelector("#prepEscalaValor").oninput=aplicarEscala;document.querySelector("#prepResetEscala").onclick=restaurarEscala;
