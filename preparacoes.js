@@ -152,6 +152,46 @@ async function criaCiclo(db, origem, destino, empresaId, unidadeId) {
 }
 
 export function installPreparacoes(app,pool) {
+  app.post("/api/preparacoes/migrar-fichas-legadas",asyncRoute(async(req,res)=>{
+    const empresaId=req.user.empresa_id,unidadeId=req.user.unidade_id;
+    const client=await pool.connect();
+    try{
+      await client.query("BEGIN");
+      const antigas=await client.query(
+        `SELECT f.* FROM fichas f
+          WHERE f.empresa_id=$1 AND f.unidade_id=$2
+            AND NOT EXISTS (
+              SELECT 1 FROM preparacoes p
+              WHERE p.empresa_id=f.empresa_id AND p.unidade_id=f.unidade_id
+                AND LOWER(TRIM(p.nome))=LOWER(TRIM(f.nome_prato))
+            )
+          ORDER BY f.id`,[empresaId,unidadeId]);
+      const migradas=[];
+      for(const f of antigas.rows){
+        const unidade="KG";
+        const r=await client.query(
+          `INSERT INTO preparacoes(nome,categoria,rendimento,unidade_rendimento,quantidade_porcoes,preco_venda_porcao,meta_cmv,modo_preparo,observacoes,ativo,empresa_id,unidade_id)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+          [f.nome_prato,f.categoria||"Outros",n(f.rendimento_kg)||1,unidade,n(f.porcoes)||null,n(f.preco_venda)||null,n(f.meta_cmv)||30,f.modo_preparo||"",f.observacoes||"",f.ativo!==false,empresaId,unidadeId]);
+        const pid=r.rows[0].id;
+        const ings=await client.query("SELECT insumo_id,quantidade,ordem,observacoes FROM ingredientes WHERE ficha_id=$1 ORDER BY ordem,id",[f.id]);
+        for(const x of ings.rows) await client.query(
+          "INSERT INTO preparacao_ingredientes(preparacao_id,insumo_id,quantidade,ordem,observacoes) VALUES($1,$2,$3,$4,$5)",
+          [pid,x.insumo_id,x.quantidade,x.ordem,x.observacoes||""]);
+        const comps=await client.query("SELECT preparacao_id,quantidade,ordem,observacoes FROM ficha_preparacoes WHERE ficha_id=$1 ORDER BY ordem,id",[f.id]);
+        for(const x of comps.rows){
+          if(Number(x.preparacao_id)===Number(pid))continue;
+          await client.query(
+            "INSERT INTO preparacao_componentes(preparacao_id,componente_id,quantidade,ordem,observacoes) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
+            [pid,x.preparacao_id,x.quantidade,x.ordem,x.observacoes||""]);
+        }
+        migradas.push({ficha_legada_id:f.id,preparacao_id:pid,nome:f.nome_prato});
+      }
+      await client.query("COMMIT");
+      res.json({migradas:migradas.length,itens:migradas});
+    }catch(e){await client.query("ROLLBACK");throw e}finally{client.release()}
+  }));
+
   app.get("/api/preparacoes",asyncRoute(async(req,res)=>{
     const lista = await listarPreparacoesComCusto(pool,req.user.empresa_id,req.user.unidade_id);
     console.log("[MISEVO][preparacoes]", JSON.stringify({
