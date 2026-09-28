@@ -350,7 +350,7 @@ export function installPreparacoes(app,pool) {
         const u=await c.query(`SELECT DISTINCT f.nome_prato AS nome FROM ingredientes i JOIN fichas f ON f.id=i.ficha_id WHERE i.insumo_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3 ORDER BY f.nome_prato`,[ins.rows[0].id,empresaId,unidadeId]);
         usosInsumo=u.rows;
       }
-      const dependencias=[...usosPrep.map(x=>`Preparação: ${x.nome}`),...usosFicha.map(x=>`Ficha técnica: ${x.nome}`),...usosInsumo.map(x=>`Ficha técnica (insumo produzido): ${x.nome}`)];
+      const dependencias=[...usosPrep.rows.map(x=>`Preparação: ${x.nome}`),...usosFicha.rows.map(x=>`Ficha técnica: ${x.nome}`),...usosInsumo.map(x=>`Ficha técnica (insumo produzido): ${x.nome}`)];
       if(dependencias.length){await c.query("ROLLBACK");return res.status(409).json({error:"Não é possível excluir: esta produção está em uso.",dependencias});}
 
       if(ins.rows[0]) await c.query("DELETE FROM insumos WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3",[ins.rows[0].id,empresaId,unidadeId]);
