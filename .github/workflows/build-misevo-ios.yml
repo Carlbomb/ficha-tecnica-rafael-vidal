@@ -1,0 +1,65 @@
+name: Build MISEVO iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mobile-ios
+    paths:
+      - "mobile/**"
+      - ".github/workflows/build-misevo-ios.yml"
+
+jobs:
+  validate-ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Expo configuration
+        run: npx expo config --type public
+
+      - name: Generate native iOS project
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Install CocoaPods
+        working-directory: mobile/ios
+        run: pod install
+
+      - name: Build unsigned iOS simulator app
+        working-directory: mobile
+        run: |
+          xcodebuild \
+            -workspace ios/MISEVO.xcworkspace \
+            -scheme MISEVO \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package simulator build
+        working-directory: mobile
+        run: |
+          APP_PATH=$(find build/Build/Products/Release-iphonesimulator -maxdepth 1 -name "*.app" | head -1)
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" MISEVO-iOS-Simulator.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MISEVO-iOS-Simulator
+          path: mobile/MISEVO-iOS-Simulator.zip
+          retention-days: 14
