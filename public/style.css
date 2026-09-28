@@ -90,3 +90,14 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 .ficha-scrollbar::-webkit-scrollbar-thumb{background:#315f6b!important;border:3px solid #d9e2e4!important;border-radius:9px!important;min-width:48px}
 .ficha-scroll-hint{display:block;padding:7px 10px;background:#fbf4df;color:#72550c;text-align:center;font-size:10px;font-weight:850;letter-spacing:.02em}
 @media(max-width:700px){.ficha-scrollbar{height:28px}.ficha-scrollbar::-webkit-scrollbar{height:22px!important}.ficha-scroll-hint{font-size:9px;padding:7px 5px}.ficha-aberta-planilha .ficha-planilha::after{display:none!important}}
+
+/* MISEVO — controle horizontal touch confiável */
+.ficha-scroll-control{display:grid;grid-template-columns:42px minmax(0,1fr) 42px;align-items:center;gap:8px;padding:8px;background:#e4eaec;border-top:1px solid #bdcacc;border-bottom:1px solid #bdcacc}
+.ficha-scroll-arrow{height:38px;border:1px solid #9db0b5;border-radius:7px;background:#fff;color:#315f6b;font-size:25px;font-weight:900;line-height:1}
+.ficha-scroll-range{width:100%;height:38px;min-height:38px;margin:0;padding:0;border:0;background:transparent;accent-color:#315f6b;touch-action:pan-x}
+.ficha-scroll-range::-webkit-slider-runnable-track{height:10px;background:#c3d0d3;border-radius:999px}
+.ficha-scroll-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;margin-top:-9px;border-radius:50%;background:#315f6b;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.ficha-scroll-range::-moz-range-track{height:10px;background:#c3d0d3;border-radius:999px}
+.ficha-scroll-range::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#315f6b;border:3px solid #fff}
+.ficha-scrollbar{display:none!important}
+@media(max-width:700px){.ficha-scroll-control{position:sticky;left:0;grid-template-columns:40px minmax(0,1fr) 40px;padding:7px}.ficha-scroll-arrow{height:40px}.ficha-scroll-range{height:40px;min-height:40px}}
