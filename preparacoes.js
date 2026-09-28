@@ -28,6 +28,9 @@ export async function initPreparacoes(pool) {
     ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS peso_porcao NUMERIC(14,3);
     ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS preco_venda_porcao NUMERIC(14,2);
     ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS meta_cmv NUMERIC(7,3) NOT NULL DEFAULT 30;
+    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS producao_id BIGINT REFERENCES preparacoes(id) ON DELETE SET NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_insumo_producao_tenant
+      ON insumos(producao_id,empresa_id,unidade_id) WHERE producao_id IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS preparacao_ingredientes (
       id BIGSERIAL PRIMARY KEY,
@@ -287,6 +290,41 @@ export function installPreparacoes(app,pool) {
       res.status(editando?200:201).json({id,message:editando?"Preparação atualizada com sucesso.":"Preparação criada com sucesso."});
     }catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}
   }
+
+  app.post("/api/preparacoes/:id/vincular-insumo",asyncRoute(async(req,res)=>{
+    const empresaId=req.user.empresa_id,unidadeId=req.user.unidade_id,id=Number(req.params.id);
+    const custo=await calcularCustoPreparacao(pool,id,empresaId,unidadeId);
+    const p=await pool.query(
+      `SELECT id,nome,rendimento,unidade_rendimento,quantidade_porcoes
+         FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,
+      [id,empresaId,unidadeId]
+    );
+    if(!p.rows[0]) return res.status(404).json({error:"Produção não encontrada."});
+    const prod=p.rows[0],unidade=String(prod.unidade_rendimento||"UN").toUpperCase();
+    const preco=num(custo.custo_unitario);
+    const existente=await pool.query(
+      `SELECT id FROM insumos WHERE producao_id=$1 AND empresa_id=$2 AND unidade_id=$3 LIMIT 1`,
+      [id,empresaId,unidadeId]
+    );
+    let row;
+    if(existente.rows[0]){
+      const r=await pool.query(
+        `UPDATE insumos SET ingrediente=$1,unidade=$2,peso_bruto=1,peso_liquido=1,fc=1,
+          preco_compra=$3,preco_real=$3,fornecedor='Produção interna',grupo='PRODUÇÕES',
+          observacoes='Custo sincronizado automaticamente com a produção.',ativo=TRUE,updated_at=NOW()
+          WHERE id=$4 AND empresa_id=$5 AND unidade_id=$6 RETURNING id,id AS codigo,ingrediente,unidade,preco_real,grupo,producao_id`,
+        [prod.nome,unidade,preco,existente.rows[0].id,empresaId,unidadeId]
+      ); row=r.rows[0];
+    }else{
+      const r=await pool.query(
+        `INSERT INTO insumos(ingrediente,unidade,peso_bruto,peso_liquido,fc,preco_compra,preco_real,fornecedor,ativo,observacoes,empresa_id,unidade_id,grupo,producao_id)
+         VALUES($1,$2,1,1,1,$3,$3,'Produção interna',TRUE,'Custo sincronizado automaticamente com a produção.',$4,$5,'PRODUÇÕES',$6)
+         RETURNING id,id AS codigo,ingrediente,unidade,preco_real,grupo,producao_id`,
+        [prod.nome,unidade,preco,empresaId,unidadeId,id]
+      ); row=r.rows[0];
+    }
+    res.status(existente.rows[0]?200:201).json(row);
+  }));
 
   app.post("/api/preparacoes",asyncRoute((req,res)=>gravar(req,res,false)));
   app.put("/api/preparacoes/:id",asyncRoute((req,res)=>gravar(req,res,true)));
