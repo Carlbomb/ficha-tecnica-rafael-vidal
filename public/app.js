@@ -148,138 +148,36 @@ document.addEventListener("click", event => {
 ========================================================= */
 
 async function telaPainel() {
-  const fichasAtivas = FICHAS.filter(f => f.ativo !== false);
+  const fichasAtivas = PREPARACOES.filter(f => f.ativo !== false);
   const insumosAtivos = INSUMOS.filter(i => i.ativo !== false);
-  const preparacoesAtivas = PREPARACOES.filter(p => p.ativo !== false);
-
-  const fichasComCMV = fichasAtivas.filter(f => num(f.cmv_percentual) > 0);
-  const cmvMedio = fichasComCMV.length
-    ? fichasComCMV.reduce((s, f) => s + num(f.cmv_percentual), 0) / fichasComCMV.length
-    : 0;
-
-  const acimaMeta = fichasAtivas.filter(f => {
-    const cmv = num(f.cmv_percentual);
-    const meta = num(f.meta_cmv) || 30;
-    return cmv > 0 && cmv > meta;
-  });
-
-  const dentroMeta = fichasComCMV.filter(f => {
-    const meta = num(f.meta_cmv) || 30;
-    return num(f.cmv_percentual) <= meta;
-  });
-
-  const custoMedioPorcao = fichasAtivas.length
-    ? fichasAtivas.reduce((s, f) => s + num(f.custo_por_porcao), 0) / fichasAtivas.length
-    : 0;
-
-  const [estoqueReq, validadesReq] = await Promise.allSettled([
-    api("/api/estoque/resumo"),
-    api("/api/etiquetas")
-  ]);
-  const estoqueResumo = estoqueReq.status === "fulfilled" ? estoqueReq.value : null;
-  const etiquetas = validadesReq.status === "fulfilled" && Array.isArray(validadesReq.value) ? validadesReq.value : null;
-  const abaixoMinimo = estoqueResumo ? num(estoqueResumo.abaixo_minimo) : null;
-  const vencimentosProximos = etiquetas
-    ? etiquetas.filter(x => ["vencendo","vence_hoje"].includes(x.status_calculado))
-        .reduce((s,x) => s + Math.max(1,num(x.quantidade)),0)
-    : null;
-
-  const recentes = [...fichasAtivas]
-    .sort((a,b) => {
-      const da = new Date(a.updated_at || a.created_at || 0).getTime();
-      const db = new Date(b.updated_at || b.created_at || 0).getTime();
-      return db - da || Number(b.id) - Number(a.id);
-    })
-    .slice(0,5);
-
-  C.innerHTML = `
-    <div class="section-head">
-      <div>
-        <small>PAINEL</small>
-        <h2>Visão Geral</h2>
-        <p>Indicadores operacionais para acompanhar preparações, custos, estoque e vencimentos.</p>
-      </div>
-    </div>
-
+  const custoMedio = fichasAtivas.length ? fichasAtivas.reduce((s,f)=>s+num(f.custo_unitario),0)/fichasAtivas.length : 0;
+  const [estoqueReq,validadesReq]=await Promise.allSettled([api("/api/estoque/resumo"),api("/api/etiquetas")]);
+  const estoqueResumo=estoqueReq.status==="fulfilled"?estoqueReq.value:null;
+  const etiquetas=validadesReq.status==="fulfilled"&&Array.isArray(validadesReq.value)?validadesReq.value:null;
+  const abaixoMinimo=estoqueResumo?num(estoqueResumo.abaixo_minimo):null;
+  const vencimentosProximos=etiquetas?etiquetas.filter(x=>["vencendo","vence_hoje"].includes(x.status_calculado)).reduce((s,x)=>s+Math.max(1,num(x.quantidade)),0):null;
+  const recentes=[...fichasAtivas].sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR")).slice(0,5);
+  const ni=$("#ni"),nf=$("#nf"),avg=$("#avg");
+  if(ni)ni.textContent=insumosAtivos.length;
+  if(nf)nf.textContent=fichasAtivas.length;
+  if(avg){avg.closest("article")?.querySelector("span")&&(avg.closest("article").querySelector("span").textContent="CUSTO MÉDIO / UNIDADE");avg.textContent=moeda(custoMedio)}
+  C.innerHTML=`
+    <div class="section-head"><div><small>PAINEL</small><h2>Visão Geral</h2><p>Indicadores das fichas técnicas, estoque e vencimentos.</p></div></div>
     <div class="summary-grid painel-kpis">
-      <div><span>Preparações</span><strong>${preparacoesAtivas.length}</strong></div>
-      <div><span>Custo Médio / Porção</span><strong>${moeda(custoMedioPorcao)}</strong></div>
+      <div><span>Fichas Técnicas</span><strong>${fichasAtivas.length}</strong></div>
+      <div><span>Custo médio / unidade</span><strong>${moeda(custoMedio)}</strong></div>
       <div><span>Itens abaixo do mínimo</span><strong>${abaixoMinimo===null?"—":abaixoMinimo}</strong></div>
       <div><span>Vencimentos próximos</span><strong>${vencimentosProximos===null?"—":vencimentosProximos}</strong></div>
     </div>
-
-    <div class="card" style="margin-top:16px">
-      <div class="section-head">
-        <div>
-          <small>ATENÇÃO NECESSÁRIA</small>
-          <h3>Resumo de CMV</h3>
-        </div>
-      </div>
-      <div class="summary-grid">
-        <div><span>Dentro da meta</span><strong>${dentroMeta.length}</strong></div>
-        <div><span>Acima da meta</span><strong>${acimaMeta.length}</strong></div>
-        <div><span>Sem CMV calculado</span><strong>${fichasAtivas.length - fichasComCMV.length}</strong></div>
-      </div>
-      ${acimaMeta.length ? `
-        <div class="table-wrap" style="margin-top:16px">
-          <table>
-            <thead><tr><th>Ficha</th><th>CMV Atual</th><th>Meta</th><th></th></tr></thead>
-            <tbody>
-              ${acimaMeta.slice(0,5).map(f => `
-                <tr>
-                  <td><b>${esc(f.nome_prato)}</b></td>
-                  <td>${numero(f.cmv_percentual,3)}%</td>
-                  <td>${numero(f.meta_cmv || 30,3)}%</td>
-                  <td><button type="button" onclick="editarFicha(${Number(f.id)})">Abrir</button></td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
-        </div>` : `<div class="empty" style="margin-top:16px">Nenhuma ficha está acima da meta de CMV.</div>`}
+    <div class="card" style="margin-top:16px"><div class="section-head"><div><small>ACESSO RÁPIDO</small><h3>Ações frequentes</h3></div></div>
+      <div class="actions" style="justify-content:flex-start"><button type="button" class="primary" id="painelNovaFicha">+ Nova Ficha Técnica</button><button type="button" class="secondary" id="painelNovoInsumo">+ Novo Insumo</button></div>
     </div>
-
-    <div class="card" style="margin-top:16px">
-      <div class="section-head">
-        <div><small>ACESSO RÁPIDO</small><h3>Ações frequentes</h3></div>
-      </div>
-      <div class="actions" style="justify-content:flex-start">
-        <button type="button" class="primary" onclick="novaFicha()">+ Nova Ficha</button>
-        <button type="button" class="secondary" id="painelNovoInsumo">+ Novo Insumo</button>
-        <button type="button" class="secondary" id="painelNovaPreparacao">+ Nova Preparação</button>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:16px">
-      <div class="section-head">
-        <div><small>RECENTES</small><h3>Últimas Fichas</h3></div>
-      </div>
-      ${recentes.length ? `
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Preparação</th><th>Categoria</th><th>Custo/Porção</th><th>CMV</th><th></th></tr></thead>
-            <tbody>
-              ${recentes.map(f => `
-                <tr>
-                  <td><b>${esc(f.nome_prato)}</b></td>
-                  <td>${esc(f.categoria || "—")}</td>
-                  <td>${moeda(f.custo_por_porcao)}</td>
-                  <td>${numero(f.cmv_percentual,3)}%</td>
-                  <td><button type="button" onclick="editarFicha(${Number(f.id)})">Abrir</button></td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
-        </div>` : `<div class="empty">Nenhuma ficha técnica cadastrada.</div>`}
-    </div>
-
-  `;
-
-  const novoInsumo = $("#painelNovoInsumo");
-  if (novoInsumo) novoInsumo.onclick = () => formularioInsumo();
-
-  const novaPrep = $("#painelNovaPreparacao");
-  if (novaPrep) novaPrep.onclick = () => {
-    const botao = document.querySelector('nav button[data-tab="preparacoes"]');
-    if (botao) botao.click();
-  };
+    <div class="card" style="margin-top:16px"><div class="section-head"><div><small>FICHAS TÉCNICAS</small><h3>Fichas cadastradas</h3></div><button type="button" class="secondary" id="painelVerFichas">Ver todas</button></div>
+      ${recentes.length?`<div class="table-wrap"><table><thead><tr><th>Ficha</th><th>Categoria</th><th>Rendimento</th><th>Custo</th><th></th></tr></thead><tbody>${recentes.map(x=>`<tr><td><b>${esc(x.nome)}</b></td><td>${esc(x.categoria||"—")}</td><td>${numero(x.rendimento,3)} ${esc(x.unidade_rendimento||"")}</td><td>${moeda(x.custo_total)}</td><td><button type="button" onclick="editarPreparacao(${Number(x.id)})">Abrir</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Nenhuma ficha técnica cadastrada.</div>'}
+    </div>`;
+  $("#painelNovoInsumo")?.addEventListener("click",()=>formularioInsumo());
+  $("#painelNovaFicha")?.addEventListener("click",()=>window.telaPreparacoes());
+  $("#painelVerFichas")?.addEventListener("click",()=>window.telaPreparacoes());
 }
 
 /* =========================================================
