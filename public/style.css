@@ -198,3 +198,44 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
     height:20px!important;
   }
 }
+
+
+/* Preparações: mesma contenção horizontal usada na Ficha Técnica */
+.ficha-aberta-planilha #prepItens{padding:0;min-width:0;max-width:100%;box-sizing:border-box}
+@media(max-width:700px){
+  .ficha-aberta-planilha #prepItens{
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow:hidden!important;
+    contain:inline-size;
+  }
+  .ficha-aberta-planilha #prepItens .ficha-planilha{
+    box-sizing:border-box!important;
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+    touch-action:pan-x!important;
+    overscroll-behavior-x:contain!important;
+  }
+  .ficha-aberta-planilha #prepItens .ficha-planilha table{
+    display:table!important;
+    width:1180px!important;
+    min-width:1180px!important;
+    max-width:1180px!important;
+    table-layout:auto!important;
+  }
+  .ficha-aberta-planilha #prepItens .ficha-planilha select,
+  .ficha-aberta-planilha #prepItens .ficha-planilha input{
+    touch-action:manipulation!important;
+  }
+  .ficha-aberta-planilha #prepItens .ficha-planilha::-webkit-scrollbar{
+    display:block!important;
+    height:20px!important;
+  }
+}
