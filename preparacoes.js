@@ -301,7 +301,7 @@ export function installPreparacoes(app,pool) {
     );
     if(!p.rows[0]) return res.status(404).json({error:"Produção não encontrada."});
     const prod=p.rows[0],unidade=String(prod.unidade_rendimento||"UN").toUpperCase();
-    const preco=num(custo.custo_unitario);
+    const preco=n(custo.custo_unitario);
     const existente=await pool.query(
       `SELECT id FROM insumos WHERE producao_id=$1 AND empresa_id=$2 AND unidade_id=$3 LIMIT 1`,
       [id,empresaId,unidadeId]
