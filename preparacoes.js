@@ -76,7 +76,7 @@ export async function calcularCustoPreparacao(db, id, empresaId, unidadeId, visi
   const prox = new Set(visitados); prox.add(chave);
 
   const p = await db.query(
-    `SELECT id,nome,rendimento,unidade_rendimento
+    `SELECT id,nome,rendimento,unidade_rendimento,quantidade_porcoes
        FROM preparacoes
       WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,
     [id,empresaId,unidadeId]
@@ -110,6 +110,7 @@ export async function calcularCustoPreparacao(db, id, empresaId, unidadeId, visi
     nome:p.rows[0].nome,
     rendimento,
     unidade_rendimento:p.rows[0].unidade_rendimento,
+    quantidade_porcoes:n(p.rows[0].quantidade_porcoes),
     custo_total:total,
     custo_unitario:rendimento>0?total/rendimento:0
   };
