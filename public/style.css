@@ -101,3 +101,11 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 .ficha-scroll-range::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#315f6b;border:3px solid #fff}
 .ficha-scrollbar{display:none!important}
 @media(max-width:700px){.ficha-scroll-control{position:sticky;left:0;grid-template-columns:40px minmax(0,1fr) 40px;padding:7px}.ficha-scroll-arrow{height:40px}.ficha-scroll-range{height:40px;min-height:40px}}
+
+/* MISEVO — restaura barra visual anterior; conteúdo acompanha largura real */
+.ficha-scroll-control{display:none!important}
+.ficha-scrollbar{display:block!important;width:100%!important;height:28px!important;overflow-x:scroll!important;overflow-y:hidden!important;background:#e4eaec!important;border-top:1px solid #bdcacc!important;border-bottom:1px solid #bdcacc!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-x!important;scrollbar-width:auto!important;scrollbar-color:#315f6b #d9e2e4!important}
+.ficha-scrollbar-inner{height:2px!important;min-width:1180px}
+.ficha-scrollbar::-webkit-scrollbar{display:block!important;height:20px!important}
+.ficha-scrollbar::-webkit-scrollbar-track{background:#d9e2e4!important;border-radius:9px!important}
+.ficha-scrollbar::-webkit-scrollbar-thumb{background:#315f6b!important;border:3px solid #d9e2e4!important;border-radius:9px!important}
