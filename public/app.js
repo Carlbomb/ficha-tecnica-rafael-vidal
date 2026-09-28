@@ -735,6 +735,7 @@ window.editarFicha = async function(id) {
         tipo: "preparacao",
         id: Number(item.preparacao_id),
         peso_liquido: num(item.quantidade),
+        unidade: item.unidade || item.unidade_rendimento || "",
         observacoes: item.observacoes || ""
       }))
     ];
@@ -1305,6 +1306,7 @@ async function salvarFicha(event) {
       .map(item => ({
         preparacao_id: item.id,
         quantidade: num(item.peso_liquido),
+        unidade: item.unidade || unidadeFicha(item),
         observacoes: item.observacoes || ""
       }))
   };
