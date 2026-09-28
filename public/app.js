@@ -735,7 +735,7 @@ window.editarFicha = async function(id) {
         tipo: "preparacao",
         id: Number(item.preparacao_id),
         peso_liquido: num(item.quantidade),
-        unidade: item.unidade || item.unidade_rendimento || "",
+        unidade: item.unidade || (num(item.quantidade_porcoes)>0 ? "PORÇÃO" : (item.unidade_rendimento || "")),
         observacoes: item.observacoes || ""
       }))
     ];
@@ -1125,7 +1125,7 @@ function alterarInsumo(index, value) {
   ITENS_FICHA[index].id = value ? Number(value) : "";
   const fonte = fonteFicha(ITENS_FICHA[index]);
   ITENS_FICHA[index].unidade = ITENS_FICHA[index].tipo === "preparacao"
-    ? (fonte?.unidade_rendimento || "")
+    ? (num(fonte?.quantidade_porcoes)>0 ? "PORÇÃO" : (fonte?.unidade_rendimento || ""))
     : (fonte?.unidade || "");
   renderizarIngredientes();
 }
