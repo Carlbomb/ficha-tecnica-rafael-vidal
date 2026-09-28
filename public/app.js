@@ -1207,23 +1207,28 @@ function renderizarIngredientes() {
         </tr>`;
       }).join("")}
       </tbody>
-    </table></div><div class="ficha-scrollbar" aria-label="Barra de rolagem horizontal da ficha"><div class="ficha-scrollbar-inner"></div></div><div class="ficha-scroll-hint">← ARRASTE A BARRA PARA VER TODAS AS COLUNAS →</div>`;
+    </table></div><div class="ficha-scroll-control" aria-label="Controle horizontal da ficha"><button type="button" class="ficha-scroll-arrow" data-dir="-1" aria-label="Mover para esquerda">‹</button><input class="ficha-scroll-range" type="range" min="0" max="1000" value="0" step="1" aria-label="Arraste para ver as demais colunas"><button type="button" class="ficha-scroll-arrow" data-dir="1" aria-label="Mover para direita">›</button></div><div class="ficha-scroll-hint">← ARRASTE A BARRA PARA VER TODAS AS COLUNAS →</div>`;
   const tabelaScroll = area.querySelector(".ficha-planilha");
-  const barraScroll = area.querySelector(".ficha-scrollbar");
-  if (tabelaScroll && barraScroll) {
-    let sincronizando = false;
-    tabelaScroll.addEventListener("scroll", () => {
-      if (sincronizando) return;
-      sincronizando = true;
-      barraScroll.scrollLeft = tabelaScroll.scrollLeft;
-      sincronizando = false;
-    }, {passive:true});
-    barraScroll.addEventListener("scroll", () => {
-      if (sincronizando) return;
-      sincronizando = true;
-      tabelaScroll.scrollLeft = barraScroll.scrollLeft;
-      sincronizando = false;
-    }, {passive:true});
+  const rangeScroll = area.querySelector(".ficha-scroll-range");
+  const setTabelaPorRange = () => {
+    if (!tabelaScroll || !rangeScroll) return;
+    const max = Math.max(0, tabelaScroll.scrollWidth - tabelaScroll.clientWidth);
+    tabelaScroll.scrollLeft = max * (Number(rangeScroll.value) / 1000);
+  };
+  const setRangePorTabela = () => {
+    if (!tabelaScroll || !rangeScroll) return;
+    const max = Math.max(0, tabelaScroll.scrollWidth - tabelaScroll.clientWidth);
+    rangeScroll.value = max ? String(Math.round((tabelaScroll.scrollLeft / max) * 1000)) : "0";
+  };
+  if (tabelaScroll && rangeScroll) {
+    rangeScroll.addEventListener("input", setTabelaPorRange);
+    rangeScroll.addEventListener("change", setTabelaPorRange);
+    tabelaScroll.addEventListener("scroll", setRangePorTabela, {passive:true});
+    area.querySelectorAll(".ficha-scroll-arrow").forEach(btn => btn.addEventListener("click", () => {
+      const max = Math.max(0, tabelaScroll.scrollWidth - tabelaScroll.clientWidth);
+      tabelaScroll.scrollTo({left: Math.max(0, Math.min(max, tabelaScroll.scrollLeft + Number(btn.dataset.dir) * Math.max(180, tabelaScroll.clientWidth * .7))), behavior:"smooth"});
+    }));
+    requestAnimationFrame(setRangePorTabela);
   }
   calcularFicha();
 }
