@@ -1018,7 +1018,8 @@ function quantidadeNaUnidadeBase(item){
   const fonte=fonteFicha(item);
   if(!fonte) return num(item.peso_liquido);
   const base=item.tipo==="preparacao"?(fonte.unidade_rendimento||"UN"):(fonte.unidade||"KG");
-  const usada=item.unidade||base;
+  const usada=String(item.unidade||base).toUpperCase();
+  if(item.tipo==="preparacao" && usada==="PORÇÃO") return num(item.peso_liquido);
   const c=converterQuantidade(item.peso_liquido,usada,base);
   return Number.isFinite(c)?c:num(item.peso_liquido);
 }
@@ -1057,9 +1058,13 @@ function fonteFicha(item) {
 
 function precoFicha(item) {
   const fonte = fonteFicha(item);
-  return item.tipo === "preparacao"
-    ? num(fonte?.custo_unitario)
-    : num(fonte?.preco_real);
+  if (item.tipo !== "preparacao") return num(fonte?.preco_real);
+  const usada = String(item.unidade || fonte?.unidade_rendimento || "UN").toUpperCase();
+  if (usada === "PORÇÃO") {
+    const porcoes = num(fonte?.quantidade_porcoes);
+    return porcoes > 0 ? num(fonte?.custo_total) / porcoes : 0;
+  }
+  return num(fonte?.custo_unitario);
 }
 
 function unidadeFicha(item) {
@@ -1196,7 +1201,7 @@ function renderizarIngredientes() {
           <td data-ficha-codigo><b>${esc(codigo)}</b></td>
           <td><select onchange="alterarInsumo(${index},this.value)"><option value="">Selecione...</option>${opcoes}</select></td>
           <td><input class="ficha-qtd" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(item.peso_liquido_texto !== undefined ? item.peso_liquido_texto : (item.peso_liquido?String(item.peso_liquido).replace(".",","):""))}" oninput="alterarPesoLiquido(${index},this.value)"></td>
-          <td data-ficha-unidade><select class="ficha-unidade-select" aria-label="Unidade" onchange="alterarUnidadeFicha(${index},this.value)">${unidadesCompativeis(unidadeFicha(item)).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
+          <td data-ficha-unidade><select class="ficha-unidade-select" aria-label="Unidade" onchange="alterarUnidadeFicha(${index},this.value)">${(ehPrep && num(fonte?.quantidade_porcoes)>0 ? [...unidadesCompativeis(unidadeFicha(item)),"PORÇÃO"] : unidadesCompativeis(unidadeFicha(item))).map(u=>`<option value="${u}" ${(item.unidade||unidadeFicha(item))===u?"selected":""}>${u}</option>`).join("")}</select></td>
           <td data-ficha-fc>${ehPrep?"—":numero(fc,3)}</td>
           <td data-ficha-bruto>${ehPrep?"—":numero(bruto,3)}</td>
           <td data-ficha-compra>${ehPrep?"—":moeda(precoCompra)}</td>
