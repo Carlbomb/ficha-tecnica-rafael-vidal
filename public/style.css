@@ -125,3 +125,32 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 .ficha-aberta-planilha .ficha-planilha{display:block!important;width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-x pan-y!important}
 .ficha-aberta-planilha .ficha-planilha>table{min-width:1180px!important;width:max-content!important}
 .ficha-scrollbar{touch-action:pan-x!important;cursor:auto!important}
+
+/* MISEVO — composição: um único scroll horizontal nativo */
+.ficha-scrollbar,.ficha-scroll-control{display:none!important}
+.ficha-aberta-planilha .ficha-planilha{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:scroll!important;
+  overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior-x:contain!important;
+  touch-action:auto!important;
+  scrollbar-width:auto!important;
+  scrollbar-color:#315f6b #d9e2e4!important;
+}
+.ficha-aberta-planilha .ficha-planilha>table{
+  display:table!important;
+  width:1180px!important;
+  min-width:1180px!important;
+  max-width:none!important;
+}
+.ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar{display:block!important;height:20px!important}
+.ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar-track{background:#d9e2e4!important;border-radius:9px!important}
+.ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar-thumb{background:#315f6b!important;border:3px solid #d9e2e4!important;border-radius:9px!important}
+@media(max-width:700px){
+ .ficha-aberta-planilha .ficha-planilha{overflow-x:scroll!important;touch-action:auto!important;scrollbar-width:auto!important}
+ .ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar{display:block!important;height:20px!important}
+ .ficha-aberta-planilha .ficha-planilha th,.ficha-aberta-planilha .ficha-planilha td{display:table-cell!important}
+}
