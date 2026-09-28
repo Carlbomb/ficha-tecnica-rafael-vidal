@@ -31,3 +31,26 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
 @media(max-width:700px){.sidebar{overflow-y:auto!important;overscroll-behavior:contain}.main-nav{flex:0 0 auto}.sidebar-footer{margin-top:14px}}
 
 .import-nav-direct{flex:0 0 auto;min-height:44px!important;padding:9px 10px!important;gap:9px!important;border:1px solid rgba(227,187,80,.42)!important;background:rgba(227,187,80,.10)!important;color:#fff!important}.import-nav-direct small{display:block;color:#e3bb50;font-size:9px;line-height:1.1;text-transform:uppercase;letter-spacing:.04em}
+
+/* MISEVO — Ficha Técnica aberta em visual de planilha */
+.ficha-aberta-planilha{--sheet-line:#cfd9db;--sheet-head:#edf3f4}
+.ficha-aberta-planilha>.card{border-radius:4px;box-shadow:none;padding:0;overflow:hidden;border-color:var(--sheet-line)}
+.ficha-aberta-planilha>.card.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+.ficha-aberta-planilha>.card.form-grid>label{min-width:0;padding:8px 10px;background:var(--sheet-head);border-right:1px solid var(--sheet-line);border-bottom:1px solid var(--sheet-line);color:#36545c;font-size:10px;text-transform:uppercase}
+.ficha-aberta-planilha>.card.form-grid>label input,.ficha-aberta-planilha>.card.form-grid>label select{margin-top:5px;min-height:34px;padding:6px 7px;border:1px solid #bfcdd0;border-radius:2px;background:#fff;color:var(--text);font-size:13px;text-transform:none}
+.ficha-aberta-planilha>.card>.section-head{margin:0;padding:10px 12px;background:var(--sheet-head);border-bottom:1px solid var(--sheet-line);align-items:center}
+.ficha-aberta-planilha>.card>.section-head h3{margin:2px 0}
+.ficha-aberta-planilha #ingredientesFicha{padding:0}
+.ficha-aberta-planilha .ficha-planilha{border:0;border-radius:0;padding-bottom:0}
+.ficha-aberta-planilha .ficha-planilha::after{margin:5px 8px}
+.ficha-aberta-planilha .ficha-planilha th,.ficha-aberta-planilha .ficha-planilha td{border-right:1px solid #e0e7e8;padding:7px 8px}
+.ficha-aberta-planilha .ficha-planilha th{position:sticky;top:0;z-index:1}
+.ficha-aberta-planilha>.card>h3{margin:0;padding:10px 12px;background:var(--sheet-head);border-bottom:1px solid var(--sheet-line);font-size:14px}
+.ficha-aberta-planilha .summary-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin:0}
+.ficha-aberta-planilha .summary-grid>div{padding:10px;border-right:1px solid var(--sheet-line);background:#fff}
+.ficha-aberta-planilha .summary-grid span{font-size:9px}
+.ficha-aberta-planilha .summary-grid strong{font-size:16px}
+.ficha-aberta-planilha>.card>label{padding:10px 12px;margin:0!important;border-bottom:1px solid var(--sheet-line);background:var(--sheet-head);color:#36545c;font-size:10px;text-transform:uppercase}
+.ficha-aberta-planilha>.card>label textarea{margin-top:6px;border-radius:2px;background:#fff;font-size:13px;text-transform:none}
+@media(max-width:900px){.ficha-aberta-planilha>.card.form-grid{grid-template-columns:repeat(2,minmax(180px,1fr));overflow-x:auto}.ficha-aberta-planilha .summary-grid{grid-template-columns:repeat(3,minmax(150px,1fr));overflow-x:auto}}
+@media(max-width:700px){.ficha-aberta-planilha>.card{padding:0}.ficha-aberta-planilha>.card.form-grid{display:grid;grid-template-columns:repeat(2,minmax(165px,1fr));overflow-x:auto}.ficha-aberta-planilha .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(145px,1fr));overflow-x:auto}.ficha-aberta-planilha .ficha-planilha table{min-width:1180px}.ficha-aberta-planilha .ficha-planilha th,.ficha-aberta-planilha .ficha-planilha td{padding:6px 7px}.ficha-aberta-planilha>.card>.section-head button{width:auto}}
