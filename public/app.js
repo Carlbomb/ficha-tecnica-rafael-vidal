@@ -1229,6 +1229,48 @@ function renderizarIngredientes() {
       tabelaScroll.scrollLeft = barraScroll.scrollLeft;
       requestAnimationFrame(() => { origem = ""; });
     }, {passive:true});
+
+    /* Android/WebView: arrastar qualquer ponto da barra move a tabela */
+    let dragAtivo = false, dragX = 0, dragLeft = 0;
+    const iniciarDrag = (x) => {
+      dragAtivo = true;
+      dragX = x;
+      dragLeft = barraScroll.scrollLeft;
+      barraScroll.classList.add("arrastando");
+    };
+    const moverDrag = (x) => {
+      if (!dragAtivo) return;
+      const destino = dragLeft - (x - dragX);
+      barraScroll.scrollLeft = destino;
+      tabelaScroll.scrollLeft = destino;
+    };
+    const finalizarDrag = () => {
+      dragAtivo = false;
+      barraScroll.classList.remove("arrastando");
+    };
+    barraScroll.addEventListener("pointerdown", e => {
+      iniciarDrag(e.clientX);
+      try { barraScroll.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    });
+    barraScroll.addEventListener("pointermove", e => {
+      if (!dragAtivo) return;
+      moverDrag(e.clientX);
+      e.preventDefault();
+    });
+    barraScroll.addEventListener("pointerup", finalizarDrag);
+    barraScroll.addEventListener("pointercancel", finalizarDrag);
+    barraScroll.addEventListener("touchstart", e => {
+      if (!e.touches || !e.touches[0]) return;
+      iniciarDrag(e.touches[0].clientX);
+    }, {passive:true});
+    barraScroll.addEventListener("touchmove", e => {
+      if (!dragAtivo || !e.touches || !e.touches[0]) return;
+      moverDrag(e.touches[0].clientX);
+      e.preventDefault();
+    }, {passive:false});
+    barraScroll.addEventListener("touchend", finalizarDrag, {passive:true});
+
     requestAnimationFrame(ajustarBarra);
     setTimeout(ajustarBarra, 120);
   }
