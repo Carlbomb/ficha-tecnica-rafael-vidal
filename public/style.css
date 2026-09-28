@@ -154,3 +154,47 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
  .ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar{display:block!important;height:20px!important}
  .ficha-aberta-planilha .ficha-planilha th,.ficha-aberta-planilha .ficha-planilha td{display:table-cell!important}
 }
+
+/* MISEVO — correção estrutural mobile: impedir a ficha de alargar a página */
+@media(max-width:700px){
+  .ficha-aberta-planilha,
+  .ficha-aberta-planilha .card,
+  .ficha-aberta-planilha section,
+  .ficha-aberta-planilha #ingredientesFicha{
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+  }
+  .ficha-aberta-planilha #ingredientesFicha{
+    overflow:hidden!important;
+    contain:inline-size;
+  }
+  .ficha-aberta-planilha #ingredientesFicha .ficha-planilha{
+    box-sizing:border-box!important;
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+    touch-action:pan-x!important;
+    overscroll-behavior-x:contain!important;
+  }
+  .ficha-aberta-planilha #ingredientesFicha .ficha-planilha table{
+    display:table!important;
+    width:1180px!important;
+    min-width:1180px!important;
+    max-width:1180px!important;
+    table-layout:auto!important;
+  }
+  .ficha-aberta-planilha #ingredientesFicha .ficha-planilha select,
+  .ficha-aberta-planilha #ingredientesFicha .ficha-planilha input{
+    touch-action:manipulation!important;
+  }
+  .ficha-aberta-planilha #ingredientesFicha .ficha-planilha::-webkit-scrollbar{
+    display:block!important;
+    height:20px!important;
+  }
+}
