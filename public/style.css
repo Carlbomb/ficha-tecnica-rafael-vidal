@@ -116,3 +116,7 @@ input,select,textarea{width:100%;min-height:42px;padding:10px 11px;border:1px so
   .ficha-aberta-planilha .ficha-planilha::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
   .ficha-scrollbar{display:block!important}
 }
+
+/* MISEVO — área inteira da barra é arrastável por toque */
+.ficha-scrollbar{cursor:grab!important;user-select:none!important;-webkit-user-select:none!important;touch-action:none!important}
+.ficha-scrollbar.arrastando{cursor:grabbing!important}
