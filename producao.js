@@ -39,7 +39,7 @@ export async function initProducao(pool){
       custo_unitario NUMERIC(14,4) NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE INDEX IF NOT EXISTS idx_producao_consumos_ordem ON producao_consumos(ordem_id);
+    CREATE INDEX IF NOT EXISTS idx_producao_consumos_ordem ON producao_consumos(ordem_id);\n    ALTER TABLE producao_consumos ADD COLUMN IF NOT EXISTS separado BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 }
 
@@ -49,6 +49,25 @@ export function installProducao(app,pool){
       FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id LEFT JOIN fichas f ON f.id=o.ficha_id
       WHERE o.empresa_id=$1 AND o.unidade_id=$2 ORDER BY o.created_at DESC LIMIT 200`,
       [req.user.empresa_id,req.user.unidade_id]);res.json(rows);
+  }catch(e){next(e)}});
+
+  app.get("/api/producao/ordens/:id/separacao",async(req,res,next)=>{try{
+    const ordem=await pool.query(`SELECT o.id,o.status,o.quantidade_planejada,o.unidade,COALESCE(p.nome,f.nome_prato) item_nome
+      FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id LEFT JOIN fichas f ON f.id=o.ficha_id
+      WHERE o.id=$1 AND o.empresa_id=$2 AND o.unidade_id=$3`,[req.params.id,req.user.empresa_id,req.user.unidade_id]);
+    if(!ordem.rows[0])return res.status(404).json({error:"Ordem não encontrada."});
+    const {rows}=await pool.query(`SELECT pc.id,pc.insumo_id,pc.quantidade_teorica,pc.separado,i.ingrediente,i.unidade
+      FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id
+      WHERE pc.ordem_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3 ORDER BY i.ingrediente`,[req.params.id,req.user.empresa_id,req.user.unidade_id]);
+    res.json({ordem:ordem.rows[0],insumos:rows});
+  }catch(e){next(e)}});
+
+  app.patch("/api/producao/ordens/:id/separacao/:consumoId",async(req,res,next)=>{try{
+    const {rows}=await pool.query(`UPDATE producao_consumos pc SET separado=$1
+      FROM ordens_producao o WHERE pc.id=$2 AND pc.ordem_id=$3 AND o.id=pc.ordem_id
+      AND o.empresa_id=$4 AND o.unidade_id=$5 AND o.status IN ('planejada','em_producao') RETURNING pc.*`,
+      [req.body?.separado===true,req.params.consumoId,req.params.id,req.user.empresa_id,req.user.unidade_id]);
+    if(!rows[0])return res.status(404).json({error:"Item de separação não encontrado."});res.json(rows[0]);
   }catch(e){next(e)}});
 
   app.post("/api/producao/planejar",async(req,res,next)=>{
