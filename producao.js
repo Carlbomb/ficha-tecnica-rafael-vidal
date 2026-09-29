@@ -103,11 +103,9 @@ export function installProducao(app,pool){
   });
 
 
-  app.post("/api/producao/planejar-fichas",async(req,res,next)=>{
+  app.post("/api/producao/planejar-preparacoes",async(req,res,next)=>{
     try{
-      const solicitados=Array.isArray(req.body?.fichas)?req.body.fichas:[];
       const diretas=Array.isArray(req.body?.preparacoes)?req.body.preparacoes:[];
-      if(solicitados.length)return res.status(410).json({error:"O planejamento por ficha legada foi aposentado. Use as Fichas Técnicas atuais.",codigo:"PRODUCAO_FICHA_LEGADA_APOSENTADA"});
       if(!diretas.length)return res.status(400).json({error:"Adicione pelo menos uma Ficha Técnica."});
       const pratos=[],preparacoes=new Map(),insumos=new Map();
       const addInsumo=(x,q)=>{
@@ -176,12 +174,6 @@ export function installProducao(app,pool){
     }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
   });
 
-  app.post("/api/producao/ordens/:id/finalizar",(req,res)=>{
-    res.status(410).json({
-      error:"O fluxo antigo de finalização foi aposentado. Use a conclusão atual da Ordem de Produção.",
-      codigo:"FINALIZACAO_PRODUCAO_LEGADA_APOSENTADA"
-    });
-  });
   app.post("/api/producao/ordens/:id/anular",async(req,res,next)=>{
     const db=await pool.connect();
     try{
