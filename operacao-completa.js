@@ -2,7 +2,6 @@ const ar=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 const n=v=>Number.isFinite(Number(v))?Number(v):0;
 const t=req=>[req.user.empresa_id,req.user.unidade_id];
 
-export async function initOperacaoCompleta(pool){}
 export function installOperacaoCompleta(app,pool){
  app.post("/api/plataforma/homologacao/reset",async(req,res,next)=>{const db=await pool.connect();try{
   if(req.user?.plataforma_admin!==true||String(req.user?.email||"").trim().toLowerCase()!=="charlcooking@gmail.com")return res.status(403).json({error:"Acesso restrito."});
