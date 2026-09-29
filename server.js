@@ -10,7 +10,7 @@ import { initOperacao, installOperacao } from "./operacao.js";
 import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
-import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema } from "./migrations.js";
+import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema } from "./migrations.js";
 
 const { Pool } = pg;
 
@@ -175,6 +175,7 @@ async function init() {
   await initEstoque(pool);
   await migrateProducaoSchema(pool);
   await initProducao(pool);
+  await migrateOperacaoSchema(pool);
   await initOperacao(pool);
   await migrateOperacaoCompletaSchema(pool);
   await initOperacaoCompleta(pool);
