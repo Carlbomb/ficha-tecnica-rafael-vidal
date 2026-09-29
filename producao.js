@@ -251,34 +251,11 @@ export function installProducao(app,pool){
     }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
   });
 
-  app.post("/api/producao/ordens/:id/finalizar",async(req,res,next)=>{
-    const c=await pool.connect();
-    try{
-      await c.query("BEGIN");
-      const o=await c.query(`SELECT * FROM ordens_producao WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 FOR UPDATE`,
-        [req.params.id,req.user.empresa_id,req.user.unidade_id]);
-      if(!o.rows[0]){await c.query("ROLLBACK");return res.status(404).json({error:"Ordem de produção não encontrada."})}
-      if(o.rows[0].status!=="planejada"){await c.query("ROLLBACK");return res.status(409).json({error:"Esta ordem não está aberta."})}
-      const consumos=await c.query(`SELECT pc.*,i.ingrediente,i.unidade FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1 ORDER BY pc.id`,[req.params.id]);
-      let custoReal=0;
-      for(const x of consumos.rows){
-        const qtd=n(x.quantidade_teorica),anterior=await saldoInsumo(c,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
-        if(anterior<qtd){await c.query("ROLLBACK");return res.status(409).json({error:`Estoque insuficiente de ${x.ingrediente}. Necessário: ${qtd} ${x.unidade}; disponível: ${anterior} ${x.unidade}.`})}
-        const novo=anterior-qtd;
-        await c.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id)
-          VALUES($1,'saida',$2,$3,$4,$5,$6,$7,$8,$9)`,
-          [x.insumo_id,-qtd,anterior,novo,`Produção OP #${req.params.id}`,"Baixa automática pela produção",req.user.id,req.user.empresa_id,req.user.unidade_id]);
-        await c.query("UPDATE producao_consumos SET quantidade_real=$1 WHERE id=$2",[qtd,x.id]);
-        custoReal+=qtd*n(x.custo_unitario);
-      }
-      const rendimentoReal=n(req.body.rendimento_real)||n(o.rows[0].quantidade_planejada);
-      const {rows}=await c.query(`UPDATE ordens_producao SET status='finalizada',rendimento_real=$1,custo_real=$2,finalizada_at=NOW()
-        WHERE id=$3 RETURNING *`,[rendimentoReal,custoReal,req.params.id]);
-      const custoUnitario=rendimentoReal>0?custoReal/rendimentoReal:0;
-      await c.query(`INSERT INTO estoque_preparacoes(preparacao_id,quantidade,tipo,referencia,custo_unitario,usuario_id,empresa_id,unidade_id)
-        VALUES($1,$2,'producao',$3,$4,$5,$6,$7)`,[o.rows[0].preparacao_id,rendimentoReal,`OP #${req.params.id}`,custoUnitario,req.user.id,req.user.empresa_id,req.user.unidade_id]);
-      await c.query("COMMIT");res.json({...rows[0],entrada_estoque:true,custo_unitario:custoUnitario});
-    }catch(e){await c.query("ROLLBACK");next(e)}finally{c.release()}
+  app.post("/api/producao/ordens/:id/finalizar",(req,res)=>{
+    res.status(410).json({
+      error:"O fluxo antigo de finalização foi aposentado. Use a conclusão atual da Ordem de Produção.",
+      codigo:"FINALIZACAO_PRODUCAO_LEGADA_APOSENTADA"
+    });
   });
   app.post("/api/producao/ordens/:id/anular",async(req,res,next)=>{
     const db=await pool.connect();
