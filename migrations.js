@@ -259,3 +259,25 @@ export async function migrateCategoriasSchema(pool){
       ON categorias_producao(empresa_id,unidade_id,ordem,nome);
   `);
 }
+
+export async function migrateCoreSchema(pool){
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insumos (
+      id BIGSERIAL PRIMARY KEY,
+      ingrediente TEXT NOT NULL,
+      unidade TEXT NOT NULL DEFAULT 'KG',
+      peso_bruto NUMERIC(14,4) NOT NULL DEFAULT 1,
+      peso_liquido NUMERIC(14,4) NOT NULL DEFAULT 1,
+      fc NUMERIC(14,4) NOT NULL DEFAULT 1,
+      preco_compra NUMERIC(14,4) NOT NULL DEFAULT 0,
+      preco_real NUMERIC(14,4) NOT NULL DEFAULT 0,
+      fornecedor TEXT DEFAULT '',
+      data_cotacao DATE,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      observacoes TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_insumos_ingrediente ON insumos(ingrediente);
+  `);
+}
