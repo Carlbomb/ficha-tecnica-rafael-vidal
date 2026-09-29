@@ -1,36 +1,7 @@
 /* MISEVO V20 — Estoque da Cozinha + criação automática de insumo */
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
 
-export async function initEstoque(pool){
-  await pool.query(`
-    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS estoque_minimo NUMERIC(14,4) NOT NULL DEFAULT 0;
-    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS estoque_maximo NUMERIC(14,4) NOT NULL DEFAULT 0;
-    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS local_estoque TEXT NOT NULL DEFAULT '';
-
-    CREATE TABLE IF NOT EXISTS estoque_movimentacoes(
-      id BIGSERIAL PRIMARY KEY,
-      insumo_id BIGINT NOT NULL REFERENCES insumos(id) ON DELETE RESTRICT,
-      tipo TEXT NOT NULL CHECK(tipo IN ('entrada','saida','perda','ajuste')),
-      quantidade NUMERIC(14,4) NOT NULL,
-      saldo_anterior NUMERIC(14,4) NOT NULL,
-      saldo_novo NUMERIC(14,4) NOT NULL,
-      motivo TEXT NOT NULL DEFAULT '',
-      observacoes TEXT NOT NULL DEFAULT '',
-      usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
-      empresa_id BIGINT NOT NULL,
-      unidade_id BIGINT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_estoque_mov_tenant ON estoque_movimentacoes(empresa_id,unidade_id,created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_estoque_mov_insumo ON estoque_movimentacoes(insumo_id,created_at DESC);
-  `);
-  await pool.query(`
-    ALTER TABLE insumos
-    ADD COLUMN IF NOT EXISTS grupo TEXT NOT NULL DEFAULT 'Outros';
-  `);
-
-}
-
+export async function initEstoque(pool){}
 const saldoExpr=`COALESCE((SELECT SUM(m.quantidade) FROM estoque_movimentacoes m
  WHERE m.insumo_id=i.id AND m.empresa_id=i.empresa_id AND m.unidade_id=i.unidade_id),0)`;
 
