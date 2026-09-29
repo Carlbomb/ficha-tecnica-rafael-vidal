@@ -188,8 +188,10 @@ async function telaPainel() {
    BANCO DE DADOS / INSUMOS
 ========================================================= */
 
+let grupoInsumosAberto = "";
 function telaInsumos() {
   EDITANDO_INSUMO = null;
+  grupoInsumosAberto = "";
 
   C.innerHTML = `
     <div class="section-head">
@@ -219,76 +221,22 @@ function telaInsumos() {
 }
 
 function listarInsumos() {
-  const busca = String($("#buscaInsumo")?.value || "")
-    .trim()
-    .toLowerCase();
-
-  const lista = INSUMOS.filter(item => {
-    const texto = [
-      item.codigo,
-      item.ingrediente,
-      item.fornecedor,
-      item.unidade
-    ].join(" ").toLowerCase();
-
-    return texto.includes(busca);
-  });
-
-  if (!lista.length) {
-    $("#listaInsumos").innerHTML = `
-      <div class="empty">Nenhum insumo encontrado.</div>
-    `;
-    return;
+  const busca=String($("#buscaInsumo")?.value||"").trim().toLowerCase();
+  const lista=INSUMOS.filter(item=>[item.codigo,item.ingrediente,item.fornecedor,item.unidade,item.grupo||"Outros"].join(" ").toLowerCase().includes(busca));
+  const area=$("#listaInsumos");if(!area)return;
+  if(!grupoInsumosAberto&&!busca){
+    const m=new Map();lista.forEach(x=>{const g=String(x.grupo||"Outros").trim()||"Outros",v=m.get(g)||{nome:g,itens:0};v.itens++;m.set(g,v)});
+    const grupos=[...m.values()].sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+    area.innerHTML=!grupos.length?'<div class="empty">Nenhum grupo encontrado.</div>':`<div class="insumos-grupos">${grupos.map(g=>`<button type="button" class="insumo-grupo-card" data-insumo-grupo="${esc(g.nome)}"><span><b>${esc(g.nome)}</b><small>${g.itens} insumo${g.itens===1?"":"s"}</small></span><strong>›</strong></button>`).join("")}</div>`;
+    area.querySelectorAll("[data-insumo-grupo]").forEach(b=>b.onclick=()=>{grupoInsumosAberto=b.dataset.insumoGrupo;listarInsumos()});return;
   }
-
-  $("#listaInsumos").innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Cód.</th>
-            <th>Ingrediente</th>
-            <th>Unid.</th>
-            <th>P. Bruto</th>
-            <th>P. Líquido</th>
-            <th>FC</th>
-            <th>Preço Compra</th>
-            <th>Preço Real</th>
-            <th>Fornecedor</th>
-            <th>Data Cotação</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${lista.map(item => `
-            <tr>
-              <td><b>${esc(item.codigo)}</b></td>
-              <td><b>${esc(item.ingrediente)}</b></td>
-              <td>${esc(item.unidade)}</td>
-              <td>${numero(item.peso_bruto)}</td>
-              <td>${numero(item.peso_liquido)}</td>
-              <td>${numero(item.fc, 3)}</td>
-              <td>${moeda(item.preco_compra)}</td>
-              <td><b>${moeda(item.preco_real)}</b></td>
-              <td>${esc(item.fornecedor || "—")}</td>
-              <td>${
-                item.data_cotacao
-                  ? esc(String(item.data_cotacao).slice(0, 10))
-                  : "—"
-              }</td>
-              <td>
-                <button type="button" onclick="editarInsumo(${item.id})">
-                  Editar
-                </button>
-              </td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+  const itens=grupoInsumosAberto?lista.filter(x=>(String(x.grupo||"Outros").trim()||"Outros")===grupoInsumosAberto):lista;
+  area.innerHTML=`${grupoInsumosAberto?`<div class="insumo-grupo-head"><button type="button" class="secondary" id="voltarGruposInsumos">← Grupos</button><div><small>GRUPO</small><h3>${esc(grupoInsumosAberto)}</h3></div></div>`:""}
+  ${!itens.length?'<div class="empty">Nenhum insumo encontrado.</div>':`<div id="insumoBatch" class="batch-actions" hidden><b id="insumoBatchCount">0 selecionados</b><div class="batch-actions-buttons"><button type="button" class="secondary" id="moverInsumosGrupo">Mover para grupo</button></div></div><div class="insumos-grupo-lista">${itens.map(item=>`<article class="insumo-base-card"><label class="insumo-base-check"><input type="checkbox" class="insumo-base-item-check" value="${Number(item.id)}"></label><div class="insumo-base-main"><b>${esc(item.ingrediente)}</b><small>#${esc(item.codigo)} · ${esc(item.unidade)} · ${esc(item.grupo||"Outros")}</small></div><div class="insumo-base-preco"><small>Preço real</small><b>${moeda(item.preco_real)}</b></div><button type="button" class="secondary" onclick="editarInsumo(${item.id})">Editar</button></article>`).join("")}</div>`}`;
+  $("#voltarGruposInsumos")?.addEventListener("click",()=>{grupoInsumosAberto="";listarInsumos()});
+  const checks=[...area.querySelectorAll(".insumo-base-item-check")],bar=$("#insumoBatch"),cnt=$("#insumoBatchCount");const sync=()=>{const n=checks.filter(x=>x.checked).length;if(bar)bar.hidden=n===0;if(cnt)cnt.textContent=n+` selecionado${n===1?"":"s"}`};checks.forEach(x=>x.onchange=sync);sync();
+  $("#moverInsumosGrupo")?.addEventListener("click",async()=>{const ids=checks.filter(x=>x.checked).map(x=>Number(x.value));if(!ids.length)return;try{const grupos=await fetch("/api/estoque/grupos").then(r=>r.json()),destino=prompt("Mover "+ids.length+" insumo(s) para qual grupo?\n\n"+grupos.join("\n"),grupoInsumosAberto||grupos[0]);if(!destino)return;const g=grupos.find(x=>x.toLowerCase()===destino.trim().toLowerCase());if(!g)return alert("Escolha um grupo existente exatamente como aparece na lista.");for(const id of ids){const rr=await fetch(`/api/estoque/insumos/${id}/grupo`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({grupo:g})});if(!rr.ok)throw new Error((await rr.json().catch(()=>({}))).error||"Erro ao mover insumo.")}await carregarDados();grupoInsumosAberto=g;listarInsumos()}catch(e){alert(e.message)}});
 }
-
 window.editarInsumo = function(id) {
   const item = INSUMOS.find(i => Number(i.id) === Number(id));
   if (item) formularioInsumo(item);
