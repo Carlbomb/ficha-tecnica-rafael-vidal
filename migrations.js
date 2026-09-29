@@ -281,3 +281,57 @@ export async function migrateCoreSchema(pool){
     CREATE INDEX IF NOT EXISTS idx_insumos_ingrediente ON insumos(ingrediente);
   `);
 }
+
+export async function migrateCoreTenancySchema(pool){
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS empresas (
+      id BIGSERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      nome_fantasia TEXT DEFAULT '',
+      documento TEXT DEFAULT '',
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS unidades (
+      id BIGSERIAL PRIMARY KEY,
+      empresa_id BIGINT NOT NULL REFERENCES empresas(id) ON DELETE RESTRICT,
+      nome TEXT NOT NULL,
+      codigo TEXT DEFAULT '',
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_unidades_empresa ON unidades(empresa_id);
+  `);
+}
+
+export async function migrateOperationalTenancySchema(pool){
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    await client.query(`
+      ALTER TABLE insumos ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
+      ALTER TABLE insumos ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_insumos_empresa') THEN
+          ALTER TABLE insumos ADD CONSTRAINT fk_insumos_empresa
+            FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE RESTRICT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_insumos_unidade') THEN
+          ALTER TABLE insumos ADD CONSTRAINT fk_insumos_unidade
+            FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE RESTRICT;
+        END IF;
+      END $$;
+      CREATE INDEX IF NOT EXISTS idx_insumos_empresa_unidade
+        ON insumos(empresa_id,unidade_id);
+    `);
+    await client.query("COMMIT");
+  }catch(e){
+    await client.query("ROLLBACK");
+    throw e;
+  }finally{
+    client.release();
+  }
+}
