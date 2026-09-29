@@ -9,6 +9,28 @@ async function saldoInsumo(db,id,empresaId,unidadeId){
   return n(rows[0]?.saldo);
 }
 
+async function saldoProduzido(db,{fichaId=null,preparacaoId=null,empresaId,unidadeId}){
+  const {rows}=await db.query(`SELECT COALESCE(SUM(quantidade),0)::numeric saldo FROM estoque_produzidos
+    WHERE empresa_id=$1 AND unidade_id=$2 AND ficha_id IS NOT DISTINCT FROM $3 AND preparacao_id IS NOT DISTINCT FROM $4`,
+    [empresaId,unidadeId,fichaId,preparacaoId]);
+  return qEstoque(rows[0]?.saldo);
+}
+
+async function consumirPreparacaoProduzida(db,{preparacaoId,quantidade,ordemId,usuarioId,empresaId,unidadeId}){
+  const pedido=qEstoque(quantidade); if(pedido<=0)return {consumido:0,falta:0};
+  const meta=await db.query(`SELECT id,nome,unidade_rendimento FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,
+    [preparacaoId,empresaId,unidadeId]);
+  if(!meta.rows[0])return {consumido:0,falta:pedido};
+  const anterior=await saldoProduzido(db,{preparacaoId,empresaId,unidadeId});
+  const consumido=qEstoque(Math.min(Math.max(anterior,0),pedido));
+  if(consumido>0){
+    await db.query(`INSERT INTO estoque_produzidos(ordem_producao_id,preparacao_id,nome,unidade,tipo,quantidade,saldo_anterior,saldo_novo,custo_unitario,usuario_id,empresa_id,unidade_id)
+      VALUES($1,$2,$3,$4,'consumo',$5,$6,$7,0,$8,$9,$10)`,
+      [ordemId,preparacaoId,meta.rows[0].nome,meta.rows[0].unidade_rendimento,-consumido,anterior,qEstoque(anterior-consumido),usuarioId,empresaId,unidadeId]);
+  }
+  return {consumido,falta:qEstoque(pedido-consumido)};
+}
+
 export async function initProducao(pool){
   await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida'));`);
   await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT;`);
@@ -62,6 +84,15 @@ export async function initProducao(pool){
     );
     CREATE INDEX IF NOT EXISTS idx_estoque_produzidos_tenant ON estoque_produzidos(empresa_id,unidade_id,created_at DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_estoque_produzidos_op_entrada ON estoque_produzidos(ordem_producao_id) WHERE ordem_producao_id IS NOT NULL AND tipo='producao';
+    CREATE TABLE IF NOT EXISTS producao_componentes(
+      id BIGSERIAL PRIMARY KEY,
+      ordem_id BIGINT NOT NULL REFERENCES ordens_producao(id) ON DELETE CASCADE,
+      preparacao_id BIGINT NOT NULL REFERENCES preparacoes(id) ON DELETE RESTRICT,
+      quantidade_teorica NUMERIC(14,4) NOT NULL,
+      quantidade_real NUMERIC(14,4),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_producao_componentes_ordem ON producao_componentes(ordem_id);
   `);
 }
 
@@ -194,9 +225,11 @@ export function installProducao(app,pool){
           if(!fr.rows[0])throw new Error("Ficha Técnica não encontrada.");
           const fator=q/(n(fr.rows[0].porcoes)||1);
           const ing=await db.query(`SELECT g.insumo_id,g.quantidade,i.preco_real FROM ingredientes g JOIN insumos i ON i.id=g.insumo_id WHERE g.ficha_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[id,req.user.empresa_id,req.user.unidade_id]);
+          const comps=await db.query(`SELECT fp.preparacao_id,fp.quantidade FROM ficha_preparacoes fp JOIN preparacoes p ON p.id=fp.preparacao_id WHERE fp.ficha_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
           let custo=0;
           const op=await db.query(`INSERT INTO ordens_producao(ficha_id,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id) VALUES($1,$2,'PORÇÃO',0,$3,$4,$5,$6) RETURNING id`,[id,q,"Planejamento de produção",req.user.id,req.user.empresa_id,req.user.unidade_id]);
-          for(const z of ing.rows){const qt=n(z.quantidade)*fator,cu=n(z.preco_real);custo+=qt*cu;await db.query(`INSERT INTO producao_consumos(ordem_id,insumo_id,quantidade_teorica,custo_unitario) VALUES($1,$2,$3,$4)`,[op.rows[0].id,z.insumo_id,qt,cu])}
+          for(const z of ing.rows){const qt=qEstoque(n(z.quantidade)*fator),cu=n(z.preco_real);custo+=qt*cu;await db.query(`INSERT INTO producao_consumos(ordem_id,insumo_id,quantidade_teorica,custo_unitario) VALUES($1,$2,$3,$4)`,[op.rows[0].id,z.insumo_id,qt,cu])}
+          for(const z of comps.rows){const qt=qEstoque(n(z.quantidade)*fator);if(qt>0)await db.query(`INSERT INTO producao_componentes(ordem_id,preparacao_id,quantidade_teorica) VALUES($1,$2,$3)`,[op.rows[0].id,z.preparacao_id,qt])}
           await db.query("UPDATE ordens_producao SET custo_teorico=$1 WHERE id=$2",[custo,op.rows[0].id]);ids.push(Number(op.rows[0].id));continue;
         }
         if(x.tipo!=="preparacao")continue;
@@ -331,7 +364,34 @@ export function installProducao(app,pool){
       if(ordem.estoque_baixado){await db.query("ROLLBACK");return res.status(409).json({error:"O estoque desta produção já foi baixado. A operação não foi repetida."})}
       if(ordem.status!=="em_producao"){await db.query("ROLLBACK");return res.status(409).json({error:"A ordem precisa estar Em produção antes de ser concluída."})}
       const consumos=await db.query(`SELECT pc.*,i.ingrediente,i.unidade FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1 ORDER BY pc.id`,[ordem.id]);
-      let custoReal=0; const alertas=[];
+      const componentes=await db.query(`SELECT pc.*,p.nome,p.rendimento FROM producao_componentes pc JOIN preparacoes p ON p.id=pc.preparacao_id WHERE pc.ordem_id=$1 ORDER BY pc.id`,[ordem.id]);
+      let custoReal=0; const alertas=[]; const extras=new Map();
+      for(const comp of componentes.rows){
+        const uso=await consumirPreparacaoProduzida(db,{preparacaoId:comp.preparacao_id,quantidade:comp.quantidade_teorica,ordemId:ordem.id,usuarioId:req.user.id,empresaId:req.user.empresa_id,unidadeId:req.user.unidade_id});
+        await db.query("UPDATE producao_componentes SET quantidade_real=$1 WHERE id=$2",[uso.consumido,comp.id]);
+        if(uso.falta>0){
+          const fator=uso.falta/(n(comp.rendimento)||1);
+          const base=await db.query(`WITH RECURSIVE arvore(preparacao_id,fator,caminho) AS (
+            SELECT $1::bigint,$4::numeric,ARRAY[$1::bigint]
+            UNION ALL SELECT pc.componente_id,a.fator*pc.quantidade/NULLIF(p.rendimento,0),a.caminho||pc.componente_id
+            FROM arvore a JOIN preparacao_componentes pc ON pc.preparacao_id=a.preparacao_id
+            JOIN preparacoes p ON p.id=pc.componente_id AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE
+            WHERE NOT pc.componente_id=ANY(a.caminho))
+            SELECT pi.insumo_id,SUM(pi.quantidade*a.fator)::numeric quantidade,i.ingrediente,i.unidade,i.preco_real
+            FROM arvore a JOIN preparacao_ingredientes pi ON pi.preparacao_id=a.preparacao_id
+            JOIN insumos i ON i.id=pi.insumo_id AND i.empresa_id=$2 AND i.unidade_id=$3
+            GROUP BY pi.insumo_id,i.ingrediente,i.unidade,i.preco_real`,[comp.preparacao_id,req.user.empresa_id,req.user.unidade_id,fator]);
+          for(const z of base.rows){const k=Number(z.insumo_id),a=extras.get(k)||{...z,quantidade:0};a.quantidade+=n(z.quantidade);extras.set(k,a)}
+        }
+      }
+      for(const z of extras.values()){
+        const qtd=qEstoque(z.quantidade);if(qtd<=0)continue;
+        const anterior=await saldoInsumo(db,z.insumo_id,req.user.empresa_id,req.user.unidade_id),novo=qEstoque(anterior-qtd);
+        if(novo<0)alertas.push({insumo_id:Number(z.insumo_id),ingrediente:z.ingrediente,necessario:qtd,disponivel:anterior,saldo_novo:novo,unidade:z.unidade});
+        await db.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id,ordem_producao_id)
+          VALUES($1,'saida',$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[z.insumo_id,-qtd,anterior,novo,`Produção OP #${ordem.id}`,"Complemento automático: preparação sem saldo suficiente",req.user.id,req.user.empresa_id,req.user.unidade_id,ordem.id]);
+        custoReal+=qtd*n(z.preco_real);
+      }
       for(const x of consumos.rows){
         const qtd=qEstoque(n(x.quantidade_real)||n(x.quantidade_teorica)); if(qtd<=0)continue;
         const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
