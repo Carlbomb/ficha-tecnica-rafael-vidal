@@ -53,23 +53,10 @@ export async function initPreparacoes(pool) {
       CONSTRAINT prep_componente_diferente CHECK (preparacao_id <> componente_id)
     );
 
-    CREATE TABLE IF NOT EXISTS ficha_preparacoes (
-      id BIGSERIAL PRIMARY KEY,
-      ficha_id BIGINT NOT NULL REFERENCES fichas(id) ON DELETE CASCADE,
-      preparacao_id BIGINT NOT NULL REFERENCES preparacoes(id),
-      quantidade NUMERIC(14,4) NOT NULL DEFAULT 0,
-      ordem INTEGER NOT NULL DEFAULT 0,
-      observacoes TEXT DEFAULT '',
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-
     CREATE INDEX IF NOT EXISTS idx_preparacoes_tenant ON preparacoes(empresa_id,unidade_id);
     CREATE INDEX IF NOT EXISTS idx_prep_ing_prep ON preparacao_ingredientes(preparacao_id);
     CREATE INDEX IF NOT EXISTS idx_prep_comp_prep ON preparacao_componentes(preparacao_id);
     CREATE INDEX IF NOT EXISTS idx_prep_comp_comp ON preparacao_componentes(componente_id);
-    CREATE INDEX IF NOT EXISTS idx_ficha_prep_ficha ON ficha_preparacoes(ficha_id);
-    CREATE INDEX IF NOT EXISTS idx_ficha_prep_prep ON ficha_preparacoes(preparacao_id);
-    ALTER TABLE ficha_preparacoes ADD COLUMN IF NOT EXISTS unidade TEXT;
   `);
 }
 
