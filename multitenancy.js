@@ -87,8 +87,6 @@ export async function migrateOperationalTenancy(pool) {
     await client.query(`
       ALTER TABLE insumos ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
       ALTER TABLE insumos ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
-      ALTER TABLE fichas ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
-      ALTER TABLE fichas ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
     `);
 
     await client.query(
@@ -97,14 +95,6 @@ export async function migrateOperationalTenancy(pool) {
     );
     await client.query(
       `UPDATE insumos SET unidade_id=$1 WHERE unidade_id IS NULL`,
-      [unidadeId]
-    );
-    await client.query(
-      `UPDATE fichas SET empresa_id=$1 WHERE empresa_id IS NULL`,
-      [empresaId]
-    );
-    await client.query(
-      `UPDATE fichas SET unidade_id=$1 WHERE unidade_id IS NULL`,
       [unidadeId]
     );
 
@@ -120,22 +110,12 @@ export async function migrateOperationalTenancy(pool) {
           ALTER TABLE insumos ADD CONSTRAINT fk_insumos_unidade
             FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE RESTRICT;
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_fichas_empresa') THEN
-          ALTER TABLE fichas ADD CONSTRAINT fk_fichas_empresa
-            FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE RESTRICT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_fichas_unidade') THEN
-          ALTER TABLE fichas ADD CONSTRAINT fk_fichas_unidade
-            FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE RESTRICT;
-        END IF;
       END $$;
     `);
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_insumos_empresa_unidade
         ON insumos(empresa_id,unidade_id);
-      CREATE INDEX IF NOT EXISTS idx_fichas_empresa_unidade
-        ON fichas(empresa_id,unidade_id);
     `);
 
     await client.query("COMMIT");
