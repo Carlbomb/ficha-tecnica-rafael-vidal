@@ -89,3 +89,26 @@ export async function migrateProducaoSchema(pool){
     CREATE INDEX IF NOT EXISTS idx_producao_componentes_ordem ON producao_componentes(ordem_id);
   `);
 }
+
+
+export async function migrateOperacaoCompletaSchema(pool){
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS etiqueta_registros(
+      id BIGSERIAL PRIMARY KEY,
+      insumo_id BIGINT REFERENCES insumos(id) ON DELETE SET NULL,
+      item_nome TEXT NOT NULL,
+      producao DATE NOT NULL,
+      validade DATE NOT NULL,
+      responsavel TEXT DEFAULT '',
+      quantidade INTEGER NOT NULL DEFAULT 1,
+      usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      empresa_id BIGINT NOT NULL,
+      unidade_id BIGINT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_etiqueta_registros_tenant_validade ON etiqueta_registros(empresa_id,unidade_id,validade,created_at DESC);
+    ALTER TABLE perdas ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
+    ALTER TABLE inventarios ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
+    CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
+  `);
+}
