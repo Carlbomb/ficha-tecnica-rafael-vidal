@@ -49,15 +49,37 @@ export function installEstoque(app,pool){
 
   app.get("/api/estoque",async(req,res,next)=>{try{
     const {rows}=await pool.query(`
-      SELECT i.id,i.ingrediente,i.unidade,i.preco_real,i.estoque_minimo,i.estoque_maximo,i.local_estoque,
-        i.grupo,
-      ${saldoExpr}::numeric AS saldo_atual,
-      (${saldoExpr}*i.preco_real)::numeric AS valor_estoque,
-      CASE WHEN ${saldoExpr}<=0 THEN 'sem_estoque'
-           WHEN i.estoque_minimo>0 AND ${saldoExpr}<=i.estoque_minimo THEN 'baixo'
-           WHEN i.estoque_maximo>0 AND ${saldoExpr}>i.estoque_maximo THEN 'excesso'
-           ELSE 'normal' END AS status_estoque
+      WITH produzidos AS (
+        SELECT ep.preparacao_id,
+               SUM(ep.quantidade)::numeric AS saldo,
+               (ARRAY_AGG(ep.unidade ORDER BY ep.created_at DESC))[1] AS unidade,
+               (ARRAY_AGG(ep.custo_unitario ORDER BY ep.created_at DESC)
+                 FILTER (WHERE ep.tipo='producao'))[1]::numeric AS custo_unitario
+        FROM estoque_produzidos ep
+        WHERE ep.empresa_id=$1 AND ep.unidade_id=$2 AND ep.preparacao_id IS NOT NULL
+        GROUP BY ep.preparacao_id
+      )
+      SELECT i.id,i.ingrediente,
+        CASE WHEN UPPER(COALESCE(i.grupo,''))='PRODUÇÕES' AND p.id IS NOT NULL
+             THEN COALESCE(pr.unidade,p.unidade_rendimento,i.unidade) ELSE i.unidade END AS unidade,
+        CASE WHEN UPPER(COALESCE(i.grupo,''))='PRODUÇÕES' AND p.id IS NOT NULL
+             THEN COALESCE(pr.custo_unitario,i.preco_real) ELSE i.preco_real END AS preco_real,
+        i.estoque_minimo,i.estoque_maximo,i.local_estoque,i.grupo,
+        CASE WHEN UPPER(COALESCE(i.grupo,''))='PRODUÇÕES' AND p.id IS NOT NULL
+             THEN COALESCE(pr.saldo,0) ELSE ${saldoExpr} END::numeric AS saldo_atual,
+        (CASE WHEN UPPER(COALESCE(i.grupo,''))='PRODUÇÕES' AND p.id IS NOT NULL
+              THEN COALESCE(pr.saldo,0)*COALESCE(pr.custo_unitario,i.preco_real)
+              ELSE ${saldoExpr}*i.preco_real END)::numeric AS valor_estoque,
+        CASE
+          WHEN (CASE WHEN UPPER(COALESCE(i.grupo,''))='PRODUÇÕES' AND p.id IS NOT NULL THEN COALESCE(pr.saldo,0) ELSE ${saldoExpr} END)<=0 THEN 'sem_estoque'
+          WHEN i.estoque_minimo>0 AND (CASE WHEN UPPER(COALESCE(i.grupo,''))='PRODUÇÕES' AND p.id IS NOT NULL THEN COALESCE(pr.saldo,0) ELSE ${saldoExpr} END)<=i.estoque_minimo THEN 'baixo'
+          WHEN i.estoque_maximo>0 AND (CASE WHEN UPPER(COALESCE(i.grupo,''))='PRODUÇÕES' AND p.id IS NOT NULL THEN COALESCE(pr.saldo,0) ELSE ${saldoExpr} END)>i.estoque_maximo THEN 'excesso'
+          ELSE 'normal' END AS status_estoque
       FROM insumos i
+      LEFT JOIN preparacoes p ON UPPER(COALESCE(i.grupo,''))='PRODUÇÕES'
+        AND p.empresa_id=i.empresa_id AND p.unidade_id=i.unidade_id AND p.ativo=TRUE
+        AND LOWER(TRIM(p.nome))=LOWER(TRIM(i.ingrediente))
+      LEFT JOIN produzidos pr ON pr.preparacao_id=p.id
       WHERE i.empresa_id=$1 AND i.unidade_id=$2 AND i.ativo=TRUE
       ORDER BY i.ingrediente`,[req.user.empresa_id,req.user.unidade_id]);
     res.json(rows);
