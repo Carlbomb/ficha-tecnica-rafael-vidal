@@ -295,3 +295,11 @@ button[aria-label]:focus-visible{
 .preparacao-selectable{position:relative;padding-left:52px}
 .prep-select{position:absolute;left:16px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;z-index:2}
 .prep-check{width:22px;height:22px;margin:0;cursor:pointer}
+
+/* Painel inicial — Produção do Dia */
+.painel-producao-lista{display:grid;gap:8px}
+.painel-producao-item{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:13px 14px;border:1px solid #dfe5e5;border-radius:12px;background:#fff}
+.painel-producao-item span{min-width:0;display:block}
+.painel-producao-item b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.painel-producao-item small{display:block;margin-top:3px;font-size:.88rem;font-weight:500;opacity:.72}
+.painel-producao-item strong{font-size:1.6rem;line-height:1}
