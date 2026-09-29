@@ -34,19 +34,9 @@ async function consumirPreparacaoProduzida(db,{preparacaoId,quantidade,ordemId,u
 export async function initProducao(pool){
   await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida'));`);
   await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS item_nome TEXT;`);
-  // ficha_id permanece apenas como identificador histórico, sem FK para a tabela legada.
-  await pool.query(`DO $ DECLARE r record; BEGIN
-    FOR r IN SELECT conname FROM pg_constraint
-      WHERE conrelid='ordens_producao'::regclass AND contype='f'
-        AND confrelid=to_regclass('fichas')
-    LOOP EXECUTE format('ALTER TABLE ordens_producao DROP CONSTRAINT %I',r.conname); END LOOP;
-    IF to_regclass('estoque_produzidos') IS NOT NULL THEN
-      FOR r IN SELECT conname FROM pg_constraint
-        WHERE conrelid='estoque_produzidos'::regclass AND contype='f'
-          AND confrelid=to_regclass('fichas')
-      LOOP EXECUTE format('ALTER TABLE estoque_produzidos DROP CONSTRAINT %I',r.conname); END LOOP;
-    END IF;
-  END $;`);
+  // ficha_id permanece apenas como identificador histórico.
+  // As FKs legadas serão removidas somente após validação funcional completa.
+
   // Snapshot histórico: preserva o nome da OP para que leituras futuras não dependam da tabela fichas.
   await pool.query(`UPDATE ordens_producao o
     SET item_nome=COALESCE(
