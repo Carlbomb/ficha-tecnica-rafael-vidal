@@ -278,3 +278,10 @@ button[aria-label]:focus-visible{
 .stock-separation-arrow{font-size:1rem;color:#78878b}
 .stock-separation-alert{margin-top:8px;padding:5px 8px;border-radius:7px;background:#fff0cf;font-size:.78rem;line-height:1.15;font-weight:700;color:#805b08}
 @media(max-width:520px){.stock-separation-card{padding:11px 12px}.stock-separation-balance{gap:5px}}
+
+/* Fichas Técnicas — ações em lote */
+.batch-actions{position:sticky;top:8px;z-index:8;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;padding:10px 12px;border:1px solid #d9e1e2;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(20,40,45,.08)}
+.batch-actions[hidden]{display:none!important}
+.batch-actions-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.ficha-lote-check,#selecionarTodasFichas{width:20px;height:20px;cursor:pointer}
+@media(max-width:620px){.batch-actions{align-items:stretch;flex-direction:column}.batch-actions-buttons{display:grid;grid-template-columns:1fr 1fr}.batch-actions-buttons button{width:100%}}
