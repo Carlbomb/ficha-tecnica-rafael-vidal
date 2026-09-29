@@ -149,85 +149,8 @@ CREATE TABLE IF NOT EXISTS insumos (
     DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS fichas (
-  id BIGSERIAL PRIMARY KEY,
-
-  nome_prato TEXT NOT NULL,
-
-  categoria TEXT NOT NULL
-    DEFAULT 'Outros',
-
-  rendimento_kg NUMERIC(14,4)
-    NOT NULL DEFAULT 0,
-
-  porcoes NUMERIC(14,2)
-    NOT NULL DEFAULT 1,
-
-  preco_venda NUMERIC(14,4)
-    NOT NULL DEFAULT 0,
-
-  meta_cmv NUMERIC(7,2)
-    NOT NULL DEFAULT 30,
-
-  modo_preparo TEXT DEFAULT '',
-
-  observacoes TEXT DEFAULT '',
-
-  status TEXT NOT NULL
-    DEFAULT 'Ativa',
-
-  ativo BOOLEAN NOT NULL
-    DEFAULT TRUE,
-
-  created_at TIMESTAMPTZ
-    DEFAULT NOW(),
-
-  updated_at TIMESTAMPTZ
-    DEFAULT NOW()
-);
-
-/*
-  IMPORTANTE:
-
-  Esta alteração também atualiza
-  bancos que já existiam antes
-  da criação do campo meta_cmv.
-
-  Nenhuma ficha existente é apagada.
-
-  As fichas antigas recebem
-  automaticamente meta de 30%.
-*/
-
-ALTER TABLE fichas
-  ADD COLUMN IF NOT EXISTS
-  meta_cmv NUMERIC(7,2)
-  NOT NULL DEFAULT 30;
-
-CREATE TABLE IF NOT EXISTS ingredientes (
-  id BIGSERIAL PRIMARY KEY,
-
-  ficha_id BIGINT NOT NULL
-    REFERENCES fichas(id)
-    ON DELETE CASCADE,
-
-  insumo_id BIGINT NOT NULL
-    REFERENCES insumos(id),
-
-  quantidade NUMERIC(14,4)
-    NOT NULL DEFAULT 0,
-
-  unidade TEXT NOT NULL
-    DEFAULT 'KG',
-
-  ordem INTEGER NOT NULL
-    DEFAULT 0,
-
-  observacoes TEXT DEFAULT '',
-
-  created_at TIMESTAMPTZ
-    DEFAULT NOW()
-);
+-- Tabelas legadas fichas/ingredientes não são mais criadas pelo schema ativo.
+-- Bancos existentes preservam seus registros históricos até a aposentadoria física controlada.
 
 CREATE INDEX IF NOT EXISTS
   idx_insumos_ingrediente
