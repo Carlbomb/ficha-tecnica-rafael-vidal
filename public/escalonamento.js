@@ -236,11 +236,9 @@
       :'<div class="empty">Nenhum componente válido na ficha.</div>';
   }
 
-  const content=q("#content");
-  if(content){
-    new MutationObserver(()=>mount()).observe(content,{childList:true,subtree:true});
-    mount();
-  }
+  window.MISEVO_UI_HOOKS=window.MISEVO_UI_HOOKS||[];
+  window.MISEVO_UI_HOOKS.push(mount);
+  mount();
 
   document.addEventListener("input",e=>{
     if(!state.ativo||!e.target.closest("#formFicha")||e.target.closest("#painelEscalonamento"))return;
