@@ -47,7 +47,7 @@ function renderPlano(){
  a.innerHTML=!itens.length?'<div class="empty">Nenhum item adicionado.</div>':`<div class="table-wrap"><table><thead><tr><th>Item</th><th>Quantidade</th><th></th></tr></thead><tbody>${itens.map(x=>`<tr><td><small>FICHA TÉCNICA</small><br><b>${esc(x.nome)}</b></td><td>${fmt(x.q)} ${esc(x.unidade)}</td><td><button class="secondary" onclick="removerPlanoItem('${x.tipo}',${x.idx})">×</button></td></tr>`).join("")}</tbody></table></div>`;
 }
 window.removerPlanoItem=(tipo,i)=>{PLANO_PREPS.splice(i,1);renderPlano()};
-async function calcularPlano(){if(!PLANO_PREPS.length)return;try{const d=await apiP("/api/producao/planejar-fichas",{method:"POST",body:JSON.stringify({fichas:[],preparacoes:PLANO_PREPS})});renderResultadoPlano(d)}catch(e){C.insertAdjacentHTML("afterbegin",`<div class="card"><b>Erro:</b> ${esc(e.message)}</div>`)}}
+async function calcularPlano(){if(!PLANO_PREPS.length)return;try{const d=await apiP("/api/producao/planejar-preparacoes",{method:"POST",body:JSON.stringify({preparacoes:PLANO_PREPS})});renderResultadoPlano(d)}catch(e){C.insertAdjacentHTML("afterbegin",`<div class="card"><b>Erro:</b> ${esc(e.message)}</div>`)}}
 function renderResultadoPlano(d){
  window.__ULTIMO_PLANO=d;
  const pratos=d.pratos.length?`<div class="card"><h3>Pratos a produzir</h3>${d.pratos.map(x=>`<div class="prep-uso-item"><span>${esc(x.nome)}</span><b>${fmt(x.porcoes)} porções</b></div>`).join("")}</div>`:"";
