@@ -629,49 +629,6 @@ app.delete(
    custo por porção / (meta CMV / 100)
 ========================================================= */
 
-function fichaLegadaSomenteLeitura(req,res){
-  return res.status(410).json({
-    error:"Esta rota de Ficha Técnica foi aposentada. Use o modelo atual de Fichas Técnicas.",
-    codigo:"FICHA_LEGADA_SOMENTE_LEITURA"
-  });
-}
-
-// Rotas legadas permanecem apenas como resposta 410; não consultam mais tabelas antigas.
-app.get("/api/fichas", fichaLegadaSomenteLeitura);
-app.get("/api/fichas/:id", fichaLegadaSomenteLeitura);
-
-// Modelo legado somente leitura: novas operações devem usar /api/preparacoes.
-
-/* =========================================================
-   CRIAR FICHA COMPLETA
-========================================================= */
-
-app.post("/api/fichas", fichaLegadaSomenteLeitura);
-
-/* =========================================================
-   EDITAR FICHA COMPLETA
-
-   A alteração também utiliza transação.
-
-   Caso alguma etapa falhe,
-   a ficha anterior permanece intacta.
-========================================================= */
-
-app.put("/api/fichas/:id", fichaLegadaSomenteLeitura);
-
-/* =========================================================
-   AÇÕES EM LOTE — FICHAS TÉCNICAS
-========================================================= */
-app.patch("/api/fichas/lote/grupo", fichaLegadaSomenteLeitura);
-
-app.delete("/api/fichas/lote", fichaLegadaSomenteLeitura);
-
-/* =========================================================
-   EXCLUIR FICHA
-========================================================= */
-
-app.delete("/api/fichas/:id", fichaLegadaSomenteLeitura);
-
 /* =========================================================
    CMV / RESUMO GERAL
 ========================================================= */
