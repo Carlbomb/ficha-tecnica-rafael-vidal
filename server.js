@@ -10,7 +10,7 @@ import { initOperacao, installOperacao } from "./operacao.js";
 import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
-import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema } from "./migrations.js";
+import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema } from "./migrations.js";
 
 const { Pool } = pg;
 
@@ -170,6 +170,7 @@ async function init() {
   // Estrutura de Preparações / Sub-receitas
   await migratePreparacoesSchema(pool);
   await initPreparacoes(pool);
+  await migrateCategoriasSchema(pool);
   await initCategorias(pool);
   await migrateEstoqueSchema(pool);
   await initEstoque(pool);
