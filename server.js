@@ -10,7 +10,7 @@ import { initOperacao, installOperacao } from "./operacao.js";
 import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
-import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema } from "./migrations.js";
+import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema, migrateCoreTenancySchema, migrateOperationalTenancySchema } from "./migrations.js";
 
 const { Pool } = pg;
 
@@ -62,6 +62,7 @@ app.use(
 );
 
 // Fundação multiempresa precisa existir antes da autenticação.
+await migrateCoreTenancySchema(pool);
 await initCoreTenancy(pool);
 
 // Login, sessões e permissões
@@ -111,6 +112,7 @@ const asyncRoute =
 
 async function init() {
   await migrateCoreSchema(pool);
+  await migrateOperationalTenancySchema(pool);
 
   // Vincula os dados operacionais existentes à empresa/unidade inicial.
   await migrateOperationalTenancy(pool);
