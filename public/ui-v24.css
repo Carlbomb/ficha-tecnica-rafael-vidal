@@ -290,3 +290,8 @@ button[aria-label]:focus-visible{
 .v23-selectable{position:relative;padding-left:48px}
 .v23-check{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;z-index:2}
 .v23-check .ficha-lote-check{width:22px;height:22px;margin:0}
+
+/* Seleção em lote — lista unificada de Fichas Técnicas */
+.preparacao-selectable{position:relative;padding-left:52px}
+.prep-select{position:absolute;left:16px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;z-index:2}
+.prep-check{width:22px;height:22px;margin:0;cursor:pointer}
