@@ -7,32 +7,31 @@ const ROLES = new Set(["admin", "chef", "subchef", "cozinha", "estoque", "consul
 const ROLE_DEFAULTS = {
   admin: { "*": ["visualizar","criar","editar","excluir","executar"] },
   chef: {
-    painel:["visualizar"], insumos:["visualizar","criar","editar"], fichas:["visualizar","criar","editar","excluir"],
+    painel:["visualizar"], insumos:["visualizar","criar","editar"],
     preparacoes:["visualizar","criar","editar","excluir"], estoque:["visualizar","criar","editar","executar"],
     producao:["visualizar","criar","editar","executar"], etiquetas:["visualizar","criar","executar"],
     perdas:["visualizar","criar","editar"], custos:["visualizar"], configuracoes:["visualizar"]
   },
   subchef: {
-    painel:["visualizar"], insumos:["visualizar"], fichas:["visualizar"], preparacoes:["visualizar","criar","editar"],
+    painel:["visualizar"], insumos:["visualizar"], preparacoes:["visualizar","criar","editar"],
     estoque:["visualizar"], producao:["visualizar","criar","editar","executar"], etiquetas:["visualizar","criar","executar"],
     perdas:["visualizar","criar"]
   },
   cozinha: {
-    painel:["visualizar"], insumos:["visualizar"], fichas:["visualizar"], preparacoes:["visualizar"],
+    painel:["visualizar"], insumos:["visualizar"], preparacoes:["visualizar"],
     producao:["visualizar","executar"], etiquetas:["visualizar","executar"], perdas:["criar"]
   },
   estoque: {
     painel:["visualizar"], insumos:["visualizar"], estoque:["visualizar","criar","editar","executar"],
     etiquetas:["visualizar","executar"], perdas:["visualizar","criar"]
   },
-  consulta: { painel:["visualizar"], fichas:["visualizar"], preparacoes:["visualizar"] }
+  consulta: { painel:["visualizar"], preparacoes:["visualizar"] }
 };
 
 function moduleForPath(path="") {
   path=String(path||"").replace(/^\/api(?=\/)/,"");
   if (path.startsWith("/dashboard")) return "painel";
   if (path.startsWith("/insumos")) return "insumos";
-  if (path.startsWith("/fichas")) return "fichas";
   if (path.startsWith("/categorias")) return "configuracoes";
   if (path.startsWith("/preparacoes")) return "preparacoes";
   if (path.startsWith("/cmv")) return "custos";
