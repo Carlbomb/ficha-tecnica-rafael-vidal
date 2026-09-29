@@ -1,5 +1,7 @@
 /* MISEVO — Produção integrada ao Estoque — Fase 1 */
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
+// Estoque operacional em KG: precisão de 1 g, igual ao valor exibido à equipe.
+const qEstoque=v=>Math.round((n(v)+Number.EPSILON)*1000)/1000;
 
 async function saldoInsumo(db,id,empresaId,unidadeId){
   const {rows}=await db.query(`SELECT COALESCE(SUM(quantidade),0)::numeric saldo
@@ -247,7 +249,7 @@ export function installProducao(app,pool){
       if(ordem.status==="concluida" && ordem.estoque_baixado){
         const consumos=await db.query(`SELECT pc.*,i.ingrediente FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1`,[ordem.id]);
         for(const x of consumos.rows){
-          const qtd=n(x.quantidade_real)||n(x.quantidade_teorica); if(qtd<=0)continue;
+          const qtd=qEstoque(n(x.quantidade_real)||n(x.quantidade_teorica)); if(qtd<=0)continue;
           const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
           await db.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id,ordem_producao_id)
             VALUES($1,'entrada',$2,$3,$4,$5,$6,$7,$8,$9,NULL)`,
@@ -261,7 +263,7 @@ export function installProducao(app,pool){
           [ordem.preparacao_id,req.user.empresa_id,req.user.unidade_id]);
         if(n(ep.rows[0]?.saldo)<produzido){await db.query("ROLLBACK");return res.status(409).json({error:"Não é possível excluir: a preparação produzida já foi consumida."})}
         for(const x of consumos.rows){
-          const qtd=n(x.quantidade_real)||n(x.quantidade_teorica); if(qtd<=0)continue;
+          const qtd=qEstoque(n(x.quantidade_real)||n(x.quantidade_teorica)); if(qtd<=0)continue;
           const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
           await db.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id)
             VALUES($1,'entrada',$2,$3,$4,$5,$6,$7,$8,$9)`,
@@ -299,7 +301,7 @@ export function installProducao(app,pool){
       const consumos=await db.query(`SELECT pc.*,i.ingrediente,i.unidade FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1 ORDER BY pc.id`,[ordem.id]);
       let custoReal=0; const alertas=[];
       for(const x of consumos.rows){
-        const qtd=n(x.quantidade_real)||n(x.quantidade_teorica); if(qtd<=0)continue;
+        const qtd=qEstoque(n(x.quantidade_real)||n(x.quantidade_teorica)); if(qtd<=0)continue;
         const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
         const novo=anterior-qtd;
         if(novo<0)alertas.push({insumo_id:Number(x.insumo_id),ingrediente:x.ingrediente,necessario:qtd,disponivel:anterior,saldo_novo:novo,unidade:x.unidade});
