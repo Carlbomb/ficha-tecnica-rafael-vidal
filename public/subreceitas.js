@@ -53,7 +53,7 @@
   async function excluirSelecionadas(){
     const ids=selecionadas();if(!ids.length)return;const nomes=PREPS.filter(x=>ids.includes(Number(x.id))).map(x=>x.nome);
     if(!confirm(`Excluir ${ids.length} ficha(s)?\n\n${nomes.slice(0,8).join("\n")}${nomes.length>8?"\n...":""}\n\nEsta ação não pode ser desfeita.`))return;
-    try{const r=await apiSR("/api/preparacoes/lote",{method:"DELETE",body:JSON.stringify({ids})});await carregar();renderLista();if(r.mantidas?.length)alert(`${r.excluidas} ficha(s) excluída(s).\n\n${r.mantidas.length} mantida(s) por segurança:\n`+r.mantidas.slice(0,10).map(x=>`• ${x.nome}: ${x.motivo}`).join("\n")+(r.mantidas.length>10?"\n...":""))}catch(e){alert(e.message)}
+    try{const r=await apiSR("/api/preparacoes/lote",{method:"DELETE",body:JSON.stringify({ids})});await carregar();renderLista();if(r.mantidas?.length)alert(`${r.excluidas} ficha(s) excluída(s).\n\n${r.mantidas.length} não excluída(s) porque ainda são utilizadas por outra ficha ativa:\n`+r.mantidas.slice(0,10).map(x=>`• ${x.nome}`).join("\n")+(r.mantidas.length>10?"\n...":""))}catch(e){alert(e.message)}
   }
 
   window.editarPreparacao=async id=>{try{const p=await apiSR(`/api/preparacoes/${id}`);EDITANDO=p;ITENS=[...(p.ingredientes||[]).map(x=>({tipo:"insumo",id:Number(x.insumo_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""})),...(p.componentes||[]).map(x=>({tipo:"preparacao",id:Number(x.componente_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""}))];await carregar();form(p)}catch(e){mostrarErroPrep(e.message)}};
