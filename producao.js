@@ -33,7 +33,13 @@ async function consumirPreparacaoProduzida(db,{preparacaoId,quantidade,ordemId,u
 
 export async function initProducao(pool){
   await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida'));`);
-  await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT;`);
+  await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS item_nome TEXT;`);
+  // Snapshot histórico: preserva o nome da OP para que leituras futuras não dependam da tabela fichas.
+  await pool.query(`UPDATE ordens_producao o SET item_nome=COALESCE(p.nome,f.nome_prato,'Produção #'||o.id)
+    FROM (SELECT id,nome FROM preparacoes) p FULL JOIN (SELECT id,nome_prato FROM fichas) f ON FALSE
+    WHERE o.item_nome IS NULL AND ((o.preparacao_id=p.id AND f.id IS NULL) OR (o.ficha_id=f.id AND p.id IS NULL))`).catch(async()=>{
+    await pool.query(`UPDATE ordens_producao o SET item_nome=COALESCE((SELECT p.nome FROM preparacoes p WHERE p.id=o.preparacao_id),(SELECT f.nome_prato FROM fichas f WHERE f.id=o.ficha_id),'Produção #'||o.id) WHERE o.item_nome IS NULL`);
+  });
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ordens_producao(
       id BIGSERIAL PRIMARY KEY,
@@ -98,15 +104,15 @@ export async function initProducao(pool){
 
 export function installProducao(app,pool){
   app.get("/api/producao/ordens",async(req,res,next)=>{try{
-    const {rows}=await pool.query(`SELECT o.*,p.nome preparacao_nome,f.nome_prato ficha_nome,COALESCE(p.nome,f.nome_prato) item_nome
-      FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id LEFT JOIN fichas f ON f.id=o.ficha_id
+    const {rows}=await pool.query(`SELECT o.*,p.nome preparacao_nome,o.item_nome ficha_nome,COALESCE(o.item_nome,p.nome,'Produção #'||o.id) item_nome
+      FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id
       WHERE o.empresa_id=$1 AND o.unidade_id=$2 ORDER BY o.created_at DESC LIMIT 200`,
       [req.user.empresa_id,req.user.unidade_id]);res.json(rows);
   }catch(e){next(e)}});
 
   app.get("/api/producao/ordens/:id/separacao",async(req,res,next)=>{try{
-    const ordem=await pool.query(`SELECT o.id,o.status,o.quantidade_planejada,o.unidade,COALESCE(p.nome,f.nome_prato) item_nome
-      FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id LEFT JOIN fichas f ON f.id=o.ficha_id
+    const ordem=await pool.query(`SELECT o.id,o.status,o.quantidade_planejada,o.unidade,COALESCE(o.item_nome,p.nome,'Produção #'||o.id) item_nome
+      FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id
       WHERE o.id=$1 AND o.empresa_id=$2 AND o.unidade_id=$3`,[req.params.id,req.user.empresa_id,req.user.unidade_id]);
     if(!ordem.rows[0])return res.status(404).json({error:"Ordem não encontrada."});
     const {rows}=await pool.query(`SELECT pc.id,pc.insumo_id,pc.quantidade_teorica,pc.separado,i.ingrediente,i.unidade,
@@ -156,9 +162,9 @@ export function installProducao(app,pool){
         custo+=necessaria*n(x.preco_real);
         itens.push({...x,quantidade_necessaria:necessaria,saldo_disponivel:disponivel,falta:Math.max(0,necessaria-disponivel)});
       }
-      const op=await c.query(`INSERT INTO ordens_producao(preparacao_id,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-        [preparacaoId,quantidade,p.rows[0].unidade_rendimento,custo,String(req.body.observacoes||"").trim(),req.user.id,req.user.empresa_id,req.user.unidade_id]);
+      const op=await c.query(`INSERT INTO ordens_producao(preparacao_id,item_nome,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [preparacaoId,p.rows[0].nome,quantidade,p.rows[0].unidade_rendimento,custo,String(req.body.observacoes||"").trim(),req.user.id,req.user.empresa_id,req.user.unidade_id]);
       for(const x of itens)await c.query(`INSERT INTO producao_consumos(ordem_id,insumo_id,quantidade_teorica,custo_unitario)
         VALUES($1,$2,$3,$4)`,[op.rows[0].id,x.insumo_id,x.quantidade_necessaria,n(x.preco_real)]);
       await c.query("COMMIT");
@@ -230,8 +236,8 @@ export function installProducao(app,pool){
           JOIN insumos i ON i.id=pi.insumo_id AND i.empresa_id=$2 AND i.unidade_id=$3
           GROUP BY pi.insumo_id,i.preco_real`,[id,req.user.empresa_id,req.user.unidade_id,fator]);
         let custo=0;for(const z of ing.rows)custo+=n(z.quantidade)*n(z.preco_real);
-        const op=await db.query(`INSERT INTO ordens_producao(preparacao_id,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,[id,q,p.rows[0].unidade_rendimento,custo,"Planejamento por fichas/preparações",req.user.id,req.user.empresa_id,req.user.unidade_id]);
+        const op=await db.query(`INSERT INTO ordens_producao(preparacao_id,item_nome,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,[id,p.rows[0].nome,q,p.rows[0].unidade_rendimento,custo,"Planejamento por fichas/preparações",req.user.id,req.user.empresa_id,req.user.unidade_id]);
         for(const z of ing.rows)await db.query(`INSERT INTO producao_consumos(ordem_id,insumo_id,quantidade_teorica,custo_unitario) VALUES($1,$2,$3,$4)`,[op.rows[0].id,z.insumo_id,z.quantidade,n(z.preco_real)]);
         ids.push(Number(op.rows[0].id));
       }
@@ -384,8 +390,8 @@ export function installProducao(app,pool){
       }
       const {rows}=await db.query(`UPDATE ordens_producao SET status='concluida',rendimento_real=$1,custo_real=$2,finalizada_at=NOW(),estoque_baixado=TRUE WHERE id=$3 RETURNING *`,
         [real,custoReal,ordem.id]);
-      const item=await db.query(`SELECT o.ficha_id,o.preparacao_id,o.unidade,COALESCE(f.nome_prato,p.nome) nome
-        FROM ordens_producao o LEFT JOIN fichas f ON f.id=o.ficha_id LEFT JOIN preparacoes p ON p.id=o.preparacao_id WHERE o.id=$1`,[ordem.id]);
+      const item=await db.query(`SELECT o.ficha_id,o.preparacao_id,o.unidade,COALESCE(o.item_nome,p.nome,'Produção #'||o.id) nome
+        FROM ordens_producao o LEFT JOIN preparacoes p ON p.id=o.preparacao_id WHERE o.id=$1`,[ordem.id]);
       const prod=item.rows[0], produzido=qEstoque(real), custoUnit=produzido>0?custoReal/produzido:0;
       if(prod && produzido>0){
         const s=await db.query(`SELECT COALESCE(SUM(quantidade),0)::numeric saldo FROM estoque_produzidos
