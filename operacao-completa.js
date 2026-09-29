@@ -53,6 +53,24 @@ export async function initOperacaoCompleta(pool){
  ALTER TABLE inventarios ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
  CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
  `);
+ // Consolida o saldo líquido do estoque legado no modelo atual, uma única vez por preparação/unidade.
+ if((await pool.query("SELECT to_regclass('public.estoque_preparacoes') AS tabela")).rows[0]?.tabela){
+  await pool.query(`
+   INSERT INTO estoque_produzidos(preparacao_id,nome,unidade,tipo,quantidade,saldo_anterior,saldo_novo,custo_unitario,usuario_id,empresa_id,unidade_id,origem_legada)
+   SELECT x.preparacao_id,p.nome,p.unidade_rendimento,'ajuste',x.saldo,0,x.saldo,x.custo_unitario,NULL,x.empresa_id,x.unidade_id,
+          'estoque_preparacoes:'||x.empresa_id||':'||x.unidade_id||':'||x.preparacao_id
+   FROM (
+    SELECT e.preparacao_id,e.empresa_id,e.unidade_id,SUM(e.quantidade)::numeric saldo,
+           COALESCE((array_agg(e.custo_unitario ORDER BY e.created_at DESC,e.id DESC))[1],0)::numeric custo_unitario
+    FROM estoque_preparacoes e
+    GROUP BY e.preparacao_id,e.empresa_id,e.unidade_id
+   ) x
+   JOIN preparacoes p ON p.id=x.preparacao_id
+   WHERE x.saldo<>0
+   ON CONFLICT (origem_legada) WHERE origem_legada IS NOT NULL DO NOTHING
+  `);
+ }
+
  const done=(await pool.query("SELECT 1 FROM misevo_migrations WHERE chave='homologacao_v1'")).rows[0];
  if(!done){
   const db=await pool.connect();try{await db.query("BEGIN");
