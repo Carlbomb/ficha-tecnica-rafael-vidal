@@ -1889,62 +1889,47 @@ app.get(
       res
     ) => {
 
-      const fichas =
-        await pool.query(
-          fichaSelect +
-          `
-          WHERE f.empresa_id = $1
-            AND f.unidade_id = $2
-
-          GROUP BY
-            f.id
-
-          ORDER BY
-            f.nome_prato
-          `,
-          [req.user.empresa_id, req.user.unidade_id]
-        );
-
-      await adicionarCustosPreparacoesFicha(
+      const fichas = await listarPreparacoesComCusto(
         pool,
-        fichas.rows,
         req.user.empresa_id,
         req.user.unidade_id
       );
 
-      const validas =
-        fichas.rows.filter(
-          ficha =>
-            n(
-              ficha.cmv_percentual
-            ) > 0
-        );
-
-      const cmvMedio =
-        validas.length
-          ? validas.reduce(
-              (
-                soma,
-                ficha
-              ) =>
-                soma +
-                n(
-                  ficha.cmv_percentual
-                ),
-              0
-            ) /
-            validas.length
+      const normalizadas = fichas.map(ficha => {
+        const porcoes = n(ficha.quantidade_porcoes);
+        const custoTotal = n(ficha.custo_total);
+        const custoPorcao = porcoes > 0 ? custoTotal / porcoes : 0;
+        const precoVenda = n(ficha.preco_venda_porcao);
+        const meta = n(ficha.meta_cmv);
+        const cmvPercentual = precoVenda > 0 && custoPorcao > 0
+          ? (custoPorcao / precoVenda) * 100
           : 0;
 
+        return {
+          ...ficha,
+          nome_prato: ficha.nome,
+          porcoes,
+          preco_venda: precoVenda,
+          custo_por_porcao: custoPorcao,
+          cmv_percentual: cmvPercentual,
+          preco_meta: porcoes > 0 && meta > 0
+            ? custoPorcao / (meta / 100)
+            : 0
+        };
+      });
+
+      const validas = normalizadas.filter(
+        ficha => n(ficha.cmv_percentual) > 0
+      );
+
+      const cmvMedio = validas.length
+        ? validas.reduce((soma, ficha) => soma + n(ficha.cmv_percentual), 0) / validas.length
+        : 0;
+
       res.json({
-        total_fichas:
-          fichas.rows.length,
-
-        cmv_medio:
-          cmvMedio,
-
-        fichas:
-          fichas.rows
+        total_fichas: normalizadas.length,
+        cmv_medio: cmvMedio,
+        fichas: normalizadas
       });
     }
   )
@@ -1995,54 +1980,26 @@ app.get(
           [req.user.empresa_id, req.user.unidade_id]
         );
 
-      const custos =
-        await pool.query(
-          fichaSelect +
-          `
-          WHERE
-            f.ativo = TRUE
-            AND f.empresa_id = $1
-            AND f.unidade_id = $2
-
-          GROUP BY
-            f.id
-          `,
-          [req.user.empresa_id, req.user.unidade_id]
-        );
-
-      await adicionarCustosPreparacoesFicha(
+      const custos = await listarPreparacoesComCusto(
         pool,
-        custos.rows,
         req.user.empresa_id,
         req.user.unidade_id
       );
 
-      const comCmv =
-        custos.rows.filter(
-          ficha =>
-            n(
-              ficha.preco_venda
-            ) > 0 &&
-            n(
-              ficha.cmv_percentual
-            ) > 0
-        );
+      const comCmv = custos
+        .map(ficha => {
+          const porcoes = n(ficha.quantidade_porcoes);
+          const custoPorcao = porcoes > 0 ? n(ficha.custo_total) / porcoes : 0;
+          const precoVenda = n(ficha.preco_venda_porcao);
+          return precoVenda > 0 && custoPorcao > 0
+            ? (custoPorcao / precoVenda) * 100
+            : 0;
+        })
+        .filter(cmv => cmv > 0);
 
-      const cmvMedio =
-        comCmv.length
-          ? comCmv.reduce(
-              (
-                soma,
-                ficha
-              ) =>
-                soma +
-                n(
-                  ficha.cmv_percentual
-                ),
-              0
-            ) /
-            comCmv.length
-          : 0;
+      const cmvMedio = comCmv.length
+        ? comCmv.reduce((soma, cmv) => soma + cmv, 0) / comCmv.length
+        : 0;
 
       res.json({
         insumos:
