@@ -94,6 +94,9 @@ export async function initProducao(pool){
       CHECK ((ficha_id IS NOT NULL)::int + (preparacao_id IS NOT NULL)::int = 1)
     );
     CREATE INDEX IF NOT EXISTS idx_estoque_produzidos_tenant ON estoque_produzidos(empresa_id,unidade_id,created_at DESC);
+    ALTER TABLE estoque_produzidos ADD COLUMN IF NOT EXISTS origem_legada TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_estoque_produzidos_origem_legada
+      ON estoque_produzidos(origem_legada) WHERE origem_legada IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_estoque_produzidos_op_entrada ON estoque_produzidos(ordem_producao_id) WHERE ordem_producao_id IS NOT NULL AND tipo='producao';
     CREATE TABLE IF NOT EXISTS producao_componentes(
       id BIGSERIAL PRIMARY KEY,
