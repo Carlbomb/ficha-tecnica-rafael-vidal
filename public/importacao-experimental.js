@@ -120,7 +120,13 @@ async function executarImportacaoReal(){
   const resp=await fetch("/api/importacoes/executar",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmado:true,fichas:analise.fichas.filter((_,i)=>decisoes.fichas[i]!==false),preparacoes:analise.preparacoes,insumosDetalhes:analise.insumosDetalhes,conflitos:analise.conflitos,decisoes})});
   const data=await resp.json().catch(()=>({}));
   if(!resp.ok)throw new Error(data.error||"Falha na importação.");
-  modal(`<small>IMPORTAÇÃO CONCLUÍDA</small><h3>Dados gravados com sucesso</h3><div class="import-summary-grid"><span><b>${data.fichasCriadas}</b> fichas criadas</span><span><b>${data.preparacoes}</b> preparações</span></div><div class="import-note">A operação foi concluída em transação única.</div>`);
+  // Encerra o ciclo atual após sucesso para impedir nova validação/importação acidental.
+  planoValidado=false;
+  analise=null; workbook=null; arquivoAtual="";
+  decisoes.conflitos={}; decisoes.insumos={}; decisoes.fichas={};
+  C().innerHTML=`<div class="section-head"><div><small>IMPORTAÇÃO DE PLANILHA</small><h2>Importação concluída</h2><p>Os dados selecionados já foram gravados no MISEVO.</p></div></div><div class="card import-final"><div class="import-badge">CONCLUÍDA</div><h3>Importação realizada com sucesso</h3><div class="import-summary-grid"><span><b>${data.fichasCriadas}</b> fichas importadas</span><span><b>${data.preparacoes}</b> fichas processadas</span></div><div class="import-note">Este plano foi encerrado. Para importar outro arquivo, inicie uma nova importação.</div><button id="novaImportacaoConcluida" type="button" class="primary">Importar outra planilha</button></div>`;
+  document.querySelector("#importModal")?.remove();
+  document.querySelector("#novaImportacaoConcluida").onclick=telaInicial;
  }catch(e){modal(`<small>IMPORTAÇÃO CANCELADA</small><h3>Nenhum dado parcial deve permanecer</h3><div class="import-error">${esc(e.message)}</div><div class="import-note">O servidor executou rollback da transação.</div>`); if(b)b.disabled=false}
  finally{if(b)b.textContent="Importar para o MISEVO"}
 }
