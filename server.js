@@ -1793,6 +1793,44 @@ app.put(
 );
 
 /* =========================================================
+   AÇÕES EM LOTE — FICHAS TÉCNICAS
+========================================================= */
+app.patch("/api/fichas/lote/grupo", asyncRoute(async(req,res)=>{
+  const ids=[...new Set((Array.isArray(req.body?.ids)?req.body.ids:[]).map(Number).filter(Number.isInteger))];
+  const categoria=String(req.body?.categoria||"").trim();
+  if(!ids.length)return res.status(400).json({error:"Selecione pelo menos uma ficha técnica."});
+  if(!categoria)return res.status(400).json({error:"Escolha o grupo de destino."});
+  const {rows}=await pool.query(`UPDATE fichas SET categoria=$1,updated_at=NOW()
+    WHERE id=ANY($2::bigint[]) AND empresa_id=$3 AND unidade_id=$4 RETURNING id,nome_prato,categoria`,
+    [categoria,ids,req.user.empresa_id,req.user.unidade_id]);
+  res.json({ok:true,alteradas:rows.length,fichas:rows});
+}));
+
+app.delete("/api/fichas/lote", asyncRoute(async(req,res)=>{
+  const ids=[...new Set((Array.isArray(req.body?.ids)?req.body.ids:[]).map(Number).filter(Number.isInteger))];
+  if(!ids.length)return res.status(400).json({error:"Selecione pelo menos uma ficha técnica."});
+  const db=await pool.connect();
+  try{
+    await db.query("BEGIN");
+    const existentes=await db.query(`SELECT id,nome_prato FROM fichas WHERE id=ANY($1::bigint[]) AND empresa_id=$2 AND unidade_id=$3 FOR UPDATE`,
+      [ids,req.user.empresa_id,req.user.unidade_id]);
+    if(!existentes.rows.length){await db.query("ROLLBACK");return res.status(404).json({error:"Nenhuma ficha técnica selecionada foi encontrada."})}
+    const removidas=[];
+    for(const f of existentes.rows){
+      try{
+        const d=await db.query(`DELETE FROM fichas WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 RETURNING id`,
+          [f.id,req.user.empresa_id,req.user.unidade_id]);
+        if(d.rowCount)removidas.push(Number(f.id));
+      }catch(e){
+        if(e.code==="23503"){await db.query("ROLLBACK");return res.status(409).json({error:`A ficha "${f.nome_prato}" possui vínculos com produção/estoque e não pode ser excluída.`})}
+        throw e;
+      }
+    }
+    await db.query("COMMIT");res.json({ok:true,excluidas:removidas.length,ids:removidas});
+  }catch(e){await db.query("ROLLBACK").catch(()=>{});throw e}finally{db.release()}
+}));
+
+/* =========================================================
    EXCLUIR FICHA
 ========================================================= */
 
