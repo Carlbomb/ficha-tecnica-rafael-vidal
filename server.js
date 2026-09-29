@@ -2,15 +2,15 @@ import express from "express";
 import pg from "pg";
 import { installAuth } from "./auth.js";
 import { initCoreTenancy, migrateOperationalTenancy } from "./multitenancy.js";
-import { initPreparacoes, installPreparacoes, calcularCustoPreparacao, listarPreparacoesComCusto } from "./preparacoes.js";
+import { installPreparacoes, calcularCustoPreparacao, listarPreparacoesComCusto } from "./preparacoes.js";
 import { initCategorias, installCategorias } from "./categorias.js";
-import { initEstoque, installEstoque } from "./estoque.js";
-import { initProducao, installProducao } from "./producao.js";
-import { initOperacao, installOperacao } from "./operacao.js";
-import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
+import { installEstoque } from "./estoque.js";
+import { installProducao } from "./producao.js";
+import { installOperacao } from "./operacao.js";
+import { installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
-import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema, migrateCoreTenancySchema, migrateOperationalTenancySchema, migrateTenantAdminSchema, migrateAuthSchema } from "./migrations.js";
+import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema, migrateCoreTenancySchema, migrateOperationalTenancySchema, migrateTenantAdminSchema, migrateAuthSchema, migrateBootstrapSchema } from "./migrations.js";
 
 const { Pool } = pg;
 
@@ -62,6 +62,7 @@ app.use(
 );
 
 // Fundação multiempresa precisa existir antes da autenticação.
+await migrateBootstrapSchema(pool);
 await migrateCoreTenancySchema(pool);
 await initCoreTenancy(pool);
 await migrateAuthSchema(pool);
@@ -120,17 +121,12 @@ async function init() {
 
   // Estrutura de Preparações / Sub-receitas
   await migratePreparacoesSchema(pool);
-  await initPreparacoes(pool);
   await migrateCategoriasSchema(pool);
   await initCategorias(pool);
   await migrateEstoqueSchema(pool);
-  await initEstoque(pool);
   await migrateProducaoSchema(pool);
-  await initProducao(pool);
   await migrateOperacaoSchema(pool);
-  await initOperacao(pool);
   await migrateOperacaoCompletaSchema(pool);
-  await initOperacaoCompleta(pool);
 
   await migrateTenantAdminSchema(pool);
   await initTenantAdmin(pool);
