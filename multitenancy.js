@@ -8,30 +8,6 @@ export async function initCoreTenancy(pool) {
   try {
     await client.query("BEGIN");
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS empresas (
-        id BIGSERIAL PRIMARY KEY,
-        nome TEXT NOT NULL,
-        nome_fantasia TEXT DEFAULT '',
-        documento TEXT DEFAULT '',
-        ativo BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS unidades (
-        id BIGSERIAL PRIMARY KEY,
-        empresa_id BIGINT NOT NULL REFERENCES empresas(id) ON DELETE RESTRICT,
-        nome TEXT NOT NULL,
-        codigo TEXT DEFAULT '',
-        ativo BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_unidades_empresa ON unidades(empresa_id);
-    `);
-
     let empresa = await client.query(`SELECT id FROM empresas ORDER BY id LIMIT 1`);
     let empresaId;
 
@@ -84,11 +60,6 @@ export async function migrateOperationalTenancy(pool) {
     if (!unidade.rows[0]) throw new Error("Unidade inicial não encontrada.");
     const unidadeId = unidade.rows[0].id;
 
-    await client.query(`
-      ALTER TABLE insumos ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
-      ALTER TABLE insumos ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
-    `);
-
     await client.query(
       `UPDATE insumos SET empresa_id=$1 WHERE empresa_id IS NULL`,
       [empresaId]
@@ -97,26 +68,6 @@ export async function migrateOperationalTenancy(pool) {
       `UPDATE insumos SET unidade_id=$1 WHERE unidade_id IS NULL`,
       [unidadeId]
     );
-
-    // FKs adicionadas de forma idempotente.
-    await client.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_insumos_empresa') THEN
-          ALTER TABLE insumos ADD CONSTRAINT fk_insumos_empresa
-            FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE RESTRICT;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_insumos_unidade') THEN
-          ALTER TABLE insumos ADD CONSTRAINT fk_insumos_unidade
-            FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE RESTRICT;
-        END IF;
-      END $$;
-    `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_insumos_empresa_unidade
-        ON insumos(empresa_id,unidade_id);
-    `);
 
     await client.query("COMMIT");
     console.log("MISEVO multiempresa: dados existentes vinculados à empresa/unidade inicial.");
