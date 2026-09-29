@@ -37,11 +37,11 @@ export async function initProducao(pool){
   // ficha_id permanece apenas como identificador histórico.
   // As FKs legadas serão removidas somente após validação funcional completa.
 
-  // Snapshot histórico: preserva o nome da OP para que leituras futuras não dependam da tabela fichas.
+  // Novas OPs já gravam item_nome. Registros sem snapshot recebem um identificador estável,
+  // sem consultar a tabela legada.
   await pool.query(`UPDATE ordens_producao o
     SET item_nome=COALESCE(
       (SELECT p.nome FROM preparacoes p WHERE p.id=o.preparacao_id),
-      (SELECT f.nome_prato FROM fichas f WHERE f.id=o.ficha_id),
       'Produção #'||o.id
     )
     WHERE o.item_nome IS NULL`);
