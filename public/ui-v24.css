@@ -285,3 +285,8 @@ button[aria-label]:focus-visible{
 .batch-actions-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .ficha-lote-check,#selecionarTodasFichas{width:20px;height:20px;cursor:pointer}
 @media(max-width:620px){.batch-actions{align-items:stretch;flex-direction:column}.batch-actions-buttons{display:grid;grid-template-columns:1fr 1fr}.batch-actions-buttons button{width:100%}}
+
+/* Seleção múltipla preservada nos cards mobile de Fichas Técnicas */
+.v23-selectable{position:relative;padding-left:48px}
+.v23-check{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;z-index:2}
+.v23-check .ficha-lote-check{width:22px;height:22px;margin:0}
