@@ -112,3 +112,33 @@ export async function migrateOperacaoCompletaSchema(pool){
     CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
   `);
 }
+
+export async function migrateEstoqueSchema(pool){
+  await pool.query(`
+    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS estoque_minimo NUMERIC(14,4) NOT NULL DEFAULT 0;
+    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS estoque_maximo NUMERIC(14,4) NOT NULL DEFAULT 0;
+    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS local_estoque TEXT NOT NULL DEFAULT '';
+
+    CREATE TABLE IF NOT EXISTS estoque_movimentacoes(
+      id BIGSERIAL PRIMARY KEY,
+      insumo_id BIGINT NOT NULL REFERENCES insumos(id) ON DELETE RESTRICT,
+      tipo TEXT NOT NULL CHECK(tipo IN ('entrada','saida','perda','ajuste')),
+      quantidade NUMERIC(14,4) NOT NULL,
+      saldo_anterior NUMERIC(14,4) NOT NULL,
+      saldo_novo NUMERIC(14,4) NOT NULL,
+      motivo TEXT NOT NULL DEFAULT '',
+      observacoes TEXT NOT NULL DEFAULT '',
+      usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      empresa_id BIGINT NOT NULL,
+      unidade_id BIGINT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_estoque_mov_tenant ON estoque_movimentacoes(empresa_id,unidade_id,created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_estoque_mov_insumo ON estoque_movimentacoes(insumo_id,created_at DESC);
+  `);
+  await pool.query(`
+    ALTER TABLE insumos
+    ADD COLUMN IF NOT EXISTS grupo TEXT NOT NULL DEFAULT 'Outros';
+  `);
+
+}
