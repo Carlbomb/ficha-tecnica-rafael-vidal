@@ -228,14 +228,8 @@ export function installPreparacoes(app,pool) {
       [req.params.id,req.user.empresa_id,req.user.unidade_id]
     );
     const custo=await calcularCustoPreparacao(pool,req.params.id,req.user.empresa_id,req.user.unidade_id);
-    const fichasUso=await pool.query(
-      `SELECT f.id,f.nome_prato AS nome,fp.quantidade,fp.ordem
-         FROM ficha_preparacoes fp
-         JOIN fichas f ON f.id=fp.ficha_id
-        WHERE fp.preparacao_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3
-        ORDER BY f.nome_prato`,
-      [req.params.id,req.user.empresa_id,req.user.unidade_id]
-    );
+    // Vínculos legados não participam mais das operações atuais.
+    const fichasUso={rows:[]};
     const preparacoesUso=await pool.query(
       `SELECT p.id,p.nome,pc.quantidade,pc.ordem
          FROM preparacao_componentes pc
@@ -362,12 +356,11 @@ export function installPreparacoes(app,pool) {
         if(!p.rows[0])continue;
         const vinc=await db.query(`SELECT
           EXISTS(SELECT 1 FROM preparacao_componentes WHERE componente_id=$1) usado_componente,
-          EXISTS(SELECT 1 FROM ficha_preparacoes WHERE preparacao_id=$1) usado_ficha,
           EXISTS(SELECT 1 FROM ordens_producao WHERE preparacao_id=$1) tem_producao,
           EXISTS(SELECT 1 FROM estoque_produzidos WHERE preparacao_id=$1) tem_estoque`,[id]);
         const v=vinc.rows[0]||{};
-        if(v.usado_componente||v.usado_ficha){
-          const motivos=[];if(v.usado_componente||v.usado_ficha)motivos.push("usada por outra ficha ativa");
+        if(v.usado_componente){
+          const motivos=[];if(v.usado_componente)motivos.push("usada por outra ficha ativa");
           mantidas.push({id,nome:p.rows[0].nome,motivo:motivos.join(", ")});continue;
         }
         if(v.tem_producao||v.tem_estoque){
@@ -392,14 +385,8 @@ export function installPreparacoes(app,pool) {
       if(!p.rows[0]){await c.query("ROLLBACK");return res.status(404).json({error:"Preparação não encontrada."});}
 
       const usosPrep=await c.query(`SELECT p.nome FROM preparacao_componentes pc JOIN preparacoes p ON p.id=pc.preparacao_id WHERE pc.componente_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE ORDER BY p.nome`,[id,empresaId,unidadeId]);
-      const usosFicha=await c.query(`SELECT f.nome_prato AS nome FROM ficha_preparacoes fp JOIN fichas f ON f.id=fp.ficha_id WHERE fp.preparacao_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3 ORDER BY f.nome_prato`,[id,empresaId,unidadeId]);
       const ins=await c.query("SELECT id,ingrediente FROM insumos WHERE producao_id=$1 AND empresa_id=$2 AND unidade_id=$3 LIMIT 1",[id,empresaId,unidadeId]);
-      let usosInsumo=[];
-      if(ins.rows[0]){
-        const u=await c.query(`SELECT DISTINCT f.nome_prato AS nome FROM ingredientes i JOIN fichas f ON f.id=i.ficha_id WHERE i.insumo_id=$1 AND f.empresa_id=$2 AND f.unidade_id=$3 ORDER BY f.nome_prato`,[ins.rows[0].id,empresaId,unidadeId]);
-        usosInsumo=u.rows;
-      }
-      const dependencias=[...usosPrep.rows.map(x=>`Preparação: ${x.nome}`),...usosFicha.rows.map(x=>`Ficha técnica: ${x.nome}`),...usosInsumo.map(x=>`Ficha técnica (insumo produzido): ${x.nome}`)];
+      const dependencias=[...usosPrep.rows.map(x=>`Preparação: ${x.nome}`)];
       if(dependencias.length){await c.query("ROLLBACK");return res.status(409).json({error:"Não é possível excluir: esta produção está em uso.",dependencias});}
 
       if(ins.rows[0]) await c.query("DELETE FROM insumos WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3",[ins.rows[0].id,empresaId,unidadeId]);
