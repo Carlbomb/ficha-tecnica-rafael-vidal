@@ -3,63 +3,7 @@
 const n = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 const asyncRoute = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
 
-export async function initPreparacoes(pool) {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS preparacoes (
-      id BIGSERIAL PRIMARY KEY,
-      nome TEXT NOT NULL,
-      categoria TEXT NOT NULL DEFAULT 'Outros',
-      rendimento NUMERIC(14,4) NOT NULL DEFAULT 1,
-      unidade_rendimento TEXT NOT NULL DEFAULT 'KG',
-      quantidade_porcoes NUMERIC(14,3),
-      peso_porcao NUMERIC(14,3),
-      preco_venda_porcao NUMERIC(14,2),
-      meta_cmv NUMERIC(7,3) NOT NULL DEFAULT 30,
-      modo_preparo TEXT DEFAULT '',
-      observacoes TEXT DEFAULT '',
-      ativo BOOLEAN NOT NULL DEFAULT TRUE,
-      empresa_id BIGINT NOT NULL REFERENCES empresas(id),
-      unidade_id BIGINT NOT NULL REFERENCES unidades(id),
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-
-    ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS quantidade_porcoes NUMERIC(14,3);
-    ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS peso_porcao NUMERIC(14,3);
-    ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS preco_venda_porcao NUMERIC(14,2);
-    ALTER TABLE preparacoes ADD COLUMN IF NOT EXISTS meta_cmv NUMERIC(7,3) NOT NULL DEFAULT 30;
-    ALTER TABLE insumos ADD COLUMN IF NOT EXISTS producao_id BIGINT REFERENCES preparacoes(id) ON DELETE SET NULL;
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_insumo_producao_tenant
-      ON insumos(producao_id,empresa_id,unidade_id) WHERE producao_id IS NOT NULL;
-
-    CREATE TABLE IF NOT EXISTS preparacao_ingredientes (
-      id BIGSERIAL PRIMARY KEY,
-      preparacao_id BIGINT NOT NULL REFERENCES preparacoes(id) ON DELETE CASCADE,
-      insumo_id BIGINT NOT NULL REFERENCES insumos(id),
-      quantidade NUMERIC(14,4) NOT NULL DEFAULT 0,
-      ordem INTEGER NOT NULL DEFAULT 0,
-      observacoes TEXT DEFAULT '',
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-
-    CREATE TABLE IF NOT EXISTS preparacao_componentes (
-      id BIGSERIAL PRIMARY KEY,
-      preparacao_id BIGINT NOT NULL REFERENCES preparacoes(id) ON DELETE CASCADE,
-      componente_id BIGINT NOT NULL REFERENCES preparacoes(id),
-      quantidade NUMERIC(14,4) NOT NULL DEFAULT 0,
-      ordem INTEGER NOT NULL DEFAULT 0,
-      observacoes TEXT DEFAULT '',
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      CONSTRAINT prep_componente_diferente CHECK (preparacao_id <> componente_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_preparacoes_tenant ON preparacoes(empresa_id,unidade_id);
-    CREATE INDEX IF NOT EXISTS idx_prep_ing_prep ON preparacao_ingredientes(preparacao_id);
-    CREATE INDEX IF NOT EXISTS idx_prep_comp_prep ON preparacao_componentes(preparacao_id);
-    CREATE INDEX IF NOT EXISTS idx_prep_comp_comp ON preparacao_componentes(componente_id);
-  `);
-}
-
+export async function initPreparacoes(pool) {}
 export async function calcularCustoPreparacao(db, id, empresaId, unidadeId, visitados = new Set()) {
   const chave = Number(id);
   if (visitados.has(chave)) throw new Error("Foi detectado um ciclo entre preparações.");
