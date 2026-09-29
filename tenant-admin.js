@@ -1,12 +1,6 @@
 import crypto from "node:crypto";
 const hp=(p,s=crypto.randomBytes(16).toString("base64url"))=>`${s}:${crypto.scryptSync(p,s,64).toString("hex")}`;
 export async function initTenantAdmin(pool){
- await pool.query(`CREATE TABLE IF NOT EXISTS usuario_unidades(
- usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
- unidade_id BIGINT NOT NULL REFERENCES unidades(id) ON DELETE CASCADE,
- empresa_id BIGINT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
- ativo BOOLEAN NOT NULL DEFAULT TRUE,
- PRIMARY KEY(usuario_id,unidade_id));`);
  await pool.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id)
  SELECT id,unidade_id,empresa_id FROM usuarios WHERE unidade_id IS NOT NULL AND empresa_id IS NOT NULL
  ON CONFLICT(usuario_id,unidade_id) DO NOTHING`);
