@@ -1,10 +1,13 @@
-name: Teste Ficha + Preparação
+name: Testes MISEVO
 on:
   push:
     branches: [mobile-mvp]
     paths:
-      - "public/app.js"
-      - "tests/ficha-preparacao-selector.test.mjs"
+      - "**/*.js"
+      - "**/*.mjs"
+      - "**/*.css"
+      - "**/*.html"
+      - "package.json"
       - ".github/workflows/test-ficha-preparacao.yml"
   workflow_dispatch:
 jobs:
@@ -15,5 +18,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Validar seletor de preparação
-        run: node tests/ficha-preparacao-selector.test.mjs
+      - name: Validar arquitetura consolidada
+        run: npm test
