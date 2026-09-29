@@ -2,29 +2,7 @@ const ar=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 const n=v=>Number.isFinite(Number(v))?Number(v):0;
 const t=req=>[req.user.empresa_id,req.user.unidade_id];
 
-export async function initOperacaoCompleta(pool){
- await pool.query(`
- CREATE TABLE IF NOT EXISTS etiqueta_registros(
-  id BIGSERIAL PRIMARY KEY,
-  insumo_id BIGINT REFERENCES insumos(id) ON DELETE SET NULL,
-  item_nome TEXT NOT NULL,
-  producao DATE NOT NULL,
-  validade DATE NOT NULL,
-  responsavel TEXT DEFAULT '',
-  quantidade INTEGER NOT NULL DEFAULT 1,
-  usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
-  empresa_id BIGINT NOT NULL,
-  unidade_id BIGINT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
- );
- CREATE INDEX IF NOT EXISTS idx_etiqueta_registros_tenant_validade ON etiqueta_registros(empresa_id,unidade_id,validade,created_at DESC);
- ALTER TABLE perdas ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
- ALTER TABLE inventarios ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
- CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
- `);
-
-}
-
+export async function initOperacaoCompleta(pool){}
 export function installOperacaoCompleta(app,pool){
  app.post("/api/plataforma/homologacao/reset",async(req,res,next)=>{const db=await pool.connect();try{
   if(req.user?.plataforma_admin!==true||String(req.user?.email||"").trim().toLowerCase()!=="charlcooking@gmail.com")return res.status(403).json({error:"Acesso restrito."});
