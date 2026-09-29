@@ -7,7 +7,7 @@ import { initCategorias, installCategorias } from "./categorias.js";
 import { initEstoque, installEstoque } from "./estoque.js";
 import { initProducao, installProducao } from "./producao.js";
 import { initOperacao, installOperacao } from "./operacao.js";
-import { initOperacaoCompleta, installOperacaoCompleta, runHomologacaoReset } from "./operacao-completa.js";
+import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
 
@@ -174,33 +174,7 @@ async function init() {
   await initOperacao(pool);
   await initOperacaoCompleta(pool);
 
-  // Estoque produzido consolidado: o saldo legado já foi migrado para estoque_produzidos.
-  await pool.query(`DROP TABLE IF EXISTS estoque_preparacoes`);
 
-  // Remoção física final do modelo legado, após consolidação e validação dos fluxos atuais.
-  // Preserva ficha_id como valor histórico nas OPs/estoque, removendo apenas constraints que
-  // ainda possam apontar para a antiga tabela fichas.
-  await pool.query(`
-    DO $do$
-    DECLARE r record;
-    BEGIN
-      IF to_regclass('public.fichas') IS NOT NULL THEN
-        FOR r IN
-          SELECT conrelid::regclass AS tabela, conname
-          FROM pg_constraint
-          WHERE contype='f' AND confrelid='public.fichas'::regclass
-        LOOP
-          EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tabela, r.conname);
-        END LOOP;
-      END IF;
-    END
-    $do$;
-    DROP TABLE IF EXISTS ficha_preparacoes;
-    DROP TABLE IF EXISTS ingredientes;
-    DROP TABLE IF EXISTS fichas;
-  `);
-
-await runHomologacaoReset(pool);
   await initTenantAdmin(pool);
 
   console.log(
