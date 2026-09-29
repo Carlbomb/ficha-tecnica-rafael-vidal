@@ -147,7 +147,7 @@ export function installOperacaoCompleta(app,pool){
    pool.query(`SELECT COALESCE(SUM(saldo*i.preco_real),0)::numeric valor FROM (SELECT i.id,COALESCE(SUM(m.quantidade),0) saldo FROM insumos i LEFT JOIN estoque_movimentacoes m ON m.insumo_id=i.id AND m.empresa_id=$1 AND m.unidade_id=$2 WHERE i.empresa_id=$1 AND i.unidade_id=$2 GROUP BY i.id) x JOIN insumos i ON i.id=x.id`,t(req)),
    pool.query("SELECT COALESCE(SUM(custo),0)::numeric valor,COUNT(*)::int qtd FROM perdas WHERE empresa_id=$1 AND unidade_id=$2 AND created_at>=date_trunc('month',NOW())",t(req)),
    pool.query("SELECT COALESCE(SUM(total),0)::numeric valor,COUNT(*)::int qtd FROM compras WHERE empresa_id=$1 AND unidade_id=$2 AND data_compra>=date_trunc('month',CURRENT_DATE)",t(req)),
-   pool.query("SELECT COALESCE(SUM(custo_real),0)::numeric valor,COUNT(*)::int qtd FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2 AND status IN ('concluida','finalizada') AND finalizada_at>=date_trunc('month',NOW())",t(req))
+   pool.query("SELECT COALESCE(SUM(custo_real),0)::numeric valor,COUNT(*)::int qtd FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2 AND status='concluida' AND finalizada_at>=date_trunc('month',NOW())",t(req))
   ]);res.json({valor_estoque:est.rows[0].valor,perdas_mes:per.rows[0],compras_mes:com.rows[0],producao_mes:prod.rows[0]})
  }));
 }
