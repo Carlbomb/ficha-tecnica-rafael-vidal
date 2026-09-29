@@ -335,3 +335,15 @@ export async function migrateOperationalTenancySchema(pool){
     client.release();
   }
 }
+
+export async function migrateTenantAdminSchema(pool){
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS usuario_unidades(
+      usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      unidade_id BIGINT NOT NULL REFERENCES unidades(id) ON DELETE CASCADE,
+      empresa_id BIGINT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      PRIMARY KEY(usuario_id,unidade_id)
+    );
+  `);
+}
