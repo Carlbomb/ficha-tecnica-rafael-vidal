@@ -374,6 +374,33 @@ export function installPreparacoes(app,pool) {
   }));
 
   app.post("/api/preparacoes",asyncRoute((req,res)=>gravar(req,res,false)));
+  app.patch("/api/preparacoes/lote/grupo",asyncRoute(async(req,res)=>{
+    const ids=[...new Set((Array.isArray(req.body?.ids)?req.body.ids:[]).map(Number).filter(Number.isInteger))];
+    const categoria=String(req.body?.categoria||"").trim();
+    if(!ids.length)return res.status(400).json({error:"Selecione pelo menos uma ficha técnica."});
+    if(!categoria)return res.status(400).json({error:"Escolha o grupo de destino."});
+    const {rows}=await pool.query(`UPDATE preparacoes SET categoria=$1,updated_at=NOW()
+      WHERE id=ANY($2::bigint[]) AND empresa_id=$3 AND unidade_id=$4 RETURNING id,nome,categoria`,
+      [categoria,ids,req.user.empresa_id,req.user.unidade_id]);
+    res.json({ok:true,alteradas:rows.length,fichas:rows});
+  }));
+
+  app.delete("/api/preparacoes/lote",asyncRoute(async(req,res)=>{
+    const ids=[...new Set((Array.isArray(req.body?.ids)?req.body.ids:[]).map(Number).filter(Number.isInteger))];
+    if(!ids.length)return res.status(400).json({error:"Selecione pelo menos uma ficha técnica."});
+    const db=await pool.connect();try{
+      await db.query("BEGIN");const removidas=[];
+      for(const id of ids){
+        const p=await db.query(`SELECT id,nome FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 FOR UPDATE`,[id,req.user.empresa_id,req.user.unidade_id]);
+        if(!p.rows[0])continue;
+        const usado=await db.query(`SELECT EXISTS(SELECT 1 FROM preparacao_componentes WHERE componente_id=$1) OR EXISTS(SELECT 1 FROM ficha_preparacoes WHERE preparacao_id=$1) usado`,[id]);
+        if(usado.rows[0]?.usado){await db.query("ROLLBACK");return res.status(409).json({error:`A ficha "${p.rows[0].nome}" está sendo usada por outra ficha e não pode ser excluída.`})}
+        await db.query("DELETE FROM preparacoes WHERE id=$1",[id]);removidas.push(id);
+      }
+      await db.query("COMMIT");res.json({ok:true,excluidas:removidas.length,ids:removidas});
+    }catch(e){await db.query("ROLLBACK").catch(()=>{});throw e}finally{db.release()}
+  }));
+
   app.put("/api/preparacoes/:id",asyncRoute((req,res)=>gravar(req,res,true)));
 
   app.delete("/api/preparacoes/:id",asyncRoute(async(req,res)=>{
