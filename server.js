@@ -10,7 +10,7 @@ import { initOperacao, installOperacao } from "./operacao.js";
 import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
-import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema, migrateCoreTenancySchema, migrateOperationalTenancySchema, migrateTenantAdminSchema } from "./migrations.js";
+import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema, migrateCoreTenancySchema, migrateOperationalTenancySchema, migrateTenantAdminSchema, migrateAuthSchema } from "./migrations.js";
 
 const { Pool } = pg;
 
@@ -64,6 +64,7 @@ app.use(
 // Fundação multiempresa precisa existir antes da autenticação.
 await migrateCoreTenancySchema(pool);
 await initCoreTenancy(pool);
+await migrateAuthSchema(pool);
 
 // Login, sessões e permissões
 await installAuth(app, pool);
