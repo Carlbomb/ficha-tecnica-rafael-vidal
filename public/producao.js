@@ -6,7 +6,7 @@ async function apiP(url,opt={}){const r=await fetch(url,{...opt,headers:{"Conten
 const status=s=>s==="concluida"||s==="finalizada"?"Concluída":s==="em_producao"?"Em produção":s==="cancelada"?"Cancelada":s==="anulada"?"Excluída":"Pendente";
 
 window.telaProducao=async()=>{C.innerHTML='<div class="card">Carregando produção...</div>';try{
- const [ordens,preps,fichas]=await Promise.all([apiP("/api/producao/ordens"),apiP("/api/preparacoes"),apiP("/api/fichas")]);window.__ORDENS_PRODUCAO=ordens;window.__PREPS_PRODUCAO=preps;window.__FICHAS_PRODUCAO=fichas;
+ const [ordens,preps]=await Promise.all([apiP("/api/producao/ordens"),apiP("/api/preparacoes")]);window.__ORDENS_PRODUCAO=ordens;window.__PREPS_PRODUCAO=preps;
  const validas=ordens.filter(x=>!["anulada","cancelada"].includes(x.status)),concluidas=validas.filter(x=>["concluida","finalizada"].includes(x.status)),visiveis=validas.filter(x=>!["concluida","finalizada"].includes(x.status));
  C.innerHTML=`<div class="section-head"><div><small>OPERAÇÃO DA COZINHA</small><h2>Produção do Dia</h2><p>Lista diária de tarefas e preparações para orientar a equipe.</p></div><div class="actions"><button class="secondary" id="historicoProducao">Histórico</button><button class="secondary" id="planejarFichas">Planejar produção</button><button class="primary" id="novaOP">+ Adicionar tarefa</button></div></div>
  <div class="stats"><article><span>Pendentes</span><b>${visiveis.filter(x=>x.status==="planejada").length}</b></article><article><span>Em produção</span><b>${visiveis.filter(x=>x.status==="em_producao").length}</b></article><article><span>Concluídas</span><b>${concluidas.length}</b></article></div>
@@ -27,27 +27,27 @@ window.abrirSeparacaoOP=async function(id){try{
 
 function historicoProducao(){const todas=(window.__ORDENS_PRODUCAO||[]).filter(x=>["concluida","finalizada"].includes(x.status)),nomes=[...new Set(todas.map(o=>o.item_nome||o.preparacao_nome||o.ficha_nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));C.innerHTML=`<div class="section-head"><div><small>PRODUÇÃO</small><h2>Histórico de Produção</h2><p>Consulte produções concluídas por período e preparo.</p></div><button class="secondary" id="voltarHistorico">← Voltar</button></div><div class="card"><div class="form-grid"><label>De<input type="date" id="histDe"></label><label>Até<input type="date" id="histAte"></label><label>Preparo<select id="histPrep"><option value="">Todos</option>${nomes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select></label></div><div class="actions"><button class="secondary" id="limparHist">Limpar filtros</button></div></div><div class="card" id="listaHistorico"></div>`;const lista=document.querySelector("#listaHistorico"),de=document.querySelector("#histDe"),ate=document.querySelector("#histAte"),prep=document.querySelector("#histPrep");const render=()=>{const a=de.value?new Date(de.value+"T00:00:00"):null,b=ate.value?new Date(ate.value+"T23:59:59"):null,n=prep.value,ordens=todas.filter(o=>{const dt=new Date(o.finalizada_at||o.created_at),nome=o.item_nome||o.preparacao_nome||o.ficha_nome;return(!a||dt>=a)&&(!b||dt<=b)&&(!n||nome===n)});lista.innerHTML=!ordens.length?'<div class="empty">Nenhuma produção encontrada para os filtros selecionados.</div>':`<div style="margin-bottom:12px"><b>${ordens.length}</b> produç${ordens.length===1?"ão":"ões"} encontrada${ordens.length===1?"":"s"}</div>`+ordens.map(o=>{const p=num(o.quantidade_planejada),r=num(o.rendimento_real),d=r-p,pc=p>0?r/p*100:0;return `<div class="prep-uso-item" style="display:block;margin-bottom:14px"><div style="display:flex;justify-content:space-between;gap:12px"><b>${esc(o.item_nome||o.preparacao_nome||o.ficha_nome)}</b><span>${new Date(o.finalizada_at||o.created_at).toLocaleDateString("pt-BR")}</span></div><div style="margin-top:8px">Planejado: <b>${fmt(p)} ${esc(o.unidade)}</b> · Produzido: <b>${fmt(r)} ${esc(o.unidade)}</b></div><div>Diferença: <b>${d>0?"+":""}${fmt(d)} ${esc(o.unidade)}</b> · Rendimento: <b>${fmt(pc)}%</b></div></div>`}).join("")};[de,ate,prep].forEach(x=>x.addEventListener("change",render));document.querySelector("#limparHist").onclick=()=>{de.value="";ate.value="";prep.value="";render()};document.querySelector("#voltarHistorico").onclick=telaProducao;render()}
 
-let PLANO_FICHAS=[],PLANO_PREPS=[];
+let PLANO_PREPS=[];
 function planejarFichas(){
- const fichas=window.__FICHAS_PRODUCAO||[],preps=window.__PREPS_PRODUCAO||[];PLANO_FICHAS=[];PLANO_PREPS=[];
- const opcoes=[...fichas.map(x=>({tipo:"ficha",id:Number(x.id),nome:x.nome_prato,unidade:"PORÇÕES"})),...preps.map(x=>({tipo:"preparacao",id:Number(x.id),nome:x.nome,unidade:x.unidade_rendimento||""}))].sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+ const preps=window.__PREPS_PRODUCAO||[];PLANO_PREPS=[];
+ const opcoes=preps.map(x=>({tipo:"preparacao",id:Number(x.id),nome:x.nome,unidade:x.unidade_rendimento||""})).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
  window.__ITENS_PLANO=opcoes;
  C.innerHTML=`<div class="section-head"><div><small>ORDEM DE PRODUÇÃO</small><h2>Planejar produção</h2><p>Adicione pratos e preparações na mesma lista. O MISEVO calcula e consolida todas as necessidades.</p></div><button class="secondary" id="voltarPlano">← Voltar</button></div>
- <div class="card"><div class="form-grid"><label>Item de produção<select id="planoItem"><option value="">Selecione...</option>${opcoes.map(x=>`<option value="${x.tipo}:${x.id}">${x.tipo==="ficha"?"Ficha Técnica":"Preparação"} — ${esc(x.nome)}</option>`).join("")}</select></label><label id="planoQtdLabel">Quantidade<input id="planoQtd" inputmode="decimal" placeholder="0,000"></label></div><div class="actions"><button class="primary" id="addPlanoItem">+ Adicionar item</button></div><div id="planoUnicoLista"></div></div>
+ <div class="card"><div class="form-grid"><label>Item de produção<select id="planoItem"><option value="">Selecione...</option>${opcoes.map(x=>`<option value="preparacao:${x.id}">Ficha Técnica — ${esc(x.nome)}</option>`).join("")}</select></label><label id="planoQtdLabel">Quantidade<input id="planoQtd" inputmode="decimal" placeholder="0,000"></label></div><div class="actions"><button class="primary" id="addPlanoItem">+ Adicionar item</button></div><div id="planoUnicoLista"></div></div>
  <div class="actions"><button class="primary" id="calcularPlano">Calcular necessidades</button></div>`;
  const sel=document.querySelector("#planoItem"),lab=document.querySelector("#planoQtdLabel");
- const atualizarRotulo=()=>{const [tipo,id]=String(sel.value||":").split(":"),x=opcoes.find(z=>z.tipo===tipo&&z.id===Number(id));lab.firstChild.textContent=!x?"Quantidade":x.tipo==="ficha"?"Porções":`Quantidade (${x.unidade})`};
+ const atualizarRotulo=()=>{const [tipo,id]=String(sel.value||":").split(":"),x=opcoes.find(z=>z.tipo===tipo&&z.id===Number(id));lab.firstChild.textContent=!x?"Quantidade":`Quantidade (${x.unidade})`};
  sel.onchange=atualizarRotulo;document.querySelector("#voltarPlano").onclick=telaProducao;
- document.querySelector("#addPlanoItem").onclick=()=>{const [tipo,idS]=String(sel.value||":").split(":"),id=Number(idS),q=num(document.querySelector("#planoQtd").value),x=opcoes.find(z=>z.tipo===tipo&&z.id===id);if(!x||q<=0)return;if(tipo==="ficha")PLANO_FICHAS.push({ficha_id:id,porcoes:q,nome:x.nome});else PLANO_PREPS.push({preparacao_id:id,quantidade:q,nome:x.nome,unidade:x.unidade});renderPlano();document.querySelector("#planoQtd").value=""};
+ document.querySelector("#addPlanoItem").onclick=()=>{const [tipo,idS]=String(sel.value||":").split(":"),id=Number(idS),q=num(document.querySelector("#planoQtd").value),x=opcoes.find(z=>z.tipo===tipo&&z.id===id);if(!x||q<=0)return;PLANO_PREPS.push({preparacao_id:id,quantidade:q,nome:x.nome,unidade:x.unidade});renderPlano();document.querySelector("#planoQtd").value=""};
  document.querySelector("#calcularPlano").onclick=calcularPlano;renderPlano();
 }
 function renderPlano(){
  const a=document.querySelector("#planoUnicoLista");if(!a)return;
- const itens=[...PLANO_FICHAS.map((x,i)=>({tipo:"ficha",idx:i,nome:x.nome,q:x.porcoes,unidade:"porções"})),...PLANO_PREPS.map((x,i)=>({tipo:"preparacao",idx:i,nome:x.nome,q:x.quantidade,unidade:x.unidade||""}))];
- a.innerHTML=!itens.length?'<div class="empty">Nenhum item adicionado.</div>':`<div class="table-wrap"><table><thead><tr><th>Item</th><th>Quantidade</th><th></th></tr></thead><tbody>${itens.map(x=>`<tr><td><small>${x.tipo==="ficha"?"FICHA TÉCNICA":"PREPARAÇÃO"}</small><br><b>${esc(x.nome)}</b></td><td>${fmt(x.q)} ${esc(x.unidade)}</td><td><button class="secondary" onclick="removerPlanoItem('${x.tipo}',${x.idx})">×</button></td></tr>`).join("")}</tbody></table></div>`;
+ const itens=PLANO_PREPS.map((x,i)=>({tipo:"preparacao",idx:i,nome:x.nome,q:x.quantidade,unidade:x.unidade||""}));
+ a.innerHTML=!itens.length?'<div class="empty">Nenhum item adicionado.</div>':`<div class="table-wrap"><table><thead><tr><th>Item</th><th>Quantidade</th><th></th></tr></thead><tbody>${itens.map(x=>`<tr><td><small>FICHA TÉCNICA</small><br><b>${esc(x.nome)}</b></td><td>${fmt(x.q)} ${esc(x.unidade)}</td><td><button class="secondary" onclick="removerPlanoItem('${x.tipo}',${x.idx})">×</button></td></tr>`).join("")}</tbody></table></div>`;
 }
-window.removerPlanoItem=(tipo,i)=>{if(tipo==="ficha")PLANO_FICHAS.splice(i,1);else PLANO_PREPS.splice(i,1);renderPlano()};
-async function calcularPlano(){if(!PLANO_FICHAS.length&&!PLANO_PREPS.length)return;try{const d=await apiP("/api/producao/planejar-fichas",{method:"POST",body:JSON.stringify({fichas:PLANO_FICHAS,preparacoes:PLANO_PREPS})});renderResultadoPlano(d)}catch(e){C.insertAdjacentHTML("afterbegin",`<div class="card"><b>Erro:</b> ${esc(e.message)}</div>`)}}
+window.removerPlanoItem=(tipo,i)=>{PLANO_PREPS.splice(i,1);renderPlano()};
+async function calcularPlano(){if(!PLANO_PREPS.length)return;try{const d=await apiP("/api/producao/planejar-fichas",{method:"POST",body:JSON.stringify({fichas:[],preparacoes:PLANO_PREPS})});renderResultadoPlano(d)}catch(e){C.insertAdjacentHTML("afterbegin",`<div class="card"><b>Erro:</b> ${esc(e.message)}</div>`)}}
 function renderResultadoPlano(d){
  window.__ULTIMO_PLANO=d;
  const pratos=d.pratos.length?`<div class="card"><h3>Pratos a produzir</h3>${d.pratos.map(x=>`<div class="prep-uso-item"><span>${esc(x.nome)}</span><b>${fmt(x.porcoes)} porções</b></div>`).join("")}</div>`:"";
@@ -62,7 +62,7 @@ function renderResultadoPlano(d){
 async function salvarPlano(){
  const b=document.querySelector("#salvarPlano");if(b){b.disabled=true;b.textContent="Salvando..."}
  try{
-   const itens=[...PLANO_FICHAS.map(x=>({tipo:"ficha",ficha_id:x.ficha_id,porcoes:x.porcoes})),...PLANO_PREPS.map(x=>({tipo:"preparacao",preparacao_id:x.preparacao_id,quantidade:x.quantidade}))];
+   const itens=PLANO_PREPS.map(x=>({tipo:"preparacao",preparacao_id:x.preparacao_id,quantidade:x.quantidade}));
    if(!itens.length)throw new Error("Adicione pelo menos um item ao planejamento.");
    await apiP("/api/producao/salvar-planejamento",{method:"POST",body:JSON.stringify({itens})});
    await telaProducao();
