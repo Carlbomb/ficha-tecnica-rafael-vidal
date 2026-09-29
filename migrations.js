@@ -240,3 +240,22 @@ export async function migrateOperacaoSchema(pool){
   empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
  );`);
 }
+
+export async function migrateCategoriasSchema(pool){
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS categorias_producao(
+      id BIGSERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      descricao TEXT NOT NULL DEFAULT '',
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      ordem INTEGER NOT NULL DEFAULT 0,
+      empresa_id BIGINT NOT NULL,
+      unidade_id BIGINT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(empresa_id,unidade_id,nome)
+    );
+    CREATE INDEX IF NOT EXISTS idx_categorias_tenant
+      ON categorias_producao(empresa_id,unidade_id,ordem,nome);
+  `);
+}
