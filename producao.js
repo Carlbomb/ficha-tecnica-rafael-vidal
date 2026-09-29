@@ -32,7 +32,19 @@ async function consumirPreparacaoProduzida(db,{preparacaoId,quantidade,ordemId,u
 }
 
 export async function initProducao(pool){
-  await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; UPDATE ordens_producao SET status='concluida' WHERE status='finalizada'; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','cancelada','anulada','em_producao','concluida'));`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
+    DO $do$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM misevo_migrations WHERE chave='producao_status_concluida_20260929') THEN
+        ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check;
+        UPDATE ordens_producao SET status='concluida' WHERE status='finalizada';
+        ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','cancelada','anulada','em_producao','concluida'));
+        INSERT INTO misevo_migrations(chave) VALUES('producao_status_concluida_20260929');
+      END IF;
+    END
+    $do$;
+  `);
   await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS item_nome TEXT;`);
   // ficha_id permanece apenas como identificador histórico.
   // As FKs legadas serão removidas somente após validação funcional completa.
