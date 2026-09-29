@@ -135,18 +135,12 @@ export function installOperacaoCompleta(app,pool){
    [String(req.body?.motivo||"Cancelada pelo usuário"),req.params.id,...t(req)]);
   if(!rows[0])return res.status(409).json({error:"Ordem inexistente ou já encerrada."});res.json(rows[0])
  }));
- app.post("/api/producao/ordens/:id/entrada-preparacao",ar(async(req,res)=>{
-  const c=await pool.connect();try{await c.query("BEGIN");
-   const o=(await c.query(`SELECT * FROM ordens_producao WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND status='finalizada' FOR UPDATE`,[req.params.id,...t(req)])).rows[0];
-   if(!o){await c.query("ROLLBACK");return res.status(404).json({error:"Produção finalizada não encontrada."})}
-   const ja=(await c.query("SELECT 1 FROM estoque_preparacoes WHERE referencia=$1 AND empresa_id=$2 AND unidade_id=$3",["OP #"+o.id,...t(req)])).rows[0];
-   if(ja){await c.query("ROLLBACK");return res.status(409).json({error:"Esta produção já entrou no estoque."})}
-   const qtd=n(o.rendimento_real)||n(o.quantidade_planejada),cu=qtd>0?n(o.custo_real)/qtd:0;
-   await c.query(`INSERT INTO estoque_preparacoes(preparacao_id,quantidade,tipo,referencia,custo_unitario,usuario_id,empresa_id,unidade_id)
-    VALUES($1,$2,'producao',$3,$4,$5,$6,$7)`,[o.preparacao_id,qtd,"OP #"+o.id,cu,req.user.id,...t(req)]);
-   await c.query("COMMIT");res.json({ok:true,quantidade:qtd,custo_unitario:cu})
-  }catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}
- }));
+ app.post("/api/producao/ordens/:id/entrada-preparacao",(req,res)=>{
+  res.status(410).json({
+   error:"A entrada manual de preparação foi aposentada. A conclusão da OP já registra automaticamente o estoque produzido.",
+   codigo:"ENTRADA_PREPARACAO_LEGADA_APOSENTADA"
+  });
+ });
  app.put("/api/fornecedores/:id",ar(async(req,res)=>{const b=req.body||{};const {rows}=await pool.query(`UPDATE fornecedores SET nome=$1,contato=$2,email=$3,telefone=$4,observacoes=$5,ativo=$6,updated_at=NOW()
   WHERE id=$7 AND empresa_id=$8 AND unidade_id=$9 RETURNING *`,[String(b.nome||"").trim(),b.contato||"",b.email||"",b.telefone||"",b.observacoes||"",b.ativo!==false,req.params.id,...t(req)]);if(!rows[0])return res.status(404).json({error:"Fornecedor não encontrado."});res.json(rows[0])}));
  app.delete("/api/fornecedores/:id",ar(async(req,res)=>{const {rows}=await pool.query("UPDATE fornecedores SET ativo=FALSE,updated_at=NOW() WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 RETURNING id",[req.params.id,...t(req)]);if(!rows[0])return res.status(404).json({error:"Fornecedor não encontrado."});res.status(204).end()}));
