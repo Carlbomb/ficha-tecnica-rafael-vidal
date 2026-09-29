@@ -35,11 +35,13 @@ export async function initProducao(pool){
   await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida'));`);
   await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS item_nome TEXT;`);
   // Snapshot histórico: preserva o nome da OP para que leituras futuras não dependam da tabela fichas.
-  await pool.query(`UPDATE ordens_producao o SET item_nome=COALESCE(p.nome,f.nome_prato,'Produção #'||o.id)
-    FROM (SELECT id,nome FROM preparacoes) p FULL JOIN (SELECT id,nome_prato FROM fichas) f ON FALSE
-    WHERE o.item_nome IS NULL AND ((o.preparacao_id=p.id AND f.id IS NULL) OR (o.ficha_id=f.id AND p.id IS NULL))`).catch(async()=>{
-    await pool.query(`UPDATE ordens_producao o SET item_nome=COALESCE((SELECT p.nome FROM preparacoes p WHERE p.id=o.preparacao_id),(SELECT f.nome_prato FROM fichas f WHERE f.id=o.ficha_id),'Produção #'||o.id) WHERE o.item_nome IS NULL`);
-  });
+  await pool.query(`UPDATE ordens_producao o
+    SET item_nome=COALESCE(
+      (SELECT p.nome FROM preparacoes p WHERE p.id=o.preparacao_id),
+      (SELECT f.nome_prato FROM fichas f WHERE f.id=o.ficha_id),
+      'Produção #'||o.id
+    )
+    WHERE o.item_nome IS NULL`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ordens_producao(
       id BIGSERIAL PRIMARY KEY,
