@@ -540,12 +540,21 @@ function telaFichas() {
         id="buscaFicha"
         placeholder="Buscar preparação ou categoria..."
       >
+      <div id="acoesFichasLote" class="batch-actions" hidden>
+        <b id="qtdFichasSelecionadas">0 selecionadas</b>
+        <div class="batch-actions-buttons">
+          <button type="button" class="secondary" id="moverFichasGrupo">Mover para grupo</button>
+          <button type="button" class="danger" id="excluirFichasLote">Excluir</button>
+        </div>
+      </div>
       <div id="listaFichas" style="margin-top:12px"></div>
     </div>
   `;
 
   $("#novaFichaBtn").onclick = novaFicha;
   $("#buscaFicha").oninput = listarFichas;
+  $("#moverFichasGrupo").onclick = moverFichasSelecionadas;
+  $("#excluirFichasLote").onclick = excluirFichasSelecionadas;
   listarFichas();
 }
 
@@ -573,6 +582,7 @@ function listarFichas() {
       <table>
         <thead>
           <tr>
+            <th style="width:42px"><input type="checkbox" id="selecionarTodasFichas" aria-label="Selecionar todas as fichas visíveis"></th>
             <th>Preparação</th>
             <th>Categoria</th>
             <th>Rendimento</th>
@@ -588,6 +598,7 @@ function listarFichas() {
         <tbody>
           ${lista.map(ficha => `
             <tr>
+              <td><input type="checkbox" class="ficha-lote-check" value="${Number(ficha.id)}" aria-label="Selecionar ${esc(ficha.nome_prato)}"></td>
               <td><b>${esc(ficha.nome_prato)}</b></td>
               <td>${esc(ficha.categoria || "—")}</td>
               <td>${numero(ficha.rendimento_kg, 3)}</td>
@@ -608,6 +619,33 @@ function listarFichas() {
       </table>
     </div>
   `;
+  const checks=[...document.querySelectorAll(".ficha-lote-check")];
+  const todos=document.querySelector("#selecionarTodasFichas");
+  const atualizar=()=>{const n=checks.filter(x=>x.checked).length,bar=document.querySelector("#acoesFichasLote"),q=document.querySelector("#qtdFichasSelecionadas");if(q)q.textContent=n+` selecionada${n===1?"":"s"}`;if(bar)bar.hidden=n===0;if(todos){todos.checked=n>0&&n===checks.length;todos.indeterminate=n>0&&n<checks.length}};
+  checks.forEach(x=>x.addEventListener("change",atualizar));
+  if(todos)todos.addEventListener("change",()=>{checks.forEach(x=>x.checked=todos.checked);atualizar()});
+  atualizar();
+}
+function idsFichasSelecionadas(){return [...document.querySelectorAll(".ficha-lote-check:checked")].map(x=>Number(x.value)).filter(Boolean)}
+async function moverFichasSelecionadas(){
+  const ids=idsFichasSelecionadas();if(!ids.length)return;
+  try{
+    const cats=typeof carregarCategoriasProducao==="function"?await carregarCategoriasProducao(true):[];
+    const nomes=[...new Set([...(cats||[]).map(x=>x.nome),...FICHAS.map(x=>x.categoria).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+    if(!nomes.length)return alert("Crie um grupo/categoria antes de mover as fichas.");
+    const destino=prompt("Mover "+ids.length+" ficha(s) para qual grupo?\n\n"+nomes.join("\n"),nomes[0]);
+    if(!destino)return;
+    const escolhido=nomes.find(x=>x.toLowerCase()===destino.trim().toLowerCase());
+    if(!escolhido)return alert("Escolha um dos grupos existentes exatamente como aparece na lista.");
+    await api("/api/fichas/lote/grupo",{method:"PATCH",body:JSON.stringify({ids,categoria:escolhido})});
+    await carregarDados();telaFichas();
+  }catch(e){alert(e.message)}
+}
+async function excluirFichasSelecionadas(){
+  const ids=idsFichasSelecionadas();if(!ids.length)return;
+  const nomes=FICHAS.filter(x=>ids.includes(Number(x.id))).map(x=>x.nome_prato);
+  if(!confirm(`Excluir ${ids.length} ficha(s) técnica(s)?\n\n${nomes.slice(0,8).join("\n")}${nomes.length>8?"\n...":""}\n\nEsta ação não pode ser desfeita.`))return;
+  try{await api("/api/fichas/lote",{method:"DELETE",body:JSON.stringify({ids})});await carregarDados();telaFichas()}catch(e){alert(e.message)}
 }
 
 window.novaFicha = function() {
