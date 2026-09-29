@@ -42,6 +42,26 @@ export async function initProducao(pool){
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_producao_consumos_ordem ON producao_consumos(ordem_id);\n    ALTER TABLE producao_consumos ADD COLUMN IF NOT EXISTS separado BOOLEAN NOT NULL DEFAULT FALSE;\n    ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS estoque_baixado BOOLEAN NOT NULL DEFAULT FALSE;\n    ALTER TABLE estoque_movimentacoes ADD COLUMN IF NOT EXISTS ordem_producao_id BIGINT REFERENCES ordens_producao(id) ON DELETE SET NULL;\n    CREATE UNIQUE INDEX IF NOT EXISTS idx_estoque_mov_op_insumo_saida ON estoque_movimentacoes(ordem_producao_id,insumo_id) WHERE ordem_producao_id IS NOT NULL AND tipo='saida';
+    CREATE TABLE IF NOT EXISTS estoque_produzidos(
+      id BIGSERIAL PRIMARY KEY,
+      ordem_producao_id BIGINT REFERENCES ordens_producao(id) ON DELETE SET NULL,
+      ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT,
+      preparacao_id BIGINT REFERENCES preparacoes(id) ON DELETE RESTRICT,
+      nome TEXT NOT NULL,
+      unidade TEXT NOT NULL DEFAULT 'KG',
+      tipo TEXT NOT NULL CHECK(tipo IN ('producao','consumo','ajuste','estorno')),
+      quantidade NUMERIC(14,4) NOT NULL,
+      saldo_anterior NUMERIC(14,4) NOT NULL,
+      saldo_novo NUMERIC(14,4) NOT NULL,
+      custo_unitario NUMERIC(14,4) NOT NULL DEFAULT 0,
+      usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      empresa_id BIGINT NOT NULL,
+      unidade_id BIGINT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK ((ficha_id IS NOT NULL)::int + (preparacao_id IS NOT NULL)::int = 1)
+    );
+    CREATE INDEX IF NOT EXISTS idx_estoque_produzidos_tenant ON estoque_produzidos(empresa_id,unidade_id,created_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_estoque_produzidos_op_entrada ON estoque_produzidos(ordem_producao_id) WHERE ordem_producao_id IS NOT NULL AND tipo='producao';
   `);
 }
 
@@ -247,6 +267,18 @@ export function installProducao(app,pool){
       if(!ordem){await db.query("ROLLBACK");return res.status(404).json({error:"Ordem de produção não encontrada."})}
       if(ordem.status==="anulada"){await db.query("ROLLBACK");return res.status(409).json({error:"Esta produção já foi excluída."})}
       if(ordem.status==="concluida" && ordem.estoque_baixado){
+        const entrada=await db.query(`SELECT * FROM estoque_produzidos WHERE ordem_producao_id=$1 AND tipo='producao' FOR UPDATE`,[ordem.id]);
+        if(entrada.rows[0]){
+          const e=entrada.rows[0];
+          const s=await db.query(`SELECT COALESCE(SUM(quantidade),0)::numeric saldo FROM estoque_produzidos
+            WHERE empresa_id=$1 AND unidade_id=$2 AND ficha_id IS NOT DISTINCT FROM $3 AND preparacao_id IS NOT DISTINCT FROM $4`,
+            [req.user.empresa_id,req.user.unidade_id,e.ficha_id,e.preparacao_id]);
+          const atual=qEstoque(s.rows[0]?.saldo),qtd=qEstoque(e.quantidade);
+          if(atual<qtd){await db.query("ROLLBACK");return res.status(409).json({error:"Não é possível excluir: parte do item produzido já foi consumida do estoque."})}
+          await db.query(`INSERT INTO estoque_produzidos(ficha_id,preparacao_id,nome,unidade,tipo,quantidade,saldo_anterior,saldo_novo,custo_unitario,usuario_id,empresa_id,unidade_id)
+            VALUES($1,$2,$3,$4,'estorno',$5,$6,$7,0,$8,$9,$10)`,
+            [e.ficha_id,e.preparacao_id,e.nome,e.unidade,-qtd,atual,qEstoque(atual-qtd),req.user.id,req.user.empresa_id,req.user.unidade_id]);
+        }
         const consumos=await db.query(`SELECT pc.*,i.ingrediente FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1`,[ordem.id]);
         for(const x of consumos.rows){
           const qtd=qEstoque(n(x.quantidade_real)||n(x.quantidade_teorica)); if(qtd<=0)continue;
@@ -313,10 +345,37 @@ export function installProducao(app,pool){
       }
       const {rows}=await db.query(`UPDATE ordens_producao SET status='concluida',rendimento_real=$1,custo_real=$2,finalizada_at=NOW(),estoque_baixado=TRUE WHERE id=$3 RETURNING *`,
         [real,custoReal,ordem.id]);
+      const item=await db.query(`SELECT o.ficha_id,o.preparacao_id,o.unidade,COALESCE(f.nome_prato,p.nome) nome
+        FROM ordens_producao o LEFT JOIN fichas f ON f.id=o.ficha_id LEFT JOIN preparacoes p ON p.id=o.preparacao_id WHERE o.id=$1`,[ordem.id]);
+      const prod=item.rows[0], produzido=qEstoque(real), custoUnit=produzido>0?custoReal/produzido:0;
+      if(prod && produzido>0){
+        const s=await db.query(`SELECT COALESCE(SUM(quantidade),0)::numeric saldo FROM estoque_produzidos
+          WHERE empresa_id=$1 AND unidade_id=$2 AND ficha_id IS NOT DISTINCT FROM $3 AND preparacao_id IS NOT DISTINCT FROM $4`,
+          [req.user.empresa_id,req.user.unidade_id,prod.ficha_id,prod.preparacao_id]);
+        const anterior=qEstoque(s.rows[0]?.saldo),novo=qEstoque(anterior+produzido);
+        await db.query(`INSERT INTO estoque_produzidos(ordem_producao_id,ficha_id,preparacao_id,nome,unidade,tipo,quantidade,saldo_anterior,saldo_novo,custo_unitario,usuario_id,empresa_id,unidade_id)
+          VALUES($1,$2,$3,$4,$5,'producao',$6,$7,$8,$9,$10,$11,$12)`,
+          [ordem.id,prod.ficha_id,prod.preparacao_id,prod.nome,prod.unidade,produzido,anterior,novo,custoUnit,req.user.id,req.user.empresa_id,req.user.unidade_id]);
+      }
       await db.query("COMMIT");
-      res.json({...rows[0],estoque_baixado:true,alertas_estoque:alertas});
+      res.json({...rows[0],estoque_baixado:true,entrada_produzido:true,alertas_estoque:alertas});
     }catch(e){await db.query("ROLLBACK").catch(()=>{});next(e)}finally{db.release()}
   });
+
+  app.get("/api/producao/estoque-produzidos",async(req,res,next)=>{try{
+    const {rows}=await pool.query(`SELECT x.ficha_id,x.preparacao_id,MAX(x.nome) nome,MAX(x.unidade) unidade,
+      SUM(x.quantidade)::numeric saldo_atual,
+      (ARRAY_AGG(x.custo_unitario ORDER BY x.created_at DESC) FILTER(WHERE x.tipo='producao'))[1]::numeric custo_unitario
+      FROM estoque_produzidos x WHERE x.empresa_id=$1 AND x.unidade_id=$2
+      GROUP BY x.ficha_id,x.preparacao_id HAVING SUM(x.quantidade)<>0 ORDER BY MAX(x.nome)`,
+      [req.user.empresa_id,req.user.unidade_id]);res.json(rows);
+  }catch(e){next(e)}});
+
+  app.get("/api/producao/estoque-produzidos/movimentacoes",async(req,res,next)=>{try{
+    const {rows}=await pool.query(`SELECT e.*,u.nome usuario_nome FROM estoque_produzidos e LEFT JOIN usuarios u ON u.id=e.usuario_id
+      WHERE e.empresa_id=$1 AND e.unidade_id=$2 ORDER BY e.created_at DESC LIMIT 500`,
+      [req.user.empresa_id,req.user.unidade_id]);res.json(rows);
+  }catch(e){next(e)}});
 
   app.post("/api/producao/ordens/:id/status",async(req,res,next)=>{try{
     const novo=String(req.body?.status||"");
