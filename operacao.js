@@ -1,7 +1,6 @@
 const asyncRoute = fn => (req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
 
-export async function initOperacao(pool){}
 export function installOperacao(app,pool){
  const tenant=req=>[req.user.empresa_id,req.user.unidade_id];
  app.get('/api/fornecedores',asyncRoute(async(req,res)=>{const {rows}=await pool.query('SELECT * FROM fornecedores WHERE empresa_id=$1 AND unidade_id=$2 ORDER BY nome',tenant(req));res.json(rows)}));
