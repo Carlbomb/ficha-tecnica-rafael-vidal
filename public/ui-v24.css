@@ -303,3 +303,20 @@ button[aria-label]:focus-visible{
 .painel-producao-item b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .painel-producao-item small{display:block;margin-top:3px;font-size:.88rem;font-weight:500;opacity:.72}
 .painel-producao-item strong{font-size:1.6rem;line-height:1}
+
+/* Estoque por grupos */
+.estoque-grupos{display:grid;gap:10px}
+.estoque-grupo-card{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;text-align:left;border:1px solid #dfe5e5;border-radius:14px;background:#fff}
+.estoque-grupo-card b,.estoque-insumo-main b{display:block;font-size:1rem}
+.estoque-grupo-card small,.estoque-insumo-main small{display:block;margin-top:4px;opacity:.7}
+.estoque-grupo-valor{white-space:nowrap;font-weight:700}
+.estoque-grupo-head{display:flex;align-items:center;gap:14px;margin:4px 0 14px}
+.estoque-grupo-head h3{margin:1px 0 0}
+.estoque-insumos-lista{display:grid;gap:9px}
+.estoque-insumo-card{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;padding:12px;border:1px solid #dfe5e5;border-radius:13px;background:#fff}
+.estoque-check input{width:21px;height:21px;margin:0}
+.estoque-insumo-main{min-width:0}
+.estoque-insumo-main b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.estoque-lote-nomes{display:flex;flex-wrap:wrap;gap:7px;margin:16px 0}
+.estoque-lote-nomes span{padding:6px 9px;border:1px solid #dfe5e5;border-radius:999px;font-size:.86rem}
+@media(max-width:620px){.estoque-grupo-card{padding:14px}.estoque-insumo-card{grid-template-columns:26px minmax(0,1fr) auto}.estoque-insumo-card .secondary{padding:10px 11px;font-size:.86rem}}
