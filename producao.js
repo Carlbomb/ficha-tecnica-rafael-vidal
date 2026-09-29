@@ -32,7 +32,7 @@ async function consumirPreparacaoProduzida(db,{preparacaoId,quantidade,ordemId,u
 }
 
 export async function initProducao(pool){
-  await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida'));`);
+  await pool.query(`ALTER TABLE ordens_producao DROP CONSTRAINT IF EXISTS ordens_producao_status_check; UPDATE ordens_producao SET status='concluida' WHERE status='finalizada'; ALTER TABLE ordens_producao ADD CONSTRAINT ordens_producao_status_check CHECK(status IN ('planejada','cancelada','anulada','em_producao','concluida'));`);
   await pool.query(`ALTER TABLE ordens_producao ALTER COLUMN preparacao_id DROP NOT NULL; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS ficha_id BIGINT; ALTER TABLE ordens_producao ADD COLUMN IF NOT EXISTS item_nome TEXT;`);
   // ficha_id permanece apenas como identificador histórico.
   // As FKs legadas serão removidas somente após validação funcional completa.
@@ -53,7 +53,7 @@ export async function initProducao(pool){
       quantidade_planejada NUMERIC(14,4) NOT NULL,
       rendimento_real NUMERIC(14,4),
       unidade TEXT NOT NULL DEFAULT 'KG',
-      status TEXT NOT NULL DEFAULT 'planejada' CHECK(status IN ('planejada','finalizada','cancelada','anulada','em_producao','concluida')),
+      status TEXT NOT NULL DEFAULT 'planejada' CHECK(status IN ('planejada','cancelada','anulada','em_producao','concluida')),
       custo_teorico NUMERIC(14,4) NOT NULL DEFAULT 0,
       custo_real NUMERIC(14,4),
       observacoes TEXT NOT NULL DEFAULT '',
@@ -290,24 +290,6 @@ export function installProducao(app,pool){
             VALUES($1,'entrada',$2,$3,$4,$5,$6,$7,$8,$9,NULL)`,
             [x.insumo_id,qtd,anterior,anterior+qtd,`Estorno OP #${ordem.id}`,"Estorno automático por exclusão da produção",req.user.id,req.user.empresa_id,req.user.unidade_id]);
         }
-      }
-      if(ordem.status==="finalizada"){
-        // Compatibilidade histórica: o saldo legado já foi consolidado em estoque_produzidos.
-        const consumos=await db.query(`SELECT pc.*,i.ingrediente FROM producao_consumos pc JOIN insumos i ON i.id=pc.insumo_id WHERE pc.ordem_id=$1`,[ordem.id]);
-        const produzido=qEstoque(n(ordem.rendimento_real)||n(ordem.quantidade_planejada));
-        const atual=await saldoProduzido(db,{preparacaoId:ordem.preparacao_id,empresaId:req.user.empresa_id,unidadeId:req.user.unidade_id});
-        if(atual<produzido){await db.query("ROLLBACK");return res.status(409).json({error:"Não é possível excluir: a preparação produzida já foi consumida."})}
-        for(const x of consumos.rows){
-          const qtd=qEstoque(n(x.quantidade_real)||n(x.quantidade_teorica)); if(qtd<=0)continue;
-          const anterior=await saldoInsumo(db,x.insumo_id,req.user.empresa_id,req.user.unidade_id);
-          await db.query(`INSERT INTO estoque_movimentacoes(insumo_id,tipo,quantidade,saldo_anterior,saldo_novo,motivo,observacoes,usuario_id,empresa_id,unidade_id)
-            VALUES($1,'entrada',$2,$3,$4,$5,$6,$7,$8,$9)`,
-            [x.insumo_id,qtd,anterior,anterior+qtd,`Estorno OP #${ordem.id}`,"Estorno automático por exclusão da produção histórica",req.user.id,req.user.empresa_id,req.user.unidade_id]);
-        }
-        const p=await db.query(`SELECT nome,unidade_rendimento FROM preparacoes WHERE id=$1`,[ordem.preparacao_id]);
-        await db.query(`INSERT INTO estoque_produzidos(preparacao_id,nome,unidade,tipo,quantidade,saldo_anterior,saldo_novo,custo_unitario,usuario_id,empresa_id,unidade_id)
-          VALUES($1,$2,$3,'estorno',$4,$5,$6,0,$7,$8,$9)`,
-          [ordem.preparacao_id,p.rows[0]?.nome||ordem.item_nome||`Produção #${ordem.id}`,p.rows[0]?.unidade_rendimento||ordem.unidade,-produzido,atual,qEstoque(atual-produzido),req.user.id,req.user.empresa_id,req.user.unidade_id]);
       }
       await db.query(`UPDATE ordens_producao SET status='anulada',observacoes=CONCAT(observacoes,CASE WHEN observacoes='' THEN '' ELSE E'\\n' END,'Excluída pelo usuário') WHERE id=$1`,[ordem.id]);
       await db.query("COMMIT");
