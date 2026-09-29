@@ -10,7 +10,7 @@ import { initOperacao, installOperacao } from "./operacao.js";
 import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
-import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema, migrateCoreTenancySchema, migrateOperationalTenancySchema } from "./migrations.js";
+import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema, migrateCoreTenancySchema, migrateOperationalTenancySchema, migrateTenantAdminSchema } from "./migrations.js";
 
 const { Pool } = pg;
 
@@ -131,7 +131,7 @@ async function init() {
   await migrateOperacaoCompletaSchema(pool);
   await initOperacaoCompleta(pool);
 
-
+  await migrateTenantAdminSchema(pool);
   await initTenantAdmin(pool);
 
   console.log(
