@@ -1,6 +1,6 @@
 (() => {
 const MODULOS = [
- ["painel","Painel"],["insumos","Insumos"],["fichas","Fichas Técnicas"],["preparacoes","Preparações / Sub-receitas"],
+ ["painel","Painel"],["insumos","Insumos"],["preparacoes","Fichas Técnicas"],
  ["estoque","Estoque da Cozinha"],["producao","Produção"],["etiquetas","Etiquetas"],["perdas","Perdas"],
  ["custos","Custos / CMV"],["configuracoes","Configurações"]
 ];
@@ -8,11 +8,11 @@ const ACOES=[["visualizar","Visualizar"],["criar","Criar"],["editar","Editar"],[
 const PERFIS={admin:"Administrador",chef:"Chef / Chef Executivo",subchef:"Subchef / Líder",cozinha:"Cozinha",estoque:"Estoque",consulta:"Consulta"};
 const PRESETS={
  admin:{"*":ACOES.map(a=>a[0])},
- chef:{painel:["visualizar"],insumos:["visualizar","criar","editar"],fichas:["visualizar","criar","editar","excluir"],preparacoes:["visualizar","criar","editar","excluir"],estoque:["visualizar","criar","editar","executar"],producao:["visualizar","criar","editar","executar"],etiquetas:["visualizar","criar","executar"],perdas:["visualizar","criar","editar"],custos:["visualizar"],configuracoes:["visualizar"]},
- subchef:{painel:["visualizar"],insumos:["visualizar"],fichas:["visualizar"],preparacoes:["visualizar","criar","editar"],estoque:["visualizar"],producao:["visualizar","criar","editar","executar"],etiquetas:["visualizar","criar","executar"],perdas:["visualizar","criar"]},
- cozinha:{painel:["visualizar"],insumos:["visualizar"],fichas:["visualizar"],preparacoes:["visualizar"],producao:["visualizar","executar"],etiquetas:["visualizar","executar"],perdas:["criar"]},
+ chef:{painel:["visualizar"],insumos:["visualizar","criar","editar"],preparacoes:["visualizar","criar","editar","excluir"],estoque:["visualizar","criar","editar","executar"],producao:["visualizar","criar","editar","executar"],etiquetas:["visualizar","criar","executar"],perdas:["visualizar","criar","editar"],custos:["visualizar"],configuracoes:["visualizar"]},
+ subchef:{painel:["visualizar"],insumos:["visualizar"],preparacoes:["visualizar","criar","editar"],estoque:["visualizar"],producao:["visualizar","criar","editar","executar"],etiquetas:["visualizar","criar","executar"],perdas:["visualizar","criar"]},
+ cozinha:{painel:["visualizar"],insumos:["visualizar"],preparacoes:["visualizar"],producao:["visualizar","executar"],etiquetas:["visualizar","executar"],perdas:["criar"]},
  estoque:{painel:["visualizar"],insumos:["visualizar"],estoque:["visualizar","criar","editar","executar"],etiquetas:["visualizar","executar"],perdas:["visualizar","criar"]},
- consulta:{painel:["visualizar"],fichas:["visualizar"],preparacoes:["visualizar"]}
+ consulta:{painel:["visualizar"],preparacoes:["visualizar"]}
 };
 const esc2=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 function permsFor(u){return (u?.permissoes&&Object.keys(u.permissoes).length)?u.permissoes:(PRESETS[u?.perfil]||{});}
@@ -77,7 +77,7 @@ function ajustarMenu(user){
    const tab=b.dataset.tab,g=groupName(b);
    if(tab==="painel")return "painel";
    if(tab==="insumos")return "insumos";
-   if(tab==="fichas")return "fichas";
+   if(tab==="fichas")return "preparacoes";
    if(tab==="preparacoes")return "preparacoes";
    if(tab==="categorias"||tab==="unidades"||tab==="importacao")return "configuracoes";
    if(tab==="estoque"||tab==="movimentacoes"||tab==="inventario")return "estoque";
@@ -95,7 +95,7 @@ function ajustarMenu(user){
  const canEnter=m=>m==="admin-misevo"?user?.plataforma_admin===true:(admin||(m==="usuarios"?false:["visualizar","criar","editar","excluir","executar"].some(a=>has(p,m,a))));
  document.querySelectorAll(".main-nav [data-tab]").forEach(b=>{const m=moduleForNav(b),ok=!!m&&canEnter(m);b.hidden=!ok;b.style.display=ok?"":"none"});
  document.querySelectorAll(".main-nav .nav-group").forEach(g=>{const items=[...g.querySelectorAll(".nav-submenu [data-tab]")],ok=items.some(b=>!b.hidden);g.hidden=!ok;g.style.display=ok?"":"none"});
- const podeCriarFicha=admin||has(p,"fichas","criar");document.querySelectorAll(".header-new,.mobile-new").forEach(add=>{add.hidden=!podeCriarFicha;add.style.display=podeCriarFicha?"":"none"});
+ const podeCriarFicha=admin||has(p,"preparacoes","criar");document.querySelectorAll(".header-new,.mobile-new").forEach(add=>{add.hidden=!podeCriarFicha;add.style.display=podeCriarFicha?"":"none"});
 }
 window.addEventListener("usuario:autenticado",e=>ajustarMenu(e.detail));
 if(window.USUARIO_ATUAL)ajustarMenu(window.USUARIO_ATUAL);
