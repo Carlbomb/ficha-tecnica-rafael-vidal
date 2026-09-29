@@ -151,12 +151,15 @@ async function telaPainel() {
   const fichasAtivas = PREPARACOES.filter(f => f.ativo !== false);
   const insumosAtivos = INSUMOS.filter(i => i.ativo !== false);
   const custoMedio = fichasAtivas.length ? fichasAtivas.reduce((s,f)=>s+num(f.custo_unitario),0)/fichasAtivas.length : 0;
-  const [estoqueReq,validadesReq]=await Promise.allSettled([api("/api/estoque/resumo"),api("/api/etiquetas")]);
+  const [estoqueReq,validadesReq,producaoReq]=await Promise.allSettled([api("/api/estoque/resumo"),api("/api/etiquetas"),api("/api/producao/ordens")]);
   const estoqueResumo=estoqueReq.status==="fulfilled"?estoqueReq.value:null;
   const etiquetas=validadesReq.status==="fulfilled"&&Array.isArray(validadesReq.value)?validadesReq.value:null;
   const abaixoMinimo=estoqueResumo?num(estoqueResumo.abaixo_minimo):null;
   const vencimentosProximos=etiquetas?etiquetas.filter(x=>["vencendo","vence_hoje"].includes(x.status_calculado)).reduce((s,x)=>s+Math.max(1,num(x.quantidade)),0):null;
   const recentes=[...fichasAtivas].sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR")).slice(0,5);
+  const ordens=producaoReq.status==="fulfilled"&&Array.isArray(producaoReq.value)?producaoReq.value:[];
+  const producaoDia=ordens.filter(x=>!["anulada","cancelada","concluida","finalizada"].includes(x.status));
+  const statusProducao=s=>s==="em_producao"?"Em produção":"Pendente";
   const ni=$("#ni"),nf=$("#nf"),avg=$("#avg");
   if(ni)ni.textContent=insumosAtivos.length;
   if(nf)nf.textContent=fichasAtivas.length;
@@ -169,14 +172,15 @@ async function telaPainel() {
       <div><span>Itens abaixo do mínimo</span><strong>${abaixoMinimo===null?"—":abaixoMinimo}</strong></div>
       <div><span>Vencimentos próximos</span><strong>${vencimentosProximos===null?"—":vencimentosProximos}</strong></div>
     </div>
-    <div class="card" style="margin-top:16px"><div class="section-head"><div><small>ACESSO RÁPIDO</small><h3>Ações frequentes</h3></div></div>
-      <div class="actions" style="justify-content:flex-start"><button type="button" class="primary" id="painelNovaFicha">+ Nova Ficha Técnica</button><button type="button" class="secondary" id="painelNovoInsumo">+ Novo Insumo</button></div>
+    <div class="card painel-producao" style="margin-top:16px"><div class="section-head"><div><small>OPERAÇÃO DA COZINHA</small><h3>Produção do Dia</h3></div><button type="button" class="secondary" id="painelVerProducao">Ver toda</button></div>
+      ${producaoDia.length?`<div class="painel-producao-lista">${producaoDia.slice(0,6).map(o=>`<button type="button" class="painel-producao-item" data-op="${Number(o.id)}"><span><b>${esc(o.item_nome||o.preparacao_nome||o.ficha_nome||"Produção")}</b><small>${numero(o.quantidade_planejada,3)} ${esc(o.unidade||"")} · ${statusProducao(o.status)}</small></span><strong>›</strong></button>`).join("")}</div>`:`<div class="empty">Nenhuma produção programada para hoje.<div style="margin-top:12px"><button type="button" class="primary" id="painelPlanejarProducao">Planejar produção</button></div></div>`}
     </div>
     <div class="card" style="margin-top:16px"><div class="section-head"><div><small>FICHAS TÉCNICAS</small><h3>Fichas cadastradas</h3></div><button type="button" class="secondary" id="painelVerFichas">Ver todas</button></div>
       ${recentes.length?`<div class="table-wrap"><table><thead><tr><th>Ficha</th><th>Categoria</th><th>Rendimento</th><th>Custo</th><th></th></tr></thead><tbody>${recentes.map(x=>`<tr><td><b>${esc(x.nome)}</b></td><td>${esc(x.categoria||"—")}</td><td>${numero(x.rendimento,3)} ${esc(x.unidade_rendimento||"")}</td><td>${moeda(x.custo_total)}</td><td><button type="button" onclick="editarPreparacao(${Number(x.id)})">Abrir</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">Nenhuma ficha técnica cadastrada.</div>'}
     </div>`;
-  $("#painelNovoInsumo")?.addEventListener("click",()=>formularioInsumo());
-  $("#painelNovaFicha")?.addEventListener("click",()=>window.telaPreparacoes());
+  $("#painelVerProducao")?.addEventListener("click",()=>window.telaProducao?.());
+  $("#painelPlanejarProducao")?.addEventListener("click",()=>window.telaProducao?.());
+  document.querySelectorAll(".painel-producao-item").forEach(b=>b.addEventListener("click",()=>{window.telaProducao?.();}));
   $("#painelVerFichas")?.addEventListener("click",()=>window.telaPreparacoes());
 }
 
