@@ -389,9 +389,9 @@ export function installPreparacoes(app,pool) {
     const ids=[...new Set((Array.isArray(req.body?.ids)?req.body.ids:[]).map(Number).filter(Number.isInteger))];
     if(!ids.length)return res.status(400).json({error:"Selecione pelo menos uma ficha técnica."});
     const db=await pool.connect();try{
-      await db.query("BEGIN");const removidas=[],mantidas=[];
+      await db.query("BEGIN");const removidas=[],arquivadas=[],mantidas=[];
       for(const id of ids){
-        const p=await db.query(`SELECT id,nome FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 FOR UPDATE`,[id,req.user.empresa_id,req.user.unidade_id]);
+        const p=await db.query(`SELECT id,nome FROM preparacoes WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE FOR UPDATE`,[id,req.user.empresa_id,req.user.unidade_id]);
         if(!p.rows[0])continue;
         const vinc=await db.query(`SELECT
           EXISTS(SELECT 1 FROM preparacao_componentes WHERE componente_id=$1) usado_componente,
@@ -399,13 +399,18 @@ export function installPreparacoes(app,pool) {
           EXISTS(SELECT 1 FROM ordens_producao WHERE preparacao_id=$1) tem_producao,
           EXISTS(SELECT 1 FROM estoque_produzidos WHERE preparacao_id=$1) tem_estoque`,[id]);
         const v=vinc.rows[0]||{};
-        if(v.usado_componente||v.usado_ficha||v.tem_producao||v.tem_estoque){
-          const motivos=[];if(v.usado_componente||v.usado_ficha)motivos.push("usada em outra ficha");if(v.tem_producao)motivos.push("possui histórico de produção");if(v.tem_estoque)motivos.push("possui histórico de estoque");
+        if(v.usado_componente||v.usado_ficha){
+          const motivos=[];if(v.usado_componente||v.usado_ficha)motivos.push("usada por outra ficha ativa");
           mantidas.push({id,nome:p.rows[0].nome,motivo:motivos.join(", ")});continue;
+        }
+        if(v.tem_producao||v.tem_estoque){
+          await db.query("UPDATE preparacoes SET ativo=FALSE,updated_at=NOW() WHERE id=$1",[id]);
+          arquivadas.push(id);continue;
         }
         await db.query("DELETE FROM preparacoes WHERE id=$1",[id]);removidas.push(id);
       }
-      await db.query("COMMIT");res.json({ok:true,excluidas:removidas.length,ids:removidas,mantidas});
+      await db.query("COMMIT");
+      res.json({ok:true,excluidas:removidas.length+arquivadas.length,ids:[...removidas,...arquivadas],removidas,arquivadas,mantidas});
     }catch(e){await db.query("ROLLBACK").catch(()=>{});throw e}finally{db.release()}
   }));
 
