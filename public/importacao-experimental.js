@@ -1,7 +1,7 @@
 (() => {
 const C=()=>document.querySelector("#content");
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-let workbook=null, analise=null, insumosBanco=[], arquivoAtual=""; const decisoes={conflitos:{},insumos:{}}; let planoValidado=false;
+let workbook=null, analise=null, insumosBanco=[], arquivoAtual=""; const decisoes={conflitos:{},insumos:{},fichas:{}}; let planoValidado=false;
 
 function norm(v){return String(v??"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ")}
 function numero(v){if(typeof v==="number")return v;let s=String(v??"").trim();if(!s)return null;s=s.replace(/R\$\s?/g,"").replace(/\s/g,"");if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");const n=Number(s);return Number.isFinite(n)?n:null}
@@ -68,7 +68,7 @@ function telaInicial(){
  document.querySelector("#importArquivo").onchange=ler;
 }
 async function ler(e){
- const file=e.target.files?.[0];if(!file)return; arquivoAtual=file.name; decisoes.conflitos={}; decisoes.insumos={}; planoValidado=false;
+ const file=e.target.files?.[0];if(!file)return; arquivoAtual=file.name; decisoes.conflitos={}; decisoes.insumos={}; decisoes.fichas={}; planoValidado=false;
  const st=document.querySelector("#importStatus");st.innerHTML="<p>Lendo planilha no aparelho…</p>";
  try{
    const buffer=await file.arrayBuffer();
@@ -80,14 +80,14 @@ async function ler(e){
    const resp=await fetch("/api/importacoes/analisar-base64",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
    const data=await resp.json().catch(()=>({}));
    if(!resp.ok){const d=data.diagnostico;const extra=d?(" [bytes: "+d.bytes+", PK: "+d.pkLocal+", EOCD: "+d.eocd+"]"):"";throw new Error((data.error||("Servidor respondeu "+resp.status+"."))+extra)}
-   analise=data;(analise.insumosDetalhes||[]).forEach((x,i)=>{decisoes.insumos[i]=x.existente?"existente":"novo"});renderResumo(file.name);
+   analise=data;(analise.insumosDetalhes||[]).forEach((x,i)=>{decisoes.insumos[i]=x.existente?"existente":"novo"});(analise.fichas||[]).forEach((_,i)=>{decisoes.fichas[i]=true});renderResumo(file.name);
  }catch(err){st.innerHTML='<div class="import-error">Não foi possível ler esta planilha: '+esc(err.message)+'</div>'}
 }
 function renderResumo(nome){
  const a=analise, prontas=a.fichas.filter(f=>f.componentes?.length>0).length; const novos=a.insumosDetalhes.filter(x=>!x.existente).length, existentes=a.insumosDetalhes.length-novos; const usadas=new Set((a.preparacoes||[]).map(x=>norm(x.destino||x.nome))); const finais=a.fichas.filter(f=>!usadas.has(norm(f.nome))).length;
  C().innerHTML=`<div class="section-head"><div><small>IMPORTAÇÃO DE PLANILHA</small><h2>Assistente de Importação</h2><p>${esc(nome)}</p></div><button class="secondary" id="novaPlanilha">Trocar arquivo</button></div>
  <div class="card"><div class="import-badge">PRÉVIA — CONFIRME ANTES DE IMPORTAR</div><h3>2. Análise concluída</h3><div class="stats import-stats"><article><span>Abas / fichas</span><b>${a.fichas.length}</b></article><article><span>Estruturas reconhecidas</span><b>${prontas}</b></article><article><span>Possíveis insumos</span><b>${a.insumos.length}</b></article><article><span>Vínculos de preparações</span><b>${a.preparacoes.length}</b></article><article><span>Conflitos</span><b>${a.conflitos.length}</b></article></div></div>
- <div class="card"><h3>3. Fichas reconhecidas</h3><div class="import-list">${a.fichas.map((f,i)=>`<article><div><b>${esc(f.nome)}</b><small>${f.componentes.length} componentes</small></div><button type="button" class="import-review ${f.estrutura?"ok":"warn"}" data-ficha="${i}">${f.estrutura?"Ver ficha":"Revisar"}</button></article>`).join("")}</div></div>
+ <div class="card"><div class="section-head"><div><h3>3. Fichas reconhecidas</h3><p>Selecione somente as fichas que deseja importar.</p></div><div class="actions"><button type="button" class="secondary" id="selecionarTodasFichas">Selecionar todas</button><button type="button" class="secondary" id="desmarcarTodasFichas">Desmarcar todas</button></div></div><div class="import-list">${a.fichas.map((f,i)=>`<article><label class="import-check"><input type="checkbox" class="import-ficha-check" data-ficha-check="${i}" ${decisoes.fichas[i]!==false?"checked":""}> <span><b>${esc(f.nome)}</b><small>${f.componentes.length} componentes</small></span></label><button type="button" class="import-review ${f.estrutura?"ok":"warn"}" data-ficha="${i}">${f.estrutura?"Ver ficha":"Revisar"}</button></article>`).join("")}</div></div>
  <div class="card"><h3>4. Insumos reconhecidos</h3><p>Comparação da planilha com o banco atual do MISEVO. Itens novos são marcados automaticamente para cadastro; correspondências exatas são vinculadas ao cadastro existente. Você ainda pode revisar qualquer item.</p><div class="import-list">${a.insumosDetalhes.map((x,i)=>`<article><div><b class="import-insumo-name">${esc(x.nome||"Insumo sem nome")}</b><small>${esc(x.unidade||"—")} · FC ${x.fc??"—"} · ${x.preco!=null?"R$ "+Number(x.preco).toFixed(2).replace(".",","):"sem preço"} · ${x.usos} ocorrência(s)</small></div><button type="button" class="import-review ${x.existente?"ok":"warn"}" data-insumo="${i}">${x.existente?"Já existe":"Novo insumo"}</button></article>`).join("")||'<div class="empty">Nenhum insumo encontrado.</div>'}</div></div>
  <div class="card"><h3>5. Prévia operacional</h3><div class="import-summary-grid"><span><b>${novos}</b> insumos novos</span><span><b>${existentes}</b> já existentes</span><span><b>${a.preparacoes.length}</b> vínculos de preparação</span><span><b>${finais}</b> fichas finais</span><span><b>${a.conflitos.length}</b> decisões pendentes</span></div><div class="import-note">Prévia calculada sem gravar dados. Revise os itens e conflitos antes de qualquer importação real.</div></div>\n <div class="card"><h3>6. Vínculos de preparações</h3>${a.preparacoes.length?'<div class="import-list">'+a.preparacoes.slice(0,30).map(x=>`<article><div><b>${esc(x.nome)}</b><small>usada em ${esc(x.ficha)}</small></div><span class="ok">Possível vínculo</span></article>`).join("")+'</div>':'<div class="empty">Nenhuma correspondência encontrada.</div>'}</div>
  <div class="card"><h3>7. Conflitos para revisão</h3>${a.conflitos.length?'<div class="import-list">'+a.conflitos.map(x=>`<article><div><b>${esc(x.nome)}</b><small>${x.precos.length>1?"Preços diferentes · ":""}${x.fcs.length>1?"FCs diferentes · ":""}${x.unidades.length>1?"Unidades diferentes":""}</small><small class="import-origin">${[...new Set((x.ocorrencias||[]).map(o=>o.ficha))].slice(0,3).map(esc).join(" · ")}${new Set((x.ocorrencias||[]).map(o=>o.ficha)).size>3?" + mais":""}</small></div><button type="button" class="warn import-review" data-conflito="${a.conflitos.indexOf(x)}">Revisar</button></article>`).join("")+'</div>':'<div class="empty">Nenhum conflito detectado.</div>'}</div>
@@ -96,24 +96,28 @@ function renderResumo(nome){
  document.querySelectorAll("[data-conflito]").forEach(b=>b.onclick=()=>abrirConflito(Number(b.dataset.conflito)));
  document.querySelectorAll("[data-insumo]").forEach(b=>b.onclick=()=>abrirInsumo(Number(b.dataset.insumo)));
  document.querySelectorAll("[data-ficha]").forEach(b=>b.onclick=()=>abrirFicha(Number(b.dataset.ficha)));
+ document.querySelectorAll("[data-ficha-check]").forEach(ch=>ch.onchange=()=>{decisoes.fichas[Number(ch.dataset.fichaCheck)]=ch.checked;planoValidado=false;const ei=document.querySelector("#executarImportacao");if(ei)ei.disabled=true;atualizarResumoFinal()});
+ const marcarTodas=v=>{a.fichas.forEach((_,i)=>decisoes.fichas[i]=v);document.querySelectorAll("[data-ficha-check]").forEach(ch=>ch.checked=v);planoValidado=false;const ei=document.querySelector("#executarImportacao");if(ei)ei.disabled=true;atualizarResumoFinal()};
+ document.querySelector("#selecionarTodasFichas").onclick=()=>marcarTodas(true);
+ document.querySelector("#desmarcarTodasFichas").onclick=()=>marcarTodas(false);
  atualizarResumoFinal();
  const vp=document.querySelector("#validarPlano"); if(vp)vp.onclick=validarPlanoImportacao; const ei=document.querySelector("#executarImportacao"); if(ei)ei.onclick=executarImportacaoReal;
 }
 function modal(html){let d=document.querySelector("#importModal");if(!d){d=document.createElement("div");d.id="importModal";d.className="import-modal-backdrop";document.body.appendChild(d)}d.innerHTML='<div class="import-modal">'+html+'<button type="button" class="secondary import-close">Fechar</button></div>';d.querySelector(".import-close").onclick=()=>d.remove();return d}
 function moeda(v){return v==null?"—":"R$ "+Number(v).toFixed(2).replace(".",",")}
 function atualizarResumoFinal(){const el=document.querySelector("#importResumoFinal");if(!el||!analise)return;
- const resolvidos=Object.keys(decisoes.conflitos).length, classificados=Object.keys(decisoes.insumos).length;
+ const selecionadas=analise.fichas.filter((_,i)=>decisoes.fichas[i]!==false), selecionadasNorm=new Set(selecionadas.map(f=>norm(f.nome))); const resolvidos=Object.keys(decisoes.conflitos).length, classificados=Object.keys(decisoes.insumos).length;
  const conflitosPend=Math.max(0,analise.conflitos.length-resolvidos), insumosPend=Math.max(0,analise.insumosDetalhes.length-classificados);
- const vazias=analise.fichas.filter(f=>!f.componentes?.length), selfLinks=(analise.preparacoes||[]).filter(x=>norm(x.origem||x.ficha)===norm(x.destino||x.nome));
- const pendencias=conflitosPend+insumosPend+vazias.length+selfLinks.length;
+ const vazias=selecionadas.filter(f=>!f.componentes?.length), selfLinks=(analise.preparacoes||[]).filter(x=>norm(x.origem||x.ficha)===norm(x.destino||x.nome));
+ const dependencias=(analise.preparacoes||[]).filter(x=>selecionadasNorm.has(norm(x.origem||x.ficha))&&!selecionadasNorm.has(norm(x.destino||x.nome))); const pendencias=conflitosPend+insumosPend+vazias.length+selfLinks.length+dependencias.length;
  const novos=Object.values(decisoes.insumos).filter(x=>x==="novo").length, vinculados=Object.values(decisoes.insumos).filter(x=>x==="existente").length, atualizar=Object.values(decisoes.insumos).filter(x=>x==="atualizar").length;
- el.innerHTML=`<div class="import-summary-grid"><span><b>${analise.fichas.length}</b> fichas no plano</span><span><b>${analise.preparacoes.length}</b> vínculos</span><span><b>${novos}</b> criar insumo</span><span><b>${vinculados}</b> usar existente</span><span><b>${atualizar}</b> atualizar</span><span><b>${pendencias}</b> pendências</span></div><div class="import-note">${pendencias===0?"Plano validado: nenhuma pendência. A gravação real continua bloqueada neste teste.":"Para validar o plano: classifique "+insumosPend+" insumo(s) e resolva "+conflitosPend+" conflito(s)."+(vazias.length?" Há "+vazias.length+" ficha(s) sem componentes.":"")}</div>`}
+ el.innerHTML=`<div class="import-summary-grid"><span><b>${selecionadas.length}</b> fichas selecionadas</span><span><b>${analise.preparacoes.length}</b> vínculos</span><span><b>${novos}</b> criar insumo</span><span><b>${vinculados}</b> usar existente</span><span><b>${atualizar}</b> atualizar</span><span><b>${pendencias}</b> pendências</span></div><div class="import-note">${pendencias===0?"Plano validado: nenhuma pendência. A gravação real continua bloqueada neste teste.":"Para validar o plano: classifique "+insumosPend+" insumo(s) e resolva "+conflitosPend+" conflito(s)."+(vazias.length?" Há "+vazias.length+" ficha(s) sem componentes.":"")}</div>`}
 async function executarImportacaoReal(){
  if(!planoValidado)return;
  if(!confirm("Confirmar importação real? Os dados serão gravados no MISEVO em uma única transação."))return;
  const b=document.querySelector("#executarImportacao"); if(b){b.disabled=true;b.textContent="Importando…"}
  try{
-  const resp=await fetch("/api/importacoes/executar",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmado:true,fichas:analise.fichas,preparacoes:analise.preparacoes,insumosDetalhes:analise.insumosDetalhes,conflitos:analise.conflitos,decisoes})});
+  const resp=await fetch("/api/importacoes/executar",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmado:true,fichas:analise.fichas.filter((_,i)=>decisoes.fichas[i]!==false),preparacoes:analise.preparacoes,insumosDetalhes:analise.insumosDetalhes,conflitos:analise.conflitos,decisoes})});
   const data=await resp.json().catch(()=>({}));
   if(!resp.ok)throw new Error(data.error||"Falha na importação.");
   modal(`<small>IMPORTAÇÃO CONCLUÍDA</small><h3>Dados gravados com sucesso</h3><div class="import-summary-grid"><span><b>${data.fichasCriadas}</b> fichas criadas</span><span><b>${data.preparacoes}</b> preparações</span></div><div class="import-note">A operação foi concluída em transação única.</div>`);
@@ -122,11 +126,13 @@ async function executarImportacaoReal(){
 }
 function validarPlanoImportacao(){
  if(!analise)return;
- const conflitosPend=analise.conflitos.filter((_,i)=>!decisoes.conflitos[i]);
+ const selecionadas=analise.fichas.filter((_,i)=>decisoes.fichas[i]!==false), selecionadasNorm=new Set(selecionadas.map(f=>norm(f.nome))); const conflitosPend=analise.conflitos.filter((_,i)=>!decisoes.conflitos[i]);
  const insumosPend=analise.insumosDetalhes.filter((_,i)=>!decisoes.insumos[i]);
- const vazias=analise.fichas.filter(f=>!f.componentes?.length);
+ const vazias=selecionadas.filter(f=>!f.componentes?.length);
  const selfLinks=(analise.preparacoes||[]).filter(x=>norm(x.origem||x.ficha)===norm(x.destino||x.nome));
- const problemas=[];
+ const dependencias=(analise.preparacoes||[]).filter(x=>selecionadasNorm.has(norm(x.origem||x.ficha))&&!selecionadasNorm.has(norm(x.destino||x.nome))); const problemas=[];
+ if(!selecionadas.length)problemas.push("nenhuma ficha selecionada");
+ if(dependencias.length)problemas.push(dependencias.length+" dependência(s) entre fichas desmarcada(s)");
  if(insumosPend.length)problemas.push(insumosPend.length+" insumo(s) sem classificação");
  if(conflitosPend.length)problemas.push(conflitosPend.length+" conflito(s) sem decisão");
  if(vazias.length)problemas.push(vazias.length+" ficha(s) sem componentes");
