@@ -1,7 +1,6 @@
 /* MISEVO V20 — Estoque da Cozinha + criação automática de insumo */
 const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
 
-export async function initEstoque(pool){}
 const saldoExpr=`COALESCE((SELECT SUM(m.quantidade) FROM estoque_movimentacoes m
  WHERE m.insumo_id=i.id AND m.empresa_id=i.empresa_id AND m.unidade_id=i.unidade_id),0)`;
 
