@@ -174,6 +174,9 @@ async function init() {
   await initOperacao(pool);
   await initOperacaoCompleta(pool);
 
+  // Estoque produzido consolidado: o saldo legado já foi migrado para estoque_produzidos.
+  await pool.query(`DROP TABLE IF EXISTS estoque_preparacoes`);
+
   // Remoção física final do modelo legado, após consolidação e validação dos fluxos atuais.
   // Preserva ficha_id como valor histórico nas OPs/estoque, removendo apenas constraints que
   // ainda possam apontar para a antiga tabela fichas.
