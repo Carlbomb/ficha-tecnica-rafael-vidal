@@ -10,7 +10,7 @@ import { initOperacao, installOperacao } from "./operacao.js";
 import { initOperacaoCompleta, installOperacaoCompleta } from "./operacao-completa.js";
 import { initTenantAdmin, installTenantAdmin } from "./tenant-admin.js";
 import { installImportacao } from "./importacao.js";
-import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema } from "./migrations.js";
+import { migrateProducaoSchema, migrateOperacaoCompletaSchema, migrateEstoqueSchema, migratePreparacoesSchema, migrateOperacaoSchema, migrateCategoriasSchema, migrateCoreSchema } from "./migrations.js";
 
 const { Pool } = pg;
 
@@ -109,60 +109,8 @@ const asyncRoute =
    BANCO DE DADOS
 ========================================================= */
 
-const schema = `
-
-CREATE TABLE IF NOT EXISTS insumos (
-  id BIGSERIAL PRIMARY KEY,
-
-  ingrediente TEXT NOT NULL,
-
-  unidade TEXT NOT NULL
-    DEFAULT 'KG',
-
-  peso_bruto NUMERIC(14,4)
-    NOT NULL DEFAULT 1,
-
-  peso_liquido NUMERIC(14,4)
-    NOT NULL DEFAULT 1,
-
-  fc NUMERIC(14,4)
-    NOT NULL DEFAULT 1,
-
-  preco_compra NUMERIC(14,4)
-    NOT NULL DEFAULT 0,
-
-  preco_real NUMERIC(14,4)
-    NOT NULL DEFAULT 0,
-
-  fornecedor TEXT DEFAULT '',
-
-  data_cotacao DATE,
-
-  ativo BOOLEAN NOT NULL
-    DEFAULT TRUE,
-
-  observacoes TEXT DEFAULT '',
-
-  created_at TIMESTAMPTZ
-    DEFAULT NOW(),
-
-  updated_at TIMESTAMPTZ
-    DEFAULT NOW()
-);
-
--- Tabelas legadas fichas/ingredientes não são mais criadas pelo schema ativo.
--- Bancos existentes preservam seus registros históricos até a aposentadoria física controlada.
-
-CREATE INDEX IF NOT EXISTS
-  idx_insumos_ingrediente
-  ON insumos(ingrediente);
-
-`;
-
 async function init() {
-  await pool.query(
-    schema
-  );
+  await migrateCoreSchema(pool);
 
   // Vincula os dados operacionais existentes à empresa/unidade inicial.
   await migrateOperationalTenancy(pool);
