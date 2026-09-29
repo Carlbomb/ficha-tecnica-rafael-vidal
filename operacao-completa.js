@@ -5,7 +5,7 @@ if(!resetDone){
   const e=(await db.query("SELECT id FROM empresas WHERE nome=$1",["MISEVO — Ambiente de Teste"])).rows[0];
   if(e){const u=(await db.query("SELECT id FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
    if(u){
-    await db.query("DELETE FROM estoque_preparacoes WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+    await db.query("DELETE FROM estoque_produzidos WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
     await db.query("DELETE FROM producao_consumos WHERE ordem_id IN (SELECT id FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
     await db.query("DELETE FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
     await db.query("DELETE FROM perdas WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
@@ -28,13 +28,6 @@ const t=req=>[req.user.empresa_id,req.user.unidade_id];
 
 export async function initOperacaoCompleta(pool){
  await pool.query(`
- CREATE TABLE IF NOT EXISTS estoque_preparacoes(
-  id BIGSERIAL PRIMARY KEY, preparacao_id BIGINT NOT NULL REFERENCES preparacoes(id) ON DELETE CASCADE,
-  quantidade NUMERIC(14,4) NOT NULL, tipo TEXT NOT NULL, referencia TEXT DEFAULT '', custo_unitario NUMERIC(14,4) DEFAULT 0,
-  usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL, empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
- );
- CREATE INDEX IF NOT EXISTS idx_estprep_tenant ON estoque_preparacoes(empresa_id,unidade_id,preparacao_id);
  CREATE TABLE IF NOT EXISTS etiqueta_registros(
   id BIGSERIAL PRIMARY KEY,
   insumo_id BIGINT REFERENCES insumos(id) ON DELETE SET NULL,
@@ -53,24 +46,6 @@ export async function initOperacaoCompleta(pool){
  ALTER TABLE inventarios ADD COLUMN IF NOT EXISTS usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
  CREATE TABLE IF NOT EXISTS misevo_migrations(chave TEXT PRIMARY KEY,executed_at TIMESTAMPTZ DEFAULT NOW());
  `);
- // Consolida o saldo líquido do estoque legado no modelo atual, uma única vez por preparação/unidade.
- if((await pool.query("SELECT to_regclass('public.estoque_preparacoes') AS tabela")).rows[0]?.tabela){
-  await pool.query(`
-   INSERT INTO estoque_produzidos(preparacao_id,nome,unidade,tipo,quantidade,saldo_anterior,saldo_novo,custo_unitario,usuario_id,empresa_id,unidade_id,origem_legada)
-   SELECT x.preparacao_id,p.nome,p.unidade_rendimento,'ajuste',x.saldo,0,x.saldo,x.custo_unitario,NULL,x.empresa_id,x.unidade_id,
-          'estoque_preparacoes:'||x.empresa_id||':'||x.unidade_id||':'||x.preparacao_id
-   FROM (
-    SELECT e.preparacao_id,e.empresa_id,e.unidade_id,SUM(e.quantidade)::numeric saldo,
-           COALESCE((array_agg(e.custo_unitario ORDER BY e.created_at DESC,e.id DESC))[1],0)::numeric custo_unitario
-    FROM estoque_preparacoes e
-    GROUP BY e.preparacao_id,e.empresa_id,e.unidade_id
-   ) x
-   JOIN preparacoes p ON p.id=x.preparacao_id
-   WHERE x.saldo<>0
-   ON CONFLICT (origem_legada) WHERE origem_legada IS NOT NULL DO NOTHING
-  `);
- }
-
  const done=(await pool.query("SELECT 1 FROM misevo_migrations WHERE chave='homologacao_v1'")).rows[0];
  if(!done){
   const db=await pool.connect();try{await db.query("BEGIN");
@@ -93,7 +68,7 @@ export function installOperacaoCompleta(app,pool){
   const u=(await db.query("SELECT id FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
   if(!u)return res.status(404).json({error:"Unidade de homologação não encontrada."});
   await db.query("BEGIN");
-  await db.query("DELETE FROM estoque_preparacoes WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
+  await db.query("DELETE FROM estoque_produzidos WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
   await db.query("DELETE FROM producao_consumos WHERE ordem_id IN (SELECT id FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
   await db.query("DELETE FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
   await db.query("DELETE FROM perdas WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
@@ -112,7 +87,7 @@ export function installOperacaoCompleta(app,pool){
   const u=(await pool.query("SELECT id,nome FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
   const ins=(await pool.query("SELECT id,ingrediente,unidade,fc,preco_compra,preco_real FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 ORDER BY ingrediente",[e.id,u.id])).rows;
   const forn=(await pool.query("SELECT id,nome FROM fornecedores WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id])).rows;
-  const counts={};for(const [k,t] of Object.entries({compras:"compras",movimentos:"estoque_movimentacoes",perdas:"perdas",inventarios:"inventarios",ordens:"ordens_producao",estoque_preparacoes:"estoque_preparacoes"})){counts[k]=Number((await pool.query(`SELECT COUNT(*)::int n FROM ${t} WHERE empresa_id=$1 AND unidade_id=$2`,[e.id,u.id])).rows[0].n)}
+  const counts={};for(const [k,t] of Object.entries({compras:"compras",movimentos:"estoque_movimentacoes",perdas:"perdas",inventarios:"inventarios",ordens:"ordens_producao",estoque_produzidos:"estoque_produzidos"})){counts[k]=Number((await pool.query(`SELECT COUNT(*)::int n FROM ${t} WHERE empresa_id=$1 AND unidade_id=$2`,[e.id,u.id])).rows[0].n)}
   res.json({empresa:e,unidade:u,insumos:ins,fornecedores:forn,counts})
  }catch(e){next(e)}});
 
@@ -143,8 +118,8 @@ export function installOperacaoCompleta(app,pool){
  }));
  app.get("/api/estoque/preparacoes",ar(async(req,res)=>{
   const {rows}=await pool.query(`SELECT p.id,p.nome,p.unidade_rendimento,COALESCE(SUM(e.quantidade),0)::numeric saldo,
-   COALESCE((SELECT e2.custo_unitario FROM estoque_preparacoes e2 WHERE e2.preparacao_id=p.id AND e2.empresa_id=$1 AND e2.unidade_id=$2 ORDER BY e2.created_at DESC,e2.id DESC LIMIT 1),0)::numeric custo_unitario
-   FROM preparacoes p LEFT JOIN estoque_preparacoes e ON e.preparacao_id=p.id AND e.empresa_id=$1 AND e.unidade_id=$2
+   COALESCE((SELECT e2.custo_unitario FROM estoque_produzidos e2 WHERE e2.preparacao_id=p.id AND e2.empresa_id=$1 AND e2.unidade_id=$2 ORDER BY e2.created_at DESC,e2.id DESC LIMIT 1),0)::numeric custo_unitario
+   FROM preparacoes p LEFT JOIN estoque_produzidos e ON e.preparacao_id=p.id AND e.empresa_id=$1 AND e.unidade_id=$2
    WHERE p.empresa_id=$1 AND p.unidade_id=$2 AND p.ativo=TRUE GROUP BY p.id ORDER BY p.nome`,t(req));res.json(rows)
  }));
  app.post("/api/producao/ordens/:id/cancelar",ar(async(req,res)=>{
