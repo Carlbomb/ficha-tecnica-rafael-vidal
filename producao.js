@@ -171,7 +171,8 @@ export function installProducao(app,pool){
     try{
       const solicitados=Array.isArray(req.body?.fichas)?req.body.fichas:[];
       const diretas=Array.isArray(req.body?.preparacoes)?req.body.preparacoes:[];
-      if(!solicitados.length&&!diretas.length)return res.status(400).json({error:"Adicione pelo menos uma ficha técnica ou preparação."});
+      if(solicitados.length)return res.status(410).json({error:"O planejamento por ficha legada foi aposentado. Use as Fichas Técnicas atuais.",codigo:"PRODUCAO_FICHA_LEGADA_APOSENTADA"});
+      if(!diretas.length)return res.status(400).json({error:"Adicione pelo menos uma Ficha Técnica."});
       const pratos=[],preparacoes=new Map(),insumos=new Map();
       const addInsumo=(x,q)=>{
         const id=Number(x.insumo_id||x.id),atual=insumos.get(id)||{insumo_id:id,ingrediente:x.ingrediente,unidade:x.unidade,quantidade:0};
@@ -196,16 +197,6 @@ export function installProducao(app,pool){
         const comps=await pool.query(`SELECT pc.componente_id,pc.quantidade FROM preparacao_componentes pc JOIN preparacoes p ON p.id=pc.componente_id WHERE pc.preparacao_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
         for(const x of comps.rows)await addPrep(x.componente_id,n(x.quantidade)*fator,prox);
       };
-      for(const s of solicitados){
-        const fichaId=Number(s.ficha_id),qtd=n(s.porcoes);if(!fichaId||qtd<=0)continue;
-        const fr=await pool.query(`SELECT id,nome_prato,porcoes FROM fichas WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,[fichaId,req.user.empresa_id,req.user.unidade_id]);
-        const ficha=fr.rows[0];if(!ficha)throw new Error(`Ficha ${fichaId} não encontrada.`);
-        const base=n(ficha.porcoes)||1,fator=qtd/base;pratos.push({ficha_id:fichaId,nome:ficha.nome_prato,porcoes:qtd,fator});
-        const ing=await pool.query(`SELECT g.insumo_id,g.quantidade,i.ingrediente,i.unidade FROM ingredientes g JOIN insumos i ON i.id=g.insumo_id WHERE g.ficha_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[fichaId,req.user.empresa_id,req.user.unidade_id]);
-        for(const x of ing.rows)addInsumo(x,n(x.quantidade)*fator);
-        const ps=await pool.query(`SELECT fp.preparacao_id,fp.quantidade FROM ficha_preparacoes fp JOIN preparacoes p ON p.id=fp.preparacao_id WHERE fp.ficha_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE`,[fichaId,req.user.empresa_id,req.user.unidade_id]);
-        for(const x of ps.rows)await addPrep(x.preparacao_id,n(x.quantidade)*fator);
-      }
       for(const s of diretas){const id=Number(s.preparacao_id),q=n(s.quantidade);if(id&&q>0)await addPrep(id,q)}
       res.json({pratos,preparacoes:[...preparacoes.values()].sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR")),insumos:[...insumos.values()].sort((a,b)=>a.ingrediente.localeCompare(b.ingrediente,"pt-BR"))});
     }catch(e){next(e)}
@@ -219,19 +210,7 @@ export function installProducao(app,pool){
       await db.query("BEGIN");
       const ids=[];
       for(const x of itens){
-        if(x.tipo==="ficha"){
-          const id=Number(x.ficha_id),q=n(x.porcoes);if(!id||q<=0)continue;
-          const fr=await db.query(`SELECT id,nome_prato,porcoes FROM fichas WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 AND ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
-          if(!fr.rows[0])throw new Error("Ficha Técnica não encontrada.");
-          const fator=q/(n(fr.rows[0].porcoes)||1);
-          const ing=await db.query(`SELECT g.insumo_id,g.quantidade,i.preco_real FROM ingredientes g JOIN insumos i ON i.id=g.insumo_id WHERE g.ficha_id=$1 AND i.empresa_id=$2 AND i.unidade_id=$3`,[id,req.user.empresa_id,req.user.unidade_id]);
-          const comps=await db.query(`SELECT fp.preparacao_id,fp.quantidade FROM ficha_preparacoes fp JOIN preparacoes p ON p.id=fp.preparacao_id WHERE fp.ficha_id=$1 AND p.empresa_id=$2 AND p.unidade_id=$3 AND p.ativo=TRUE`,[id,req.user.empresa_id,req.user.unidade_id]);
-          let custo=0;
-          const op=await db.query(`INSERT INTO ordens_producao(ficha_id,quantidade_planejada,unidade,custo_teorico,observacoes,usuario_id,empresa_id,unidade_id) VALUES($1,$2,'PORÇÃO',0,$3,$4,$5,$6) RETURNING id`,[id,q,"Planejamento de produção",req.user.id,req.user.empresa_id,req.user.unidade_id]);
-          for(const z of ing.rows){const qt=qEstoque(n(z.quantidade)*fator),cu=n(z.preco_real);custo+=qt*cu;await db.query(`INSERT INTO producao_consumos(ordem_id,insumo_id,quantidade_teorica,custo_unitario) VALUES($1,$2,$3,$4)`,[op.rows[0].id,z.insumo_id,qt,cu])}
-          for(const z of comps.rows){const qt=qEstoque(n(z.quantidade)*fator);if(qt>0)await db.query(`INSERT INTO producao_componentes(ordem_id,preparacao_id,quantidade_teorica) VALUES($1,$2,$3)`,[op.rows[0].id,z.preparacao_id,qt])}
-          await db.query("UPDATE ordens_producao SET custo_teorico=$1 WHERE id=$2",[custo,op.rows[0].id]);ids.push(Number(op.rows[0].id));continue;
-        }
+        if(x.tipo==="ficha")throw Object.assign(new Error("O planejamento por ficha legada foi aposentado. Use as Fichas Técnicas atuais."),{statusCode:410,code:"PRODUCAO_FICHA_LEGADA_APOSENTADA"});
         if(x.tipo!=="preparacao")continue;
         const id=Number(x.preparacao_id),q=n(x.quantidade);
         if(!id||q<=0)continue;
