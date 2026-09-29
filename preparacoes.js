@@ -3,7 +3,6 @@
 const n = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 const asyncRoute = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
 
-export async function initPreparacoes(pool) {}
 export async function calcularCustoPreparacao(db, id, empresaId, unidadeId, visitados = new Set()) {
   const chave = Number(id);
   if (visitados.has(chave)) throw new Error("Foi detectado um ciclo entre preparações.");
