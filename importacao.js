@@ -111,25 +111,47 @@ export function installImportacao(app,pool){
     mapa.set(k,r.rows[0].id);
    }
   }
-  const usados=new Set((plano.preparacoes||[]).map(x=>norm(x.destino||x.nome)));
+  // Modelo unificado: toda receita importada é uma Ficha Técnica em preparacoes.
+  // Primeiro criamos/atualizamos todas; depois ligamos insumos e fichas componentes.
   const prepIds=new Map();
-  for(const f of fichas.filter(x=>usados.has(norm(x.nome)))){
+  for(const f of fichas){
    let r=await c.query("SELECT id FROM preparacoes WHERE empresa_id=$1 AND unidade_id=$2 AND LOWER(nome)=LOWER($3) LIMIT 1",[req.user.empresa_id,req.user.unidade_id,f.nome]);
    let id=r.rows[0]?.id;
-   if(!id){r=await c.query("INSERT INTO preparacoes(nome,categoria,rendimento,unidade_rendimento,observacoes,empresa_id,unidade_id) VALUES($1,$2,$3,'KG','Importado por planilha',$4,$5) RETURNING id",[f.nome,f.categoria||"Outros",Number(f.rendimento)||1,req.user.empresa_id,req.user.unidade_id]);id=r.rows[0].id}
+   if(id){
+    await c.query(
+     "UPDATE preparacoes SET categoria=$1,rendimento=$2,quantidade_porcoes=$3,observacoes=$4,ativo=TRUE,updated_at=NOW() WHERE id=$5",
+     [f.categoria||"Outros",Number(f.rendimento)||1,Number(f.porcoes)||1,"Atualizado por importação de planilha",id]
+    );
+   }else{
+    r=await c.query(
+     "INSERT INTO preparacoes(nome,categoria,rendimento,unidade_rendimento,quantidade_porcoes,observacoes,empresa_id,unidade_id) VALUES($1,$2,$3,'KG',$4,'Importado por planilha',$5,$6) RETURNING id",
+     [f.nome,f.categoria||"Outros",Number(f.rendimento)||1,Number(f.porcoes)||1,req.user.empresa_id,req.user.unidade_id]
+    );
+    id=r.rows[0].id;
+   }
    prepIds.set(norm(f.nome),id);
   }
-  for(const f of fichas.filter(x=>usados.has(norm(x.nome)))){
-   const id=prepIds.get(norm(f.nome)); await c.query("DELETE FROM preparacao_ingredientes WHERE preparacao_id=$1",[id]); await c.query("DELETE FROM preparacao_componentes WHERE preparacao_id=$1",[id]);
-   let ordem=0; for(const x of f.componentes){const pid=prepIds.get(norm(x.nome)), iid=mapa.get(norm(x.nome)), q=Number(x.qtd)||0;if(q<=0)continue;if(pid&&pid!==id)await c.query("INSERT INTO preparacao_componentes(preparacao_id,componente_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,pid,q,ordem++]);else if(pid===id)continue;else if(iid)await c.query("INSERT INTO preparacao_ingredientes(preparacao_id,insumo_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,iid,q,ordem++]);else throw new Error("Componente sem destino: "+x.nome)}
+
+  for(const f of fichas){
+   const id=prepIds.get(norm(f.nome));
+   await c.query("DELETE FROM preparacao_ingredientes WHERE preparacao_id=$1",[id]);
+   await c.query("DELETE FROM preparacao_componentes WHERE preparacao_id=$1",[id]);
+   let ordem=0;
+   for(const x of f.componentes){
+    const pid=prepIds.get(norm(x.nome)), iid=mapa.get(norm(x.nome)), q=Number(x.qtd)||0;
+    if(q<=0)continue;
+    if(pid&&pid!==id){
+     await c.query("INSERT INTO preparacao_componentes(preparacao_id,componente_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,pid,q,ordem++]);
+    }else if(pid===id){
+     continue;
+    }else if(iid){
+     await c.query("INSERT INTO preparacao_ingredientes(preparacao_id,insumo_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[id,iid,q,ordem++]);
+    }else{
+     throw new Error("Componente sem destino: "+x.nome);
+    }
+   }
   }
-  let fichasCriadas=0;
-  for(const f of fichas.filter(x=>!usados.has(norm(x.nome)))){
-   const dup=await c.query("SELECT id FROM fichas WHERE empresa_id=$1 AND unidade_id=$2 AND LOWER(nome_prato)=LOWER($3) AND ativo=TRUE LIMIT 1",[req.user.empresa_id,req.user.unidade_id,f.nome]); if(dup.rows[0]){const fid=dup.rows[0].id;await c.query("DELETE FROM ingredientes WHERE ficha_id=$1",[fid]);await c.query("DELETE FROM ficha_preparacoes WHERE ficha_id=$1",[fid]);await c.query("UPDATE fichas SET categoria=$1,rendimento_kg=$2,porcoes=$3,observacoes=$4,updated_at=NOW() WHERE id=$5",[f.categoria||"Outros",Number(f.rendimento)||0,Number(f.porcoes)||1,"Atualizado por importação de planilha",fid]);let ordem=0;for(const x of f.componentes){const pid=prepIds.get(norm(x.nome)),iid=mapa.get(norm(x.nome)),q=Number(x.qtd)||0;if(q<=0)continue;if(pid)await c.query("INSERT INTO ficha_preparacoes(ficha_id,preparacao_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[fid,pid,q,ordem++]);else if(iid)await c.query("INSERT INTO ingredientes(ficha_id,insumo_id,quantidade,unidade,ordem,observacoes) VALUES($1,$2,$3,$4,$5,'')",[fid,iid,q,x.unidade||"KG",ordem++]);else throw new Error("Componente sem destino: "+x.nome)};fichasCriadas++;continue}
-   const rf=await c.query("INSERT INTO fichas(nome_prato,categoria,rendimento_kg,porcoes,preco_venda,meta_cmv,modo_preparo,observacoes,status,ativo,empresa_id,unidade_id) VALUES($1,$2,$3,$4,0,30,'','Importado por planilha','Ativa',TRUE,$5,$6) RETURNING id",[f.nome,f.categoria||"Outros",Number(f.rendimento)||0,Number(f.porcoes)||1,req.user.empresa_id,req.user.unidade_id]); const fid=rf.rows[0].id; let ordem=0;
-   for(const x of f.componentes){const pid=prepIds.get(norm(x.nome)),iid=mapa.get(norm(x.nome)),q=Number(x.qtd)||0;if(q<=0)continue;if(pid)await c.query("INSERT INTO ficha_preparacoes(ficha_id,preparacao_id,quantidade,ordem) VALUES($1,$2,$3,$4)",[fid,pid,q,ordem++]);else if(iid)await c.query("INSERT INTO ingredientes(ficha_id,insumo_id,quantidade,unidade,ordem,observacoes) VALUES($1,$2,$3,$4,$5,'')",[fid,iid,q,x.unidade||"KG",ordem++]);else throw new Error("Componente sem destino: "+x.nome)}
-   fichasCriadas++;
-  }
+  const fichasCriadas=fichas.length;
   await c.query("COMMIT"); res.status(201).json({ok:true,fichasCriadas,preparacoes:prepIds.size,insumos:mapa.size,message:"Importação concluída com sucesso."});
  }catch(e){try{await c.query("ROLLBACK")}catch{};console.error("[MISEVO][importacao][executar]",{message:e.message,code:e.code,detail:e.detail,constraint:e.constraint,table:e.table,column:e.column});res.status(422).json({error:e.message||"Falha na importação.",codigo:e.code||"IMPORTACAO_FALHOU"})}finally{c.release()}});
 
