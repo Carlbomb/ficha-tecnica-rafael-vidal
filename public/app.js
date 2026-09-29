@@ -147,7 +147,7 @@ async function telaPainel() {
   const vencimentosProximos=etiquetas?etiquetas.filter(x=>["vencendo","vence_hoje"].includes(x.status_calculado)).reduce((s,x)=>s+Math.max(1,num(x.quantidade)),0):null;
   const recentes=[...fichasAtivas].sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR")).slice(0,5);
   const ordens=producaoReq.status==="fulfilled"&&Array.isArray(producaoReq.value)?producaoReq.value:[];
-  const producaoDia=ordens.filter(x=>!["anulada","cancelada","concluida","finalizada"].includes(x.status));
+  const producaoDia=ordens.filter(x=>!["anulada","cancelada","concluida"].includes(x.status));
   const statusProducao=s=>s==="em_producao"?"Em produção":"Pendente";
   const ni=$("#ni"),nf=$("#nf"),avg=$("#avg");
   if(ni)ni.textContent=insumosAtivos.length;
