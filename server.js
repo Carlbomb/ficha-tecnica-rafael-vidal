@@ -1978,13 +1978,15 @@ app.get(
           [req.user.empresa_id, req.user.unidade_id]
         );
 
+      // A tela atual de Fichas Técnicas usa preparacoes como fonte oficial.
+      // O modelo legado "fichas" permanece apenas para compatibilidade/histórico.
       const fichas =
         await pool.query(
           `
           SELECT
             COUNT(*)::integer
             AS total
-          FROM fichas
+          FROM preparacoes
           WHERE
             ativo = TRUE
             AND empresa_id = $1
