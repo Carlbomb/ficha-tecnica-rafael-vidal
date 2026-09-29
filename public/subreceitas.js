@@ -14,10 +14,12 @@
 
   function renderLista(){
     C.innerHTML=`<div class="section-head"><div><small>FICHAS TÉCNICAS</small><h2>Fichas Técnicas</h2><p>Todos os preparos em um só lugar: pré-preparos, produções e pratos finais.</p></div><button class="primary" id="novaPrep">+ Nova ficha técnica</button></div>
-    <div class="card preparacoes-card"><div class="preparacoes-toolbar"><input id="buscaPrep" placeholder="Buscar ficha ou categoria..."><select id="filtroPrepCategoria"><option value="">Todas as categorias</option></select><select id="ordemPrep"><option value="az">A–Z</option><option value="custo">Maior custo</option><option value="rendimento">Maior rendimento</option></select></div><div id="listaPrep"></div></div>`;
+    <div class="card preparacoes-card"><div class="preparacoes-toolbar"><input id="buscaPrep" placeholder="Buscar ficha ou categoria..."><select id="filtroPrepCategoria"><option value="">Todas as categorias</option></select><select id="ordemPrep"><option value="az">A–Z</option><option value="custo">Maior custo</option><option value="rendimento">Maior rendimento</option></select></div><div id="prepBatch" class="batch-actions" hidden><b id="prepBatchCount">0 selecionadas</b><div class="batch-actions-buttons"><button type="button" class="secondary" id="prepMover">Mover para grupo</button><button type="button" class="danger" id="prepExcluir">Excluir</button></div></div><div id="listaPrep"></div></div>`;
     const cats=[...new Set(PREPS.map(p=>p.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
     document.querySelector("#filtroPrepCategoria").insertAdjacentHTML("beforeend",cats.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join(""));
     document.querySelector("#novaPrep").onclick=()=>form();
+    document.querySelector("#prepMover").onclick=moverSelecionadas;
+    document.querySelector("#prepExcluir").onclick=excluirSelecionadas;
     ["#buscaPrep","#filtroPrepCategoria","#ordemPrep"].forEach(sel=>{const el=document.querySelector(sel);if(el)el.oninput=listar});
     listar();
   }
@@ -30,11 +32,28 @@
     const area=document.querySelector("#listaPrep");
     if(!a.length){area.innerHTML='<div class="empty">Nenhuma ficha técnica encontrada.</div>';return}
     area.innerHTML=`<div class="preparacoes-count">${a.length} ficha${a.length===1?"":"s"} técnica${a.length===1?"":"s"}</div><div class="preparacoes-compactas">${a.map(p=>`
-      <article class="preparacao-row">
+      <article class="preparacao-row preparacao-selectable">
+        <label class="prep-select" aria-label="Selecionar ${esc(p.nome)}"><input type="checkbox" class="prep-check" value="${Number(p.id)}"></label>
         <div class="preparacao-main"><b>${esc(p.nome)}</b><span>${esc(p.categoria||"Sem categoria")} · ${numero(p.rendimento,3)} ${esc(p.unidade_rendimento||"")}</span></div>
         <div class="preparacao-cost"><small>Custo total</small><b>${moeda(p.custo_total)}</b><span>${moeda(p.custo_unitario)}/${esc(p.unidade_rendimento||"un")}</span></div>
         <button type="button" class="secondary preparacao-open" onclick="editarPreparacao(${Number(p.id)})">Abrir</button>
       </article>`).join("")}</div>`;
+    const checks=[...area.querySelectorAll(".prep-check")],bar=document.querySelector("#prepBatch"),cnt=document.querySelector("#prepBatchCount");
+    const sync=()=>{const n=checks.filter(x=>x.checked).length;if(bar)bar.hidden=n===0;if(cnt)cnt.textContent=n+` selecionada${n===1?"":"s"}`};
+    checks.forEach(x=>x.onchange=sync);sync();
+  }
+  const selecionadas=()=>[...document.querySelectorAll(".prep-check:checked")].map(x=>Number(x.value)).filter(Boolean);
+  async function moverSelecionadas(){
+    const ids=selecionadas();if(!ids.length)return;
+    try{const cats=await apiSR("/api/categorias"),nomes=[...new Set([...(cats||[]).filter(x=>x.ativo!==false).map(x=>x.nome),...PREPS.map(x=>x.categoria).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,"pt-BR"));if(!nomes.length)return alert("Crie um grupo antes de mover.");
+      const destino=prompt("Mover "+ids.length+" ficha(s) para qual grupo?\n\n"+nomes.join("\n"),nomes[0]);if(!destino)return;const escolhido=nomes.find(x=>x.toLowerCase()===destino.trim().toLowerCase());if(!escolhido)return alert("Escolha um grupo existente exatamente como aparece na lista.");
+      await apiSR("/api/preparacoes/lote/grupo",{method:"PATCH",body:JSON.stringify({ids,categoria:escolhido})});await carregar();renderLista();
+    }catch(e){alert(e.message)}
+  }
+  async function excluirSelecionadas(){
+    const ids=selecionadas();if(!ids.length)return;const nomes=PREPS.filter(x=>ids.includes(Number(x.id))).map(x=>x.nome);
+    if(!confirm(`Excluir ${ids.length} ficha(s)?\n\n${nomes.slice(0,8).join("\n")}${nomes.length>8?"\n...":""}\n\nEsta ação não pode ser desfeita.`))return;
+    try{await apiSR("/api/preparacoes/lote",{method:"DELETE",body:JSON.stringify({ids})});await carregar();renderLista()}catch(e){alert(e.message)}
   }
 
   window.editarPreparacao=async id=>{try{const p=await apiSR(`/api/preparacoes/${id}`);EDITANDO=p;ITENS=[...(p.ingredientes||[]).map(x=>({tipo:"insumo",id:Number(x.insumo_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""})),...(p.componentes||[]).map(x=>({tipo:"preparacao",id:Number(x.componente_id),quantidade:num(x.quantidade),observacoes:x.observacoes||""}))];await carregar();form(p)}catch(e){mostrarErroPrep(e.message)}};
