@@ -16,6 +16,35 @@ const { Pool } = pg;
 
 const app = express();
 
+const loginAttempts = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 20;
+
+app.use((req,res,next)=>{
+  res.setHeader("X-Content-Type-Options","nosniff");
+  res.setHeader("X-Frame-Options","SAMEORIGIN");
+  res.setHeader("Referrer-Policy","strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy","camera=(), microphone=(), geolocation=()");
+  res.setHeader("Content-Security-Policy","default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'");
+  if(process.env.NODE_ENV==="production")res.setHeader("Strict-Transport-Security","max-age=31536000; includeSubDomains");
+  next();
+});
+
+app.use("/api/auth/login",(req,res,next)=>{
+  const now=Date.now(), key=String(req.ip||req.socket?.remoteAddress||"unknown");
+  const current=loginAttempts.get(key);
+  const state=!current||now-current.startedAt>=LOGIN_WINDOW_MS?{startedAt:now,count:0}:current;
+  state.count+=1;loginAttempts.set(key,state);
+  if(state.count>LOGIN_MAX_ATTEMPTS){
+    const retry=Math.max(1,Math.ceil((LOGIN_WINDOW_MS-(now-state.startedAt))/1000));
+    res.setHeader("Retry-After",String(retry));
+    return res.status(429).json({error:"Muitas tentativas de login. Aguarde alguns minutos e tente novamente."});
+  }
+  next();
+});
+setInterval(()=>{const now=Date.now();for(const [key,state] of loginAttempts)if(now-state.startedAt>=LOGIN_WINDOW_MS)loginAttempts.delete(key)},LOGIN_WINDOW_MS).unref();
+
+
 const port =
   Number(
     process.env.PORT ||
