@@ -3,36 +3,6 @@ const n=v=>Number.isFinite(Number(v))?Number(v):0;
 const t=req=>[req.user.empresa_id,req.user.unidade_id];
 
 export function installOperacaoCompleta(app,pool){
- app.post("/api/plataforma/homologacao/reset",async(req,res,next)=>{const db=await pool.connect();try{
-  if(req.user?.plataforma_admin!==true||String(req.user?.email||"").trim().toLowerCase()!=="charlcooking@gmail.com")return res.status(403).json({error:"Acesso restrito."});
-  const e=(await db.query("SELECT id FROM empresas WHERE nome=$1",["MISEVO — Ambiente de Teste"])).rows[0];
-  if(!e)return res.status(404).json({error:"Ambiente de homologação não encontrado."});
-  const u=(await db.query("SELECT id FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
-  if(!u)return res.status(404).json({error:"Unidade de homologação não encontrada."});
-  await db.query("BEGIN");
-  await db.query("DELETE FROM estoque_produzidos WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
-  await db.query("DELETE FROM producao_consumos WHERE ordem_id IN (SELECT id FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
-  await db.query("DELETE FROM ordens_producao WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
-  await db.query("DELETE FROM perdas WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
-  await db.query("DELETE FROM inventarios WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
-  await db.query("DELETE FROM estoque_movimentacoes WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
-  await db.query("DELETE FROM historico_precos WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
-  await db.query("DELETE FROM compra_itens WHERE compra_id IN (SELECT id FROM compras WHERE empresa_id=$1 AND unidade_id=$2)",[e.id,u.id]);
-  await db.query("DELETE FROM compras WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id]);
-  await db.query("COMMIT");
-  res.json({ok:true,empresa_id:e.id,unidade_id:u.id});
- }catch(err){await db.query("ROLLBACK").catch(()=>{});next(err)}finally{db.release()}});
- app.get("/api/plataforma/homologacao/auditoria",async(req,res,next)=>{try{
-  if(req.user?.plataforma_admin!==true)return res.status(403).json({error:"Acesso restrito."});
-  const e=(await pool.query("SELECT id,nome FROM empresas WHERE nome=$1",["MISEVO — Ambiente de Teste"])).rows[0];
-  if(!e)return res.status(404).json({error:"Ambiente de homologação não encontrado."});
-  const u=(await pool.query("SELECT id,nome FROM unidades WHERE empresa_id=$1 AND nome=$2",[e.id,"Cozinha de Homologação"])).rows[0];
-  const ins=(await pool.query("SELECT id,ingrediente,unidade,fc,preco_compra,preco_real FROM insumos WHERE empresa_id=$1 AND unidade_id=$2 ORDER BY ingrediente",[e.id,u.id])).rows;
-  const forn=(await pool.query("SELECT id,nome FROM fornecedores WHERE empresa_id=$1 AND unidade_id=$2",[e.id,u.id])).rows;
-  const counts={};for(const [k,t] of Object.entries({compras:"compras",movimentos:"estoque_movimentacoes",perdas:"perdas",inventarios:"inventarios",ordens:"ordens_producao",estoque_produzidos:"estoque_produzidos"})){counts[k]=Number((await pool.query(`SELECT COUNT(*)::int n FROM ${t} WHERE empresa_id=$1 AND unidade_id=$2`,[e.id,u.id])).rows[0].n)}
-  res.json({empresa:e,unidade:u,insumos:ins,fornecedores:forn,counts})
- }catch(e){next(e)}});
-
  app.get("/api/etiquetas",ar(async(req,res)=>{
   const {rows}=await pool.query(`SELECT e.*,
    CASE WHEN e.validade<CURRENT_DATE THEN 'vencido'
@@ -70,12 +40,6 @@ export function installOperacaoCompleta(app,pool){
    [String(req.body?.motivo||"Cancelada pelo usuário"),req.params.id,...t(req)]);
   if(!rows[0])return res.status(409).json({error:"Ordem inexistente ou já encerrada."});res.json(rows[0])
  }));
- app.post("/api/producao/ordens/:id/entrada-preparacao",(req,res)=>{
-  res.status(410).json({
-   error:"A entrada manual de preparação foi aposentada. A conclusão da OP já registra automaticamente o estoque produzido.",
-   codigo:"ENTRADA_PREPARACAO_LEGADA_APOSENTADA"
-  });
- });
  app.put("/api/fornecedores/:id",ar(async(req,res)=>{const b=req.body||{};const {rows}=await pool.query(`UPDATE fornecedores SET nome=$1,contato=$2,email=$3,telefone=$4,observacoes=$5,ativo=$6,updated_at=NOW()
   WHERE id=$7 AND empresa_id=$8 AND unidade_id=$9 RETURNING *`,[String(b.nome||"").trim(),b.contato||"",b.email||"",b.telefone||"",b.observacoes||"",b.ativo!==false,req.params.id,...t(req)]);if(!rows[0])return res.status(404).json({error:"Fornecedor não encontrado."});res.json(rows[0])}));
  app.delete("/api/fornecedores/:id",ar(async(req,res)=>{const {rows}=await pool.query("UPDATE fornecedores SET ativo=FALSE,updated_at=NOW() WHERE id=$1 AND empresa_id=$2 AND unidade_id=$3 RETURNING id",[req.params.id,...t(req)]);if(!rows[0])return res.status(404).json({error:"Fornecedor não encontrado."});res.status(204).end()}));
