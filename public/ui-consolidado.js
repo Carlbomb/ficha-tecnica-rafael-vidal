@@ -16,7 +16,7 @@ const catIcons={"Bases e Fundos":"♨","Molhos":"◒","Carnes e Aves":"♧","Pes
 function labels(){document.querySelectorAll(".content-area table").forEach(t=>{const hs=[...t.querySelectorAll("thead th")].map(x=>x.textContent.trim());t.querySelectorAll("tbody tr").forEach(r=>[...r.children].forEach((td,i)=>td.dataset.v22Label=hs[i]||""))})}
 function categoryIcons(){document.querySelectorAll(".v22-cat-row").forEach(r=>{const n=r.querySelector(".v22-cat-main b")?.textContent.trim(),b=r.querySelector(".v22-cat-icon");if(b&&catIcons[n]&&b.textContent!==catIcons[n])b.textContent=catIcons[n]})}
 function syncBottom(tab){document.querySelectorAll(".v22-bottom button").forEach(b=>b.classList.toggle("active",b.dataset.v21Tab===tab))}
-function refresh(){labels();categoryIcons();convert()}
+function refresh(){labels();categoryIcons();convert();for(const hook of (window.MISEVO_UI_HOOKS||[])){try{hook()}catch(e){console.error("[MISEVO][ui-hook]",e)}}}
 const o=new MutationObserver(()=>{clearTimeout(window.__misevoUi);window.__misevoUi=setTimeout(refresh,20)});
 function start(){const c=C();if(c)o.observe(c,{childList:true,subtree:true});refresh();const a=document.querySelector(".main-nav [data-tab].active");syncBottom(a?.dataset.tab||"insumos")}
 document.addEventListener("click",e=>{const b=e.target.closest(".v22-bottom [data-v21-tab]");if(b){document.querySelector(`.main-nav [data-tab="${b.dataset.v21Tab}"]`)?.click();syncBottom(b.dataset.v21Tab)}const t=e.target.closest(".main-nav [data-tab]");if(t)syncBottom(t.dataset.tab)});
