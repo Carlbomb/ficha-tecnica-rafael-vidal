@@ -112,46 +112,10 @@ function canAccess(user, req) {
 }
 
 export async function installAuth(app, pool) {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS usuarios (
-      id BIGSERIAL PRIMARY KEY, nome TEXT NOT NULL, email TEXT NOT NULL UNIQUE, senha_hash TEXT NOT NULL,
-      perfil TEXT NOT NULL DEFAULT 'cozinha',
-      ativo BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
-    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
-    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permissoes JSONB NOT NULL DEFAULT '{}'::jsonb;
-    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plataforma_admin BOOLEAN NOT NULL DEFAULT FALSE;
-    ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_perfil_check;
-    UPDATE usuarios SET perfil='chef' WHERE perfil='gestor';
-    ALTER TABLE usuarios ADD CONSTRAINT usuarios_perfil_check
-      CHECK (perfil IN ('admin','chef','subchef','cozinha','estoque','consulta'));
-    CREATE TABLE IF NOT EXISTS sessoes (
-      id BIGSERIAL PRIMARY KEY, usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-      token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    ALTER TABLE sessoes ADD COLUMN IF NOT EXISTS empresa_id BIGINT;
-    ALTER TABLE sessoes ADD COLUMN IF NOT EXISTS unidade_id BIGINT;
-    CREATE INDEX IF NOT EXISTS idx_sessoes_token ON sessoes(token_hash);
-    CREATE INDEX IF NOT EXISTS idx_sessoes_expira ON sessoes(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_usuarios_empresa_unidade ON usuarios(empresa_id,unidade_id);
-  `);
-
   const tenant = await pool.query(`SELECT e.id AS empresa_id,u.id AS unidade_id FROM empresas e JOIN unidades u ON u.empresa_id=e.id ORDER BY e.id,u.id LIMIT 1`);
   if (!tenant.rows[0]) throw new Error("Empresa/unidade inicial não encontrada.");
   await pool.query(`UPDATE usuarios SET empresa_id=$1 WHERE empresa_id IS NULL`, [tenant.rows[0].empresa_id]);
   await pool.query(`UPDATE usuarios SET unidade_id=$1 WHERE unidade_id IS NULL`, [tenant.rows[0].unidade_id]);
-  await pool.query(`
-    DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_usuarios_empresa') THEN
-        ALTER TABLE usuarios ADD CONSTRAINT fk_usuarios_empresa FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE RESTRICT;
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_usuarios_unidade') THEN
-        ALTER TABLE usuarios ADD CONSTRAINT fk_usuarios_unidade FOREIGN KEY (unidade_id) REFERENCES unidades(id) ON DELETE RESTRICT;
-      END IF;
-    END $$;
-  `);
   await pool.query(`DELETE FROM sessoes WHERE expires_at <= NOW()`);
 
   // Railway is now bootstrap-only: it creates the first admin, but never overwrites an existing password.
