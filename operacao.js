@@ -1,46 +1,7 @@
 const asyncRoute = fn => (req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
 
-export async function initOperacao(pool){
- await pool.query(`
- CREATE TABLE IF NOT EXISTS fornecedores (
-  id BIGSERIAL PRIMARY KEY, nome TEXT NOT NULL, contato TEXT DEFAULT '', email TEXT DEFAULT '', telefone TEXT DEFAULT '',
-  observacoes TEXT DEFAULT '', ativo BOOLEAN NOT NULL DEFAULT TRUE, empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
- );
- CREATE INDEX IF NOT EXISTS idx_fornecedores_tenant ON fornecedores(empresa_id,unidade_id,nome);
- CREATE TABLE IF NOT EXISTS compras (
-  id BIGSERIAL PRIMARY KEY, fornecedor_id BIGINT REFERENCES fornecedores(id) ON DELETE SET NULL, numero_documento TEXT DEFAULT '',
-  data_compra DATE DEFAULT CURRENT_DATE, total NUMERIC(14,4) NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pendente',
-  observacoes TEXT DEFAULT '', empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
- );
- CREATE TABLE IF NOT EXISTS compra_itens (
-  id BIGSERIAL PRIMARY KEY, compra_id BIGINT NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
-  insumo_id BIGINT REFERENCES insumos(id) ON DELETE SET NULL, descricao TEXT NOT NULL, quantidade NUMERIC(14,4) NOT NULL DEFAULT 0,
-  unidade TEXT DEFAULT 'KG', preco_unitario NUMERIC(14,4) NOT NULL DEFAULT 0, total NUMERIC(14,4) NOT NULL DEFAULT 0
- );
- CREATE TABLE IF NOT EXISTS historico_precos (
-  id BIGSERIAL PRIMARY KEY, insumo_id BIGINT NOT NULL REFERENCES insumos(id) ON DELETE CASCADE,
-  fornecedor_id BIGINT REFERENCES fornecedores(id) ON DELETE SET NULL, preco_unitario NUMERIC(14,4) NOT NULL,
-  data_preco DATE DEFAULT CURRENT_DATE, compra_id BIGINT REFERENCES compras(id) ON DELETE SET NULL,
-  empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
- );
- CREATE TABLE IF NOT EXISTS inventarios (
-  id BIGSERIAL PRIMARY KEY, insumo_id BIGINT NOT NULL REFERENCES insumos(id) ON DELETE CASCADE,
-  quantidade_contada NUMERIC(14,4) NOT NULL DEFAULT 0, data_contagem TIMESTAMPTZ DEFAULT NOW(), responsavel TEXT DEFAULT '',
-  observacoes TEXT DEFAULT '', empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL
- );
- CREATE TABLE IF NOT EXISTS perdas (
-  id BIGSERIAL PRIMARY KEY, insumo_id BIGINT NOT NULL REFERENCES insumos(id) ON DELETE RESTRICT,
-  quantidade NUMERIC(14,4) NOT NULL, motivo TEXT DEFAULT '', custo NUMERIC(14,4) NOT NULL DEFAULT 0,
-  empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
- );
- CREATE TABLE IF NOT EXISTS documentos_operacionais (
-  id BIGSERIAL PRIMARY KEY, tipo TEXT NOT NULL DEFAULT 'outro', nome TEXT NOT NULL, emissor TEXT DEFAULT '', referencia TEXT DEFAULT '',
-  emissao DATE, validade DATE, status TEXT NOT NULL DEFAULT 'valido', observacoes TEXT DEFAULT '',
-  empresa_id BIGINT NOT NULL, unidade_id BIGINT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
- );`);
-}
+export async function initOperacao(pool){}
 export function installOperacao(app,pool){
  const tenant=req=>[req.user.empresa_id,req.user.unidade_id];
  app.get('/api/fornecedores',asyncRoute(async(req,res)=>{const {rows}=await pool.query('SELECT * FROM fornecedores WHERE empresa_id=$1 AND unidade_id=$2 ORDER BY nome',tenant(req));res.json(rows)}));
