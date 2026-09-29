@@ -31,7 +31,6 @@ async function consumirPreparacaoProduzida(db,{preparacaoId,quantidade,ordemId,u
   return {consumido,falta:qEstoque(pedido-consumido)};
 }
 
-export async function initProducao(pool){}
 
 export function installProducao(app,pool){
   app.get("/api/producao/ordens",async(req,res,next)=>{try{
