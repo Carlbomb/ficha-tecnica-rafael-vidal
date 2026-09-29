@@ -88,7 +88,7 @@ export async function initProducao(pool){
     CREATE TABLE IF NOT EXISTS estoque_produzidos(
       id BIGSERIAL PRIMARY KEY,
       ordem_producao_id BIGINT REFERENCES ordens_producao(id) ON DELETE SET NULL,
-      ficha_id BIGINT REFERENCES fichas(id) ON DELETE RESTRICT,
+      ficha_id BIGINT,
       preparacao_id BIGINT REFERENCES preparacoes(id) ON DELETE RESTRICT,
       nome TEXT NOT NULL,
       unidade TEXT NOT NULL DEFAULT 'KG',
