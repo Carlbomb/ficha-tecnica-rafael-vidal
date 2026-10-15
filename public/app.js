@@ -15,13 +15,13 @@ const num = value => {
 };
 
 const moeda = value =>
-  num(value).toLocaleString("pt-BR", {
+  num(value).toLocaleString("pt-PT", {
     style: "currency",
-    currency: "BRL"
+    currency: "EUR"
   });
 
 const parseValorMonetario = value => {
-  const texto = String(value ?? "").trim().replace(/\s/g, "").replace("R$", "");
+  const texto = String(value ?? "").trim().replace(/\s/g, "").replace(/€|EUR|R\$/gi, "");
   if (!texto) return 0;
   const normalizado = texto.includes(",")
     ? texto.replace(/\./g, "").replace(",", ".")

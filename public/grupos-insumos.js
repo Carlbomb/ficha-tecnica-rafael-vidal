@@ -2,7 +2,7 @@
 (()=>{
 const GRUPOS_PADRAO=["Carnes e Aves","Pescados e Frutos do Mar","Laticínios e Queijos","Hortifruti","Grãos, Cereais e Leguminosas","Massas e Farinhas","Óleos, Gorduras e Azeites","Temperos, Ervas e Especiarias","Molhos e Condimentos","Enlatados e Conservas","Bebidas e Líquidos","Confeitaria","Congelados","PRODUÇÕES","Outros"];
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const money=v=>Number(v||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"});
 async function apiG(url,opt={}){const r=await fetch(url,{...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})},cache:"no-store"});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Erro ao carregar grupos.");return d}
 window.telaInsumos=async function(){
  const C=document.querySelector("#content");C.innerHTML='<div class="card">Carregando insumos...</div>';

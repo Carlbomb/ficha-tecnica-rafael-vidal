@@ -1,7 +1,7 @@
 /* MISEVO — Produção do Dia / Ordens de Produção — Fase 1 */
 (()=>{const C=document.querySelector("#content"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const num=v=>{let s=String(v??"").trim().replace(",",".");const x=Number(s);return Number.isFinite(x)?x:0};
-const fmt=(v,d=3)=>num(v).toLocaleString("pt-BR",{maximumFractionDigits:d}),money=v=>num(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const fmt=(v,d=3)=>num(v).toLocaleString("pt-BR",{maximumFractionDigits:d}),money=v=>num(v).toLocaleString("pt-PT",{style:"currency",currency:"EUR"});
 async function apiP(url,opt={}){const r=await fetch(url,{...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}}),d=r.status===204?null:await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||"Erro na produção.");return d}
 const status=s=>s==="concluida"?"Concluída":s==="em_producao"?"Em produção":s==="cancelada"?"Cancelada":s==="anulada"?"Excluída":"Pendente";
 

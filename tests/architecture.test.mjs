@@ -18,7 +18,7 @@ for(const p of backend){
 }
 const index=read("public/index.html");
 assert.match(index,/\/misevo\.css\?v=1/);
-assert.match(index,/\/ui-consolidado\.js\?v=1/);
+assert.match(index,/\/ui-consolidado\.js\?v=\d+/);
 assert.ok(!/ui-v2[1-4]\.css|ui-v2[1-4]\.js|importacao-experimental/.test(index),"index carrega artefato antigo");
 const observers=frontend.reduce((n,[p,s])=>n,0);
 const observerFiles=frontend.filter(p=>read(p).includes("MutationObserver"));
