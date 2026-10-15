@@ -8,6 +8,7 @@ on:
       - "**/*.css"
       - "**/*.html"
       - "package.json"
+      - "package-lock.json"
       - ".github/workflows/test-ficha-preparacao.yml"
   workflow_dispatch:
 jobs:
@@ -18,5 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Validar arquitetura consolidada
+      - name: Instalar dependências
+        run: npm ci
+      - name: Validar arquitetura e cadastros
         run: npm test

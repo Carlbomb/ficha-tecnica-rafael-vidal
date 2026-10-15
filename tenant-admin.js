@@ -30,8 +30,46 @@ export function installTenantAdmin(app,pool){
   await db.query("COMMIT");res.json({ok:true,...alvo})
  }catch(e){await db.query("ROLLBACK");next(e)}finally{db.release()}});
  app.get("/api/plataforma/empresas",platform,async(req,res,next)=>{try{const {rows}=await pool.query(`SELECT e.*,COUNT(DISTINCT u.id)::integer AS unidades,COUNT(DISTINCT us.id)::integer AS usuarios FROM empresas e LEFT JOIN unidades u ON u.empresa_id=e.id LEFT JOIN usuarios us ON us.empresa_id=e.id GROUP BY e.id ORDER BY e.nome`);res.json(rows)}catch(e){next(e)}});
- app.post("/api/plataforma/empresas",platform,async(req,res,next)=>{const db=await pool.connect();try{const b=req.body||{},nome=String(b.nome||"").trim(),an=String(b.admin_nome||"").trim(),email=String(b.admin_email||"").trim().toLowerCase(),senha=String(b.admin_senha||"");if(!nome||!an||!email)return res.status(400).json({error:"Preencha empresa, administrador e e-mail."});if(senha.length<8)return res.status(400).json({error:"A senha inicial deve ter pelo menos 8 caracteres."});await db.query("BEGIN");const emp=(await db.query(`INSERT INTO empresas(nome,nome_fantasia,documento) VALUES($1,$2,$3) RETURNING *`,[nome,String(b.nome_fantasia||nome),String(b.documento||"")])).rows[0];const un=(await db.query(`INSERT INTO unidades(empresa_id,nome,codigo) VALUES($1,$2,$3) RETURNING *`,[emp.id,String(b.unidade_nome||"Unidade Principal"),String(b.unidade_codigo||"MATRIZ")])).rows[0];const us=(await db.query(`INSERT INTO usuarios(nome,email,senha_hash,perfil,empresa_id,unidade_id) VALUES($1,$2,$3,\'admin\',$4,$5) RETURNING id,nome,email`,[an,email,hp(senha),emp.id,un.id])).rows[0];await db.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id) VALUES($1,$2,$3)`,[us.id,un.id,emp.id]);await db.query("COMMIT");res.status(201).json({empresa:emp,unidade:un,administrador:us})}catch(e){await db.query("ROLLBACK");if(e.code==="23505")return res.status(409).json({error:"E-mail já cadastrado."});next(e)}finally{db.release()}});
- app.delete("/api/plataforma/empresas/:id",platform,async(req,res,next)=>{const db=await pool.connect();try{const id=Number(req.params.id);if(!Number.isInteger(id)||id<1)return res.status(400).json({error:"Restaurante inválido."});if(Number(req.user?.empresa_id)===id)return res.status(400).json({error:"O restaurante vinculado ao usuário principal não pode ser removido por esta tela."});const emp=(await db.query("SELECT id,nome FROM empresas WHERE id=$1",[id])).rows[0];if(!emp)return res.status(404).json({error:"Restaurante não encontrado."});await db.query("BEGIN");const tables=(await db.query(`SELECT DISTINCT tc.table_name FROM information_schema.table_constraints tc JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name=tc.constraint_name AND ccu.constraint_schema=tc.constraint_schema WHERE tc.constraint_type='FOREIGN KEY' AND ccu.table_schema='public' AND ccu.table_name='empresas' AND tc.table_schema='public'`)).rows.map(r=>r.table_name).filter(t=>/^[a-z_][a-z0-9_]*$/.test(t)&&t!=="empresas");for(const t of tables)await db.query(`DELETE FROM "${t}" WHERE empresa_id=$1`,[id]);await db.query("DELETE FROM empresas WHERE id=$1",[id]);await db.query("COMMIT");res.json({ok:true,nome:emp.nome})}catch(e){await db.query("ROLLBACK");next(e)}finally{db.release()}});
+ app.post("/api/plataforma/empresas",platform,async(req,res,next)=>{const db=await pool.connect();try{const b=req.body||{},nome=String(b.nome||"").trim(),an=String(b.admin_nome||"").trim(),email=String(b.admin_email||"").trim().toLowerCase(),senha=String(b.admin_senha||"");if(!nome||!an||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return res.status(400).json({error:"Preencha empresa, administrador e e-mail."});if(senha.length<8)return res.status(400).json({error:"A senha inicial deve ter pelo menos 8 caracteres."});await db.query("BEGIN");const emp=(await db.query(`INSERT INTO empresas(nome,nome_fantasia,documento) VALUES($1,$2,$3) RETURNING *`,[nome,String(b.nome_fantasia||nome),String(b.documento||"")])).rows[0];const un=(await db.query(`INSERT INTO unidades(empresa_id,nome,codigo) VALUES($1,$2,$3) RETURNING *`,[emp.id,String(b.unidade_nome||"Unidade Principal"),String(b.unidade_codigo||"MATRIZ")])).rows[0];const us=(await db.query(`INSERT INTO usuarios(nome,email,senha_hash,perfil,empresa_id,unidade_id) VALUES($1,$2,$3,\'admin\',$4,$5) RETURNING id,nome,email`,[an,email,hp(senha),emp.id,un.id])).rows[0];await db.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id) VALUES($1,$2,$3)`,[us.id,un.id,emp.id]);await db.query("COMMIT");res.status(201).json({empresa:emp,unidade:un,administrador:us})}catch(e){await db.query("ROLLBACK");if(e.code==="23505")return res.status(409).json({error:"E-mail já cadastrado."});next(e)}finally{db.release()}});
+ app.delete("/api/plataforma/empresas/:id",platform,async(req,res,next)=>{
+  const db=await pool.connect();
+  try {
+   const id=Number(req.params.id);
+   if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:"Restaurante inválido."});
+   if(req.body?.confirmacao!=="REMOVER")return res.status(400).json({error:"Confirme a exclusão do restaurante."});
+   if(Number(req.user.empresa_id)===id)return res.status(409).json({error:"Entre em outro restaurante antes de excluir o restaurante em uso."});
+   await db.query("BEGIN");
+   const emp=(await db.query("SELECT id,nome FROM empresas WHERE id=$1 FOR UPDATE",[id])).rows[0];
+   if(!emp){await db.query("ROLLBACK");return res.status(404).json({error:"Restaurante não encontrado."})}
+   const principal=await db.query("SELECT id FROM usuarios WHERE empresa_id=$1 AND plataforma_admin=TRUE",[id]);
+   if(principal.rows.length){await db.query("ROLLBACK");return res.status(409).json({error:"O restaurante de origem do administrador da plataforma não pode ser excluído."})}
+   // Inclui tabelas com empresa_id mesmo quando não existe FK para empresas.
+   const columns=(await db.query("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public'")).rows;
+   const has=(table,column)=>columns.some(x=>x.table_name===table&&x.column_name===column);
+   // Filhos sem empresa_id precisam ser excluídos antes de seus pais.
+   for(const [child,key,parent] of [
+    ["producao_consumos","ordem_id","ordens_producao"],
+    ["producao_componentes","ordem_id","ordens_producao"],
+    ["compra_itens","compra_id","compras"],
+    ["ingredientes","ficha_id","fichas"],
+    ["ficha_preparacoes","ficha_id","fichas"],
+    ["preparacao_componentes","preparacao_id","preparacoes"],
+    ["preparacao_ingredientes","preparacao_id","preparacoes"]
+   ])if(has(child,key)&&has(parent,"empresa_id")){
+    await db.query(`DELETE FROM "${child}" WHERE "${key}" IN (SELECT id FROM "${parent}" WHERE empresa_id=$1)`,[id]);
+   }
+   for(const table of ["estoque_movimentacoes","estoque_produzidos","etiqueta_registros","perdas","inventarios","historico_precos","compras","fornecedores","ordens_producao","documentos_operacionais","categorias_producao","fichas","usuario_unidades","sessoes","usuarios","insumos","preparacoes","unidades"]){
+    if(has(table,"empresa_id"))await db.query(`DELETE FROM "${table}" WHERE empresa_id=$1`,[id]);
+   }
+   await db.query("DELETE FROM empresas WHERE id=$1",[id]);
+   await db.query("COMMIT");
+   res.json({ok:true,nome:emp.nome});
+  }catch(e){
+   await db.query("ROLLBACK");
+   if(e.code==="23503")return res.status(409).json({error:"Há vínculos que impedem a exclusão deste restaurante. Nenhum dado foi removido."});
+   next(e);
+  }finally{db.release()}
+ });
  app.get("/api/empresa/unidades",async(req,res,next)=>{try{
   const {rows}=await pool.query(`SELECT u.id,u.nome,u.codigo,u.ativo FROM usuario_unidades a JOIN unidades u ON u.id=a.unidade_id
   WHERE a.usuario_id=$1 AND a.empresa_id=$2 AND a.ativo=TRUE AND u.ativo=TRUE ORDER BY u.nome`,[req.user.id,req.user.empresa_id]);res.json(rows)

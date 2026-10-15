@@ -455,7 +455,8 @@ const PERFIS_USUARIO = {
   chef: "Gestor / Chef",
   subchef: "Subchef",
   cozinha: "Cozinha",
-  estoque: "Estoque"
+  estoque: "Estoque",
+  consulta: "Consulta"
 };
 
 async function telaUsuarios() {
@@ -489,7 +490,8 @@ async function telaUsuarios() {
                   <td>${esc(u.email)}</td>
                   <td>${esc(PERFIS_USUARIO[u.perfil] || u.perfil)}</td>
                   <td>${u.ativo ? "Ativo" : "Inativo"}</td>
-                  <td><button type="button" onclick="editarUsuario(${Number(u.id)})">Editar</button></td>
+                  <td><button type="button" onclick="editarUsuario(${Number(u.id)})">Editar</button>
+                  ${Number(u.id)!==Number(window.USUARIO_ATUAL?.id)&&!u.plataforma_admin?`<button type="button" class="danger" onclick="excluirUsuario(${Number(u.id)},this)">Excluir</button>`:""}</td>
                 </tr>`).join("")}
             </tbody>
           </table>
@@ -504,6 +506,17 @@ async function telaUsuarios() {
 window.editarUsuario = function(id) {
   const usuario = (window.__USUARIOS || []).find(u => Number(u.id) === Number(id));
   if (usuario) formularioUsuario(usuario);
+};
+
+window.excluirUsuario = async function(id, button) {
+  const usuario = (window.__USUARIOS || []).find(u => Number(u.id) === Number(id));
+  if (!usuario || !await window.MISEVO_CONFIRM({ title: "Excluir usuário", message: `Excluir ${usuario.nome} (${usuario.email})? O acesso será removido. Os registros operacionais serão preservados.`, word: "EXCLUIR", confirmLabel: "Excluir usuário" })) return;
+  button.disabled = true;
+  try {
+    await api(`/api/auth/usuarios/${id}`, { method: "DELETE", body: JSON.stringify({confirmacao:"EXCLUIR"}) });
+    await telaUsuarios();
+    window.MISEVO_ADMIN_NOTICE("Usuário excluído com sucesso.");
+  } catch (error) { window.MISEVO_ADMIN_NOTICE(error.message, true); button.disabled = false; }
 };
 
 function formularioUsuario(usuario = null) {
@@ -560,13 +573,16 @@ function formularioUsuario(usuario = null) {
     if (senha) payload.senha = senha;
     if (editando) payload.ativo = $("#usuarioAtivo").value === "true";
 
+    const submit = event.currentTarget.querySelector('[type="submit"]');
+    submit.disabled = true;
     try {
       await api(editando ? `/api/auth/usuarios/${usuario.id}` : "/api/auth/usuarios", {
         method: editando ? "PUT" : "POST",
         body: JSON.stringify(payload)
       });
       await telaUsuarios();
-    } catch (error) { erro(error); }
+      window.MISEVO_ADMIN_NOTICE(editando ? "Usuário atualizado com sucesso." : "Usuário criado com sucesso.");
+    } catch (error) { window.MISEVO_ADMIN_NOTICE(error.message, true); submit.disabled = false; }
   };
 }
 

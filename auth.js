@@ -214,12 +214,13 @@ export async function installAuth(app, pool) {
       const user = await currentUser(req);
       if (!user) return res.status(401).json({error:"Sessão não autenticada."});
       if (user.perfil !== "admin") return res.status(403).json({error:"Acesso restrito ao administrador."});
-      const { rows } = await pool.query(`SELECT id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes,created_at FROM usuarios WHERE empresa_id=$1 AND (plataforma_admin IS NOT TRUE OR id=$2) ORDER BY nome`,[user.empresa_id,user.id]);
+      const { rows } = await pool.query(`SELECT id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes,plataforma_admin,created_at FROM usuarios WHERE empresa_id=$1 AND (plataforma_admin IS NOT TRUE OR id=$2) ORDER BY nome`,[user.empresa_id,user.id]);
       res.json(rows);
     } catch(e){ next(e); }
   });
 
   app.post("/api/auth/usuarios", async (req,res,next) => {
+    let db;
     try {
       const user = await currentUser(req);
       if (!user) return res.status(401).json({error:"Sessão não autenticada."});
@@ -227,17 +228,56 @@ export async function installAuth(app, pool) {
       const nome = String(req.body?.nome || "").trim(), email = String(req.body?.email || "").trim().toLowerCase();
       const senha = String(req.body?.senha || ""), perfil = String(req.body?.perfil || "cozinha");
       const permissoes = req.body?.permissoes && typeof req.body.permissoes === "object" ? req.body.permissoes : {};
-      if (!nome || !email) return res.status(400).json({error:"Informe nome e e-mail."});
+      if (!nome || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({error:"Informe nome e e-mail válido."});
       if (senha.length < MIN_PASSWORD) return res.status(400).json({error:`A senha deve ter pelo menos ${MIN_PASSWORD} caracteres.`});
       if (!ROLES.has(perfil)) return res.status(400).json({error:"Perfil inválido."});
-      const { rows } = await pool.query(
+      db = await pool.connect();
+      await db.query("BEGIN");
+      await db.query("SELECT id FROM empresas WHERE id=$1 FOR UPDATE", [user.empresa_id]);
+      const { rows } = await db.query(
         `INSERT INTO usuarios (nome,email,senha_hash,perfil,empresa_id,unidade_id,permissoes) VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING id,nome,email,perfil,ativo,empresa_id,unidade_id,permissoes`,
         [nome,email,hashPassword(senha),perfil,user.empresa_id,user.unidade_id,JSON.stringify(permissoes)]
       );
-      await pool.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[rows[0].id,user.unidade_id,user.empresa_id]);
+      await db.query(`INSERT INTO usuario_unidades(usuario_id,unidade_id,empresa_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[rows[0].id,user.unidade_id,user.empresa_id]);
+      await db.query("COMMIT");
       res.status(201).json(rows[0]);
-    } catch(e) { if (e.code==="23505") return res.status(409).json({error:"Este e-mail já está cadastrado."}); next(e); }
+    } catch(e) {
+      if (db) await db.query("ROLLBACK");
+      if (e.code==="23505") return res.status(409).json({error:"Este e-mail já está cadastrado."});
+      next(e);
+    } finally { db?.release(); }
+  });
+
+  app.delete("/api/auth/usuarios/:id", async (req,res,next) => {
+    let db;
+    try {
+      const user = await currentUser(req);
+      if (!user) return res.status(401).json({error:"Sessão não autenticada."});
+      if (user.perfil !== "admin") return res.status(403).json({error:"Acesso restrito ao administrador."});
+      const id = Number(req.params.id);
+      if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({error:"Usuário inválido."});
+      if (Number(user.id) === id) return res.status(400).json({error:"Você não pode excluir seu próprio acesso."});
+      if (req.body?.confirmacao !== "EXCLUIR") return res.status(400).json({error:"Confirme a exclusão do usuário."});
+      db = await pool.connect();
+      await db.query("BEGIN");
+      await db.query("SELECT id FROM empresas WHERE id=$1 FOR UPDATE", [user.empresa_id]);
+      const alvo = (await db.query("SELECT id,perfil,ativo,plataforma_admin FROM usuarios WHERE id=$1 AND empresa_id=$2 FOR UPDATE",[id,user.empresa_id])).rows[0];
+      if (!alvo) { await db.query("ROLLBACK"); return res.status(404).json({error:"Usuário não encontrado."}); }
+      if (alvo.plataforma_admin) { await db.query("ROLLBACK"); return res.status(403).json({error:"O administrador da plataforma não pode ser excluído."}); }
+      if (alvo.perfil === "admin" && alvo.ativo) {
+        const outros = await db.query("SELECT id FROM usuarios WHERE empresa_id=$1 AND perfil='admin' AND ativo=TRUE AND id<>$2",[user.empresa_id,id]);
+        if (!outros.rows.length) { await db.query("ROLLBACK"); return res.status(409).json({error:"Cadastre outro administrador ativo antes de excluir este usuário."}); }
+      }
+      // Sessões e vínculos são removidos por CASCADE; autoria operacional usa SET NULL.
+      await db.query("DELETE FROM usuarios WHERE id=$1 AND empresa_id=$2",[id,user.empresa_id]);
+      await db.query("COMMIT");
+      res.status(204).end();
+    } catch(e) {
+      if (db) await db.query("ROLLBACK");
+      if (e.code === "23503") return res.status(409).json({error:"Este usuário possui vínculos que impedem a exclusão. Desative-o ou revise os vínculos."});
+      next(e);
+    } finally { db?.release(); }
   });
 
   app.put("/api/auth/usuarios/:id", async (req,res,next) => {

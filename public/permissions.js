@@ -38,7 +38,7 @@ window.telaUsuarios=async function(){
   const usuarios=await api("/api/auth/usuarios"); window.__USUARIOS=usuarios;
   C.innerHTML=`<div class="section-head"><div><small>EQUIPE DA COZINHA</small><h2>Usuários e Permissões</h2><p>Defina a função e os acessos de cada pessoa.</p></div><button class="primary" id="novoUsuario">+ Novo usuário</button></div>
   <div class="card"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Função</th><th>Status</th><th></th></tr></thead><tbody>
-  ${usuarios.map(u=>`<tr><td><b>${esc2(u.nome)}</b></td><td>${esc2(u.email)}</td><td>${esc2(PERFIS[u.perfil]||u.perfil)}</td><td>${u.ativo?"Ativo":"Inativo"}</td><td><button onclick="editarUsuarioPerm(${Number(u.id)})">Editar</button></td></tr>`).join("")}
+  ${usuarios.map(u=>`<tr><td><b>${esc2(u.nome)}</b></td><td>${esc2(u.email)}</td><td>${esc2(PERFIS[u.perfil]||u.perfil)}</td><td>${u.ativo?"Ativo":"Inativo"}</td><td><button type="button" onclick="editarUsuarioPerm(${Number(u.id)})">Editar</button>${Number(u.id)!==Number(window.USUARIO_ATUAL?.id)&&!u.plataforma_admin?`<button type="button" class="danger" onclick="excluirUsuario(${Number(u.id)},this)">Excluir</button>`:""}</td></tr>`).join("")}
   </tbody></table></div></div>`;
   document.querySelector("#novoUsuario").onclick=()=>formUsuarioPerm();
  }catch(e){erro(e);}
@@ -67,7 +67,8 @@ function formUsuarioPerm(u=null){
   ev.preventDefault();const senha=document.querySelector("#usuarioSenha").value;
   const payload={nome:document.querySelector("#usuarioNome").value.trim(),email:document.querySelector("#usuarioEmail").value.trim(),perfil:document.querySelector("#usuarioPerfil").value,permissoes:collect()};
   if(senha)payload.senha=senha;if(edit)payload.ativo=document.querySelector("#usuarioAtivo").value==="true";
-  try{await api(edit?`/api/auth/usuarios/${u.id}`:"/api/auth/usuarios",{method:edit?"PUT":"POST",body:JSON.stringify(payload)});await telaUsuarios();}catch(e){erro(e);}
+  const submit=ev.currentTarget.querySelector('[type="submit"]');submit.disabled=true;
+  try{await api(edit?`/api/auth/usuarios/${u.id}`:"/api/auth/usuarios",{method:edit?"PUT":"POST",body:JSON.stringify(payload)});await telaUsuarios();window.MISEVO_ADMIN_NOTICE(edit?"Usuário atualizado com sucesso.":"Usuário criado com sucesso.")}catch(e){window.MISEVO_ADMIN_NOTICE(e.message,true);submit.disabled=false}
  };
 }
 function ajustarMenu(user){
